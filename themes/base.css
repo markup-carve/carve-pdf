@@ -87,6 +87,10 @@ pre {
 }
 pre code { background: none; padding: 0; font-size: 12px; line-height: 1.5; }
 
+/* mermaid diagrams: drop the code-block chrome, center the rendered SVG */
+pre.mermaid { background: none; border: none; padding: 0; margin: 0 0 14px; text-align: center; break-inside: avoid; }
+pre.mermaid svg { max-width: 100%; height: auto; }
+
 /* ---- blockquote ---- */
 blockquote {
   margin: 14px 0;

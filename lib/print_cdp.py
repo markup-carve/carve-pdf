@@ -143,6 +143,19 @@ try:
     if not got_load:
         time.sleep(0.5)  # fallback: give layout a moment
 
+    # Await any async client rendering (e.g. Mermaid sets window.__carveReady).
+    # Resolves immediately when the promise is absent.
+    cmd("Runtime.enable")
+    try:
+        cmd("Runtime.evaluate", {
+            "expression": "Promise.resolve(window.__carveReady).then(()=>true).catch(()=>true)",
+            "awaitPromise": True,
+            "returnByValue": True,
+            "timeout": 20000,
+        })
+    except Exception:
+        pass  # never let diagram rendering block the PDF
+
     result = cmd("Page.printToPDF", {
         "printBackground": True,
         "preferCSSPageSize": True,

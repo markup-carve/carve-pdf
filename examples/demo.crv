@@ -95,6 +95,17 @@ Keep the water just off the boil (94 °C) and don't over-extract --- the florals
 Keep the bag sealed and away from light. Whole bean stays bright for about three weeks.
 :::
 
+A Mermaid diagram (typeset to SVG at print time):
+
+``` mermaid
+graph LR
+  G[Green beans] --> R[Roast]
+  R --> D[Rest 3-7 days]
+  D --> B{Brew}
+  B -->|pour-over| V[V60]
+  B -->|immersion| A[Aeropress]
+```
+
 ## Reference
 
 A definition list:

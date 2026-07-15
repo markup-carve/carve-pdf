@@ -99,6 +99,11 @@ source. The `::: pagebreak` marker works in every mode.
 offline) when a KaTeX install is found; point `CARVE_KATEX` at its `dist/` dir, or it
 probes common locations. Without KaTeX, math degrades to readable raw TeX.
 
+**Diagrams.** ` ```mermaid ` blocks are rendered to SVG at print time with Mermaid when
+a `mermaid.min.js` is found; point `CARVE_MERMAID` at it, or it probes common locations.
+Without Mermaid, the diagram source stays visible in a code block. print_cdp waits for
+the async render (`window.__carveReady`) before printing.
+
 ## Environment
 
 | Var | Default | Meaning |
@@ -109,6 +114,7 @@ probes common locations. Without KaTeX, math degrades to readable raw TeX.
 | `CARVE_SMART_LOCALE` | `en` | Smart-quotes locale (php backend) |
 | `CARVE_PDF_FOOTER` | `Page {page} of {pages}` | Footer template; `{page}`/`{pages}` placeholders. Frontmatter `footer:` overrides it; empty string disables the footer |
 | `CARVE_KATEX` | autodetect | KaTeX `dist/` dir for math typesetting |
+| `CARVE_MERMAID` | autodetect | `mermaid.min.js` for diagram rendering |
 | `CHROME_BIN` | autodetect | Chrome/Chromium binary |
 
 The footer template accepts `{page}` and `{pages}`. Precedence: frontmatter `footer:`

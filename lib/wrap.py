@@ -110,6 +110,35 @@ def katex_assets():
 katex_head, katex_body = katex_assets()
 
 
+# --- optional Mermaid (only when the document contains diagrams) ------------
+def mermaid_body():
+    # match `mermaid` as a class token (may sit alongside authored classes)
+    if not re.search(r'class="[^"]*\bmermaid\b', fragment):
+        return ""
+    src = os.environ.get("CARVE_MERMAID") or next(
+        (p for p in (
+            "/media/mark/data/work/git/vscode-carve/media/mermaid.min.js",
+            "/media/mark/data/work/git/carve-js/node_modules/mermaid/dist/mermaid.min.js",
+        ) if Path(p).is_file()),
+        None,
+    )
+    if not src:
+        return ""  # no mermaid lib -> the source stays visible in a <pre>
+    mjs = Path(src).read_text(encoding="utf-8")
+    # Unwrap the inner <code>, render to SVG, and expose a promise print_cdp awaits.
+    return (
+        f"<script>{mjs}</script>"
+        "<script>window.__carveReady=(async()=>{"
+        "document.querySelectorAll('pre.mermaid').forEach(function(el){el.textContent=el.textContent;});"
+        "if(window.mermaid){mermaid.initialize({startOnLoad:false});"
+        "await mermaid.run({querySelector:'pre.mermaid'});}"
+        "})();</script>"
+    )
+
+
+mermaid_body_html = mermaid_body()
+
+
 title = meta.get("title") or "Carve document"
 
 # kicker: explicit key, else uppercased tags, else nothing
@@ -148,6 +177,7 @@ doc = f"""<!doctype html>
 {fragment}
 {byline}
 {katex_body}
+{mermaid_body_html}
 </body></html>
 """
 

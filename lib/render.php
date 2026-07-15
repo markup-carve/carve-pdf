@@ -26,6 +26,7 @@ use MarkupCarve\Carve\Extension\AutolinkExtension;
 use MarkupCarve\Carve\Extension\CodeGroupExtension;
 use MarkupCarve\Carve\Extension\DetailsExtension;
 use MarkupCarve\Carve\Extension\ExternalLinksExtension;
+use MarkupCarve\Carve\Extension\FencedRenderExtension;
 use MarkupCarve\Carve\Extension\InlineFootnotesExtension;
 use MarkupCarve\Carve\Extension\ListTableExtension;
 use MarkupCarve\Carve\Extension\MathBlockExtension;
@@ -148,6 +149,7 @@ $converter->addExtensions([
     new ExternalLinksExtension(rel: 'nofollow noopener', target: '_blank'),
     new TableOfContentsExtension(),
     new MathBlockExtension(),
+    FencedRenderExtension::mermaid(),
     new SmartQuotesExtension(locale: (string) (getenv('CARVE_SMART_LOCALE') ?: 'en')),
 ]);
 
