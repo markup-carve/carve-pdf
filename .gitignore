@@ -1,10 +1,10 @@
 # build artifacts
-*.pdf
 
 # scratch / plans (never tracked)
 _*
 tmp/
 .playwright-mcp/
+.idea/
 
 # os
 .DS_Store

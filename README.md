@@ -101,8 +101,14 @@ probes common locations. Without KaTeX, math degrades to readable raw TeX.
 
 **Diagrams.** ` ```mermaid ` blocks are rendered to SVG at print time with Mermaid when
 a `mermaid.min.js` is found; point `CARVE_MERMAID` at it, or it probes common locations.
-Without Mermaid, the diagram source stays visible in a code block. print_cdp waits for
-the async render (`window.__carveReady`) before printing.
+Without Mermaid, the diagram source stays visible in a code block.
+
+**Charts.** ` ```chart ` blocks (a Chart.js config as JSON) are drawn to a `<canvas>`
+with Chart.js when `chart.umd.js` is found (`CARVE_CHART` or autodetect). Without it,
+the JSON stays visible.
+
+KaTeX, Mermaid, and Chart.js all render in Chrome under one `window.__carveReady`
+promise that print_cdp awaits, so every renderer finishes before the PDF is captured.
 
 ## Environment
 
@@ -115,6 +121,7 @@ the async render (`window.__carveReady`) before printing.
 | `CARVE_PDF_FOOTER` | `Page {page} of {pages}` | Footer template; `{page}`/`{pages}` placeholders. Frontmatter `footer:` overrides it; empty string disables the footer |
 | `CARVE_KATEX` | autodetect | KaTeX `dist/` dir for math typesetting |
 | `CARVE_MERMAID` | autodetect | `mermaid.min.js` for diagram rendering |
+| `CARVE_CHART` | autodetect | `chart.umd.js` for chart rendering |
 | `CHROME_BIN` | autodetect | Chrome/Chromium binary |
 
 The footer template accepts `{page}` and `{pages}`. Precedence: frontmatter `footer:`

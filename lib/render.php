@@ -150,6 +150,7 @@ $converter->addExtensions([
     new TableOfContentsExtension(),
     new MathBlockExtension(),
     FencedRenderExtension::mermaid(),
+    FencedRenderExtension::chart(),
     new SmartQuotesExtension(locale: (string) (getenv('CARVE_SMART_LOCALE') ?: 'en')),
 ]);
 

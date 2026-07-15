@@ -106,6 +106,12 @@ graph LR
   B -->|immersion| A[Aeropress]
 ```
 
+A Chart.js chart (Chart config as JSON, drawn to a canvas at print time):
+
+``` chart
+{"type":"bar","data":{"labels":["V60","Aeropress","Batch"],"datasets":[{"label":"Cups per day","data":[12,7,20],"backgroundColor":["#2e7d32","#1565c0","#b26a00"]}]},"options":{"plugins":{"title":{"display":true,"text":"Brews by method"}}}}
+```
+
 ## Reference
 
 A definition list:

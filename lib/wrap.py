@@ -77,66 +77,97 @@ if overrides:
     css += "\n/* frontmatter overrides */\n" + "\n".join(overrides) + "\n"
 
 
-# --- optional KaTeX (only when the document contains math) ------------------
-def katex_assets():
-    if 'class="math' not in fragment:
-        return "", ""
-    root = os.environ.get("CARVE_KATEX") or next(
-        (d for d in (
+# --- optional client-side renderers (math / diagrams / charts) --------------
+# KaTeX, Mermaid, and Chart.js all run in Chrome before printToPDF. They share a
+# single window.__carveReady promise that print_cdp awaits, so multiple
+# renderers in one document all complete before the PDF is captured. Each is
+# only wired in when (a) the document uses it and (b) its library is found.
+def _first_file(env_name, *paths):
+    p = os.environ.get(env_name)
+    if p and Path(p).is_file():
+        return Path(p)
+    return next((Path(x) for x in paths if Path(x).is_file()), None)
+
+
+def _first_dir(env_name, *dirs):
+    d = os.environ.get(env_name)
+    if d and Path(d, "katex.min.css").is_file():
+        return Path(d)
+    return next((Path(x) for x in dirs if Path(x, "katex.min.css").is_file()), None)
+
+
+def client_assets():
+    head_parts, lib_scripts, init_steps = [], [], []
+
+    # KaTeX (math) - synchronous render
+    if 'class="math' in fragment:
+        root = _first_dir(
+            "CARVE_KATEX",
             "/media/mark/data/work/git/markup-carve-carve/node_modules/katex/dist",
             "/media/mark/data/work/git/carve-js/node_modules/katex/dist",
-        ) if Path(d, "katex.min.css").is_file()),
-        None,
-    )
-    if not root:
-        return "", ""  # no KaTeX available -> raw TeX (still readable)
-    root = Path(root)
-    fonts_uri = (root / "fonts").resolve().as_uri()
-    kcss = root.joinpath("katex.min.css").read_text(encoding="utf-8").replace(
-        "url(fonts/", f"url({fonts_uri}/"
-    )
-    kjs = root.joinpath("katex.min.js").read_text(encoding="utf-8")
-    autorender = root.joinpath("contrib", "auto-render.min.js").read_text(encoding="utf-8")
-    head = f"<style>{kcss}</style>"
-    body = (
-        f"<script>{kjs}</script><script>{autorender}</script>"
-        "<script>renderMathInElement(document.body,{delimiters:["
-        '{left:"\\\\[",right:"\\\\]",display:true},'
-        '{left:"\\\\(",right:"\\\\)",display:false}],throwOnError:false});</script>'
-    )
-    return head, body
+        )
+        if root:
+            fonts_uri = (root / "fonts").resolve().as_uri()
+            kcss = (root / "katex.min.css").read_text(encoding="utf-8").replace(
+                "url(fonts/", f"url({fonts_uri}/"
+            )
+            head_parts.append(f"<style>{kcss}</style>")
+            lib_scripts.append(f"<script>{(root / 'katex.min.js').read_text(encoding='utf-8')}</script>")
+            lib_scripts.append(f"<script>{(root / 'contrib' / 'auto-render.min.js').read_text(encoding='utf-8')}</script>")
+            init_steps.append(
+                "renderMathInElement(document.body,{delimiters:["
+                "{left:'\\\\[',right:'\\\\]',display:true},"
+                "{left:'\\\\(',right:'\\\\)',display:false}],throwOnError:false});"
+            )
 
-
-katex_head, katex_body = katex_assets()
-
-
-# --- optional Mermaid (only when the document contains diagrams) ------------
-def mermaid_body():
-    # match `mermaid` as a class token (may sit alongside authored classes)
-    if not re.search(r'class="[^"]*\bmermaid\b', fragment):
-        return ""
-    src = os.environ.get("CARVE_MERMAID") or next(
-        (p for p in (
+    # Mermaid (diagrams) - async render to SVG
+    if re.search(r'class="[^"]*\bmermaid\b', fragment):
+        src = _first_file(
+            "CARVE_MERMAID",
             "/media/mark/data/work/git/vscode-carve/media/mermaid.min.js",
             "/media/mark/data/work/git/carve-js/node_modules/mermaid/dist/mermaid.min.js",
-        ) if Path(p).is_file()),
-        None,
-    )
-    if not src:
-        return ""  # no mermaid lib -> the source stays visible in a <pre>
-    mjs = Path(src).read_text(encoding="utf-8")
-    # Unwrap the inner <code>, render to SVG, and expose a promise print_cdp awaits.
-    return (
-        f"<script>{mjs}</script>"
-        "<script>window.__carveReady=(async()=>{"
-        "document.querySelectorAll('pre.mermaid').forEach(function(el){el.textContent=el.textContent;});"
-        "if(window.mermaid){mermaid.initialize({startOnLoad:false});"
-        "await mermaid.run({querySelector:'pre.mermaid'});}"
-        "})();</script>"
-    )
+        )
+        if src:
+            lib_scripts.append(f"<script>{src.read_text(encoding='utf-8')}</script>")
+            init_steps.append(
+                "document.querySelectorAll('pre.mermaid').forEach(function(el){el.textContent=el.textContent;});"
+                "if(window.mermaid){mermaid.initialize({startOnLoad:false});"
+                "await mermaid.run({querySelector:'pre.mermaid'});}"
+            )
+
+    # Chart.js (charts) - JSON config -> canvas
+    if re.search(r'class="[^"]*\bchart\b', fragment):
+        src = _first_file(
+            "CARVE_CHART",
+            "/media/mark/data/work/git/vscode-carve/media/chart.umd.js",
+            "/media/mark/data/work/git/markup-carve-carve/node_modules/chart.js/dist/chart.umd.js",
+        )
+        if src:
+            lib_scripts.append(f"<script>{src.read_text(encoding='utf-8')}</script>")
+            init_steps.append(
+                "document.querySelectorAll('pre.chart').forEach(function(el){"
+                "var cfg;try{cfg=JSON.parse(el.textContent);}catch(e){return;}"
+                "cfg.options=Object.assign({},cfg.options||{});"
+                "cfg.options.responsive=false;cfg.options.animation=false;"
+                "var cv=document.createElement('canvas');cv.width=680;cv.height=360;"
+                "cv.style.cssText='display:block;margin:0 auto;max-width:100%';"
+                "el.replaceWith(cv);if(window.Chart)new Chart(cv.getContext('2d'),cfg);});"
+                "await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r);});});"
+            )
+
+    if not (head_parts or lib_scripts or init_steps):
+        return "", ""
+    body = "".join(lib_scripts)
+    if init_steps:
+        body += (
+            "<script>window.__carveReady=(async()=>{"
+            + "".join(init_steps)
+            + "})().catch(function(e){console.error(e);});</script>"
+        )
+    return "".join(head_parts), body
 
 
-mermaid_body_html = mermaid_body()
+client_head, client_body = client_assets()
 
 
 title = meta.get("title") or "Carve document"
@@ -171,13 +202,12 @@ doc = f"""<!doctype html>
 <style>
 {css}
 </style>
-{katex_head}
+{client_head}
 </head><body>
 {header}
 {fragment}
 {byline}
-{katex_body}
-{mermaid_body_html}
+{client_body}
 </body></html>
 """
 
