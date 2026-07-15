@@ -10,8 +10,11 @@ declare(strict_types=1);
  * Renders in STATIC mode (interactive constructs flattened, no client JS) with
  * safe mode on (raw HTML escaped).
  *
- * Usage:  php render.php <input.crv>            # writes HTML fragment to stdout
- *         php render.php --meta <input.crv>     # writes frontmatter as JSON
+ * Usage:  php render.php [--format html|md|txt] <input.crv>   # rendered output to stdout
+ *         php render.php --meta <input.crv>                   # frontmatter as JSON
+ *
+ * html (default) applies the faithful extension set; md/txt use carve-php's
+ * markdown/plain converters (which flatten interactive constructs natively).
  *
  * The composer autoloader that provides MarkupCarve\Carve is resolved from
  * $CARVE_PHP_AUTOLOAD, falling back to a few common locations.
@@ -64,11 +67,22 @@ if (!class_exists(CarveConverter::class)) {
 // --- args -------------------------------------------------------------------
 $args = array_slice($argv, 1);
 $metaOnly = false;
-if (($args[0] ?? null) === '--meta') {
-    $metaOnly = true;
-    array_shift($args);
+$format = 'html';
+$rest = [];
+for ($i = 0; $i < count($args); $i++) {
+    $a = $args[$i];
+    if ($a === '--meta') {
+        $metaOnly = true;
+    } elseif ($a === '--format') {
+        $format = $args[++$i] ?? 'html';
+    } elseif (in_array($a, ['--html', '--md', '--txt'], true)) {
+        $format = ltrim($a, '-');
+    } else {
+        $rest[] = $a;
+    }
 }
-$input = $args[0] ?? null;
+$format = $format === 'md' ? 'md' : ($format === 'txt' ? 'txt' : 'html');
+$input = $rest[0] ?? null;
 if ($input === null || !is_file($input)) {
     fail('input .crv file not found: ' . ($input ?? '(none)'));
 }
@@ -106,7 +120,17 @@ if ($metaOnly) {
     exit(0);
 }
 
-// --- build the faithful converter -------------------------------------------
+// --- md / txt: carve-php's native flattening converters ---------------------
+if ($format === 'md') {
+    echo CarveConverter::markdown()->convert($source);
+    exit(0);
+}
+if ($format === 'txt') {
+    echo CarveConverter::plainText()->convert($source);
+    exit(0);
+}
+
+// --- html: the faithful converter -------------------------------------------
 $converter = new CarveConverter(
     warnings: true,
     safeMode: true,

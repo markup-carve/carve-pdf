@@ -2,9 +2,15 @@
 #
 # crv2pdf - render a Carve (.crv) document to a print-ready PDF.
 #
-#   crv2pdf <input.crv> [output.pdf]
+#   crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt]
 #
-# Pipeline:  render.php (Carve -> faithful HTML) | wrap.py (+ frontmatter + CSS)
+# Output format (default --pdf):
+#   --pdf   paginated PDF (render -> wrap -> Chrome print)
+#   --html  standalone styled HTML document (render -> wrap)
+#   --md    Markdown
+#   --txt   plain text
+#
+# Pipeline:  render.php / render.mjs (Carve -> HTML) | wrap.py (+ frontmatter + CSS)
 #            | print_cdp.py (Chrome DevTools -> PDF with page numbers).
 #
 # Env:
@@ -26,16 +32,27 @@ HERE="$(cd "$(dirname "$SELF")" && pwd)"
 LIB="$HERE/lib"
 THEMES="$HERE/themes"
 
-IN="${1:-}"
+# --- parse args: input, optional output, optional --format flag -------------
+FORMAT="pdf"
+POS=()
+for a in "$@"; do
+  case "$a" in
+    --pdf|--html|--md|--txt) FORMAT="${a#--}" ;;
+    --format=*) FORMAT="${a#--format=}" ;;
+    *) POS+=("$a") ;;
+  esac
+done
+
+IN="${POS[0]:-}"
 if [ -z "$IN" ]; then
-  echo "usage: crv2pdf <input.crv> [output.pdf]" >&2
+  echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt]" >&2
   exit 2
 fi
 if [ ! -f "$IN" ]; then
   echo "crv2pdf: input not found: $IN" >&2
   exit 1
 fi
-OUT="${2:-${IN%.*}.pdf}"
+OUT="${POS[1]:-${IN%.*}.$FORMAT}"
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/crv2pdf.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
@@ -56,19 +73,37 @@ if [ "$RENDERER" = "auto" ]; then
   fi
 fi
 
-case "$RENDERER" in
-  php) php "$LIB/render.php" "$IN" > "$FRAG" ;;
-  js)  node "$LIB/render.mjs" "$IN" > "$FRAG" ;;
-  *)   echo "crv2pdf: unknown CARVE_RENDERER '$RENDERER' (want php|js|auto)" >&2; exit 2 ;;
-esac
+render() {  # render() <format> -> writes to $FRAG
+  case "$RENDERER" in
+    php) php "$LIB/render.php" --format "$1" "$IN" > "$FRAG" ;;
+    js)  node "$LIB/render.mjs" --format "$1" "$IN" > "$FRAG" ;;
+    *)   echo "crv2pdf: unknown CARVE_RENDERER '$RENDERER' (want php|js|auto)" >&2; exit 2 ;;
+  esac
+}
 
-# --- frontmatter (renderer-independent) -------------------------------------
+# --- md / txt: raw renderer output, no wrap/print ---------------------------
+if [ "$FORMAT" = "md" ] || [ "$FORMAT" = "txt" ]; then
+  render "$FORMAT"
+  cp "$FRAG" "$OUT"
+  echo "$OUT ($RENDERER backend, $FORMAT)"
+  exit 0
+fi
+
+# --- html / pdf: render HTML, then wrap -------------------------------------
+render html
 python3 "$LIB/meta.py" "$IN" > "$META"
 SRCDIR="$(cd "$(dirname "$IN")" && pwd)"
 python3 "$LIB/wrap.py" "$FRAG" "$META" "$SRCDIR" "$DOC" "$THEMES/base.css" "$THEMES/print.css"
 
-# --- footer: frontmatter `footer` wins (even when explicitly empty), else the
-#     print_cdp default chain ($CARVE_PDF_FOOTER, then the English default) ----
+if [ "$FORMAT" = "html" ]; then
+  cp "$DOC" "$OUT"
+  echo "$OUT ($RENDERER backend, html)"
+  exit 0
+fi
+
+# --- pdf: footer resolution + Chrome print ----------------------------------
+# frontmatter `footer` wins (even when explicitly empty), else print_cdp's
+# default chain ($CARVE_PDF_FOOTER, then the English default).
 FOOTER_PRESENT="$(python3 -c 'import json,sys; print(int("footer" in json.load(open(sys.argv[1]))))' "$META")"
 if [ "$FOOTER_PRESENT" = "1" ]; then
   FOOTER="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["footer"])' "$META")"

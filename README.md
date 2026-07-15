@@ -7,7 +7,13 @@ section page-breaks and page numbers.
 ```bash
 crv2pdf examples/demo.crv            # -> examples/demo.pdf
 crv2pdf post.crv out.pdf             # explicit output
+crv2pdf post.crv --html              # standalone styled HTML  -> post.html
+crv2pdf post.crv --md                # Markdown                -> post.md
+crv2pdf post.crv --txt               # plain text              -> post.txt
 ```
+
+Output format defaults to `--pdf`. `--html` emits a self-contained styled document
+(CSS inlined); `--md` / `--txt` use the renderer's native flattening converters.
 
 ## Pipeline
 
@@ -69,9 +75,20 @@ date: 2026-07-15
 kicker: "section · label"     # small caps header line (falls back to tags)
 tags: [a, b, c]
 lang: en
-footer: "Page {page} of {pages}"   # optional; overrides $CARVE_PDF_FOOTER
+footer: "Page {page} of {pages}"   # optional; overrides $CARVE_PDF_FOOTER ("" disables)
+paper: A4                           # A4 | Letter | "210mm 297mm" (PDF/HTML)
+margin: "20mm 18mm"                 # any CSS @page margin
+pageBreaks: h2                      # h2 (each ## a new page) | none | manual
 ---
 ```
+
+**Page breaks.** `h2` (default) starts each top-level section on a fresh page; `none`
+lets content flow; `manual` breaks only at an explicit `::: pagebreak` block in the
+source. The `::: pagebreak` marker works in every mode.
+
+**Math.** `$`...`$` inline and `$$`...`$$` block math are typeset with KaTeX (bundled,
+offline) when a KaTeX install is found; point `CARVE_KATEX` at its `dist/` dir, or it
+probes common locations. Without KaTeX, math degrades to readable raw TeX.
 
 ## Environment
 
@@ -82,6 +99,7 @@ footer: "Page {page} of {pages}"   # optional; overrides $CARVE_PDF_FOOTER
 | `CARVE_JS` | autodetect | carve-js checkout or `dist/index.js` (js) |
 | `CARVE_SMART_LOCALE` | `en` | Smart-quotes locale (php backend) |
 | `CARVE_PDF_FOOTER` | `Page {page} of {pages}` | Footer template; `{page}`/`{pages}` placeholders. Frontmatter `footer:` overrides it; empty string disables the footer |
+| `CARVE_KATEX` | autodetect | KaTeX `dist/` dir for math typesetting |
 | `CHROME_BIN` | autodetect | Chrome/Chromium binary |
 
 The footer template accepts `{page}` and `{pages}`. Precedence: frontmatter `footer:`
@@ -104,7 +122,8 @@ ln -s "$PWD/crv2pdf.sh" ~/.local/bin/crv2pdf
 
 ## Known limitations
 
-- **Math** renders as raw TeX in `\(..\)` / `\[..\]` (static mode ships no KaTeX/MathJax).
+- **Math** is typeset with KaTeX when available (see above); otherwise it degrades to
+  raw TeX in `\(..\)` / `\[..\]`.
 - **Tabs** are auto-labeled `Tab N` in static output; use `code-group` for labeled tabs.
 - **Images** must use relative or `https:` URLs - `data:` and `file:` URIs are neutralized
   by safe mode (an XSS defense inherited from carve-php). Relative paths resolve against

@@ -11,6 +11,7 @@ Any CSS files given are inlined into a single <style> block.
 """
 import html
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -35,6 +36,78 @@ css = "\n".join(p.read_text(encoding="utf-8") for p in css_paths if p.is_file())
 
 def esc(v) -> str:
     return html.escape(str(v), quote=True)
+
+
+# --- page geometry + break-control overrides (from frontmatter) -------------
+# Frontmatter can come from untrusted documents, so paper/margin are strictly
+# validated before being inlined into a <style> block (else a crafted value
+# could break out of @page and inject arbitrary CSS / remote resource loads).
+_PAPER_NAMED = re.compile(
+    r"^(a[0-9]|b[0-9]|c[0-9]|letter|legal|ledger|tabloid)"
+    r"(\s+(portrait|landscape))?$",
+    re.IGNORECASE,
+)
+_DIMS = re.compile(r"^\d+(\.\d+)?(mm|cm|in|pt|pc|px)(\s+\d+(\.\d+)?(mm|cm|in|pt|pc|px))?$", re.IGNORECASE)
+_MARGIN = re.compile(r"^(\d+(\.\d+)?(mm|cm|in|pt|pc|px)\s*){1,4}$", re.IGNORECASE)
+
+
+def _valid(value, *patterns):
+    v = str(value).strip()
+    return v if any(p.match(v) for p in patterns) else None
+
+
+overrides = []
+paper = _valid(meta.get("paper", ""), _PAPER_NAMED, _DIMS) if meta.get("paper") else None
+margin = _valid(meta.get("margin", ""), _MARGIN) if meta.get("margin") else None
+if meta.get("paper") and not paper:
+    sys.stderr.write(f"wrap.py: ignoring invalid `paper` frontmatter: {meta.get('paper')!r}\n")
+if meta.get("margin") and not margin:
+    sys.stderr.write(f"wrap.py: ignoring invalid `margin` frontmatter: {meta.get('margin')!r}\n")
+if paper or margin:
+    decls = ""
+    if paper:
+        decls += f" size: {paper};"
+    if margin:
+        decls += f" margin: {margin};"
+    overrides.append(f"@page {{{decls} }}")
+page_breaks = str(meta.get("pageBreaks", "h2"))
+if page_breaks in ("none", "manual"):
+    overrides.append("h2 { break-before: auto; }")
+if overrides:
+    css += "\n/* frontmatter overrides */\n" + "\n".join(overrides) + "\n"
+
+
+# --- optional KaTeX (only when the document contains math) ------------------
+def katex_assets():
+    if 'class="math' not in fragment:
+        return "", ""
+    root = os.environ.get("CARVE_KATEX") or next(
+        (d for d in (
+            "/media/mark/data/work/git/markup-carve-carve/node_modules/katex/dist",
+            "/media/mark/data/work/git/carve-js/node_modules/katex/dist",
+        ) if Path(d, "katex.min.css").is_file()),
+        None,
+    )
+    if not root:
+        return "", ""  # no KaTeX available -> raw TeX (still readable)
+    root = Path(root)
+    fonts_uri = (root / "fonts").resolve().as_uri()
+    kcss = root.joinpath("katex.min.css").read_text(encoding="utf-8").replace(
+        "url(fonts/", f"url({fonts_uri}/"
+    )
+    kjs = root.joinpath("katex.min.js").read_text(encoding="utf-8")
+    autorender = root.joinpath("contrib", "auto-render.min.js").read_text(encoding="utf-8")
+    head = f"<style>{kcss}</style>"
+    body = (
+        f"<script>{kjs}</script><script>{autorender}</script>"
+        "<script>renderMathInElement(document.body,{delimiters:["
+        '{left:"\\\\[",right:"\\\\]",display:true},'
+        '{left:"\\\\(",right:"\\\\)",display:false}],throwOnError:false});</script>'
+    )
+    return head, body
+
+
+katex_head, katex_body = katex_assets()
 
 
 title = meta.get("title") or "Carve document"
@@ -68,10 +141,13 @@ doc = f"""<!doctype html>
 <title>{esc(title)}</title>
 <style>
 {css}
-</style></head><body>
+</style>
+{katex_head}
+</head><body>
 {header}
 {fragment}
 {byline}
+{katex_body}
 </body></html>
 """
 

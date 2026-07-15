@@ -30,6 +30,9 @@ h2 {
 /* thematic-break separators are redundant once sections page-break */
 hr { display: none; }
 
+/* explicit page-break marker: `::: pagebreak` in the source */
+.pagebreak { break-before: page; height: 0; margin: 0; }
+
 /* PDFs have no hover: spell out each abbreviation's expansion inline */
 abbr[title]::after {
   content: " (" attr(title) ")";
