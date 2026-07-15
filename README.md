@@ -153,8 +153,13 @@ both carve-php and carve-js from their repos and runs it on every push.
 ## Install (symlink onto PATH)
 
 ```bash
-ln -s "$PWD/crv2pdf.sh" ~/.local/bin/crv2pdf
+make install            # preflight deps, symlink -> ~/.local/bin/crv2pdf
+make install PREFIX=/usr/local   # system-wide
+make check              # dependency preflight only
+make uninstall          # remove the symlink
 ```
+
+Or symlink by hand: `ln -s "$PWD/crv2pdf.sh" ~/.local/bin/crv2pdf`.
 
 ## Known limitations
 
