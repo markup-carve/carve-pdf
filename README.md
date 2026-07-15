@@ -10,10 +10,19 @@ crv2pdf post.crv out.pdf             # explicit output
 crv2pdf post.crv --html              # standalone styled HTML  -> post.html
 crv2pdf post.crv --md                # Markdown                -> post.md
 crv2pdf post.crv --txt               # plain text              -> post.txt
+
+crv2pdf a.crv b.crv c.crv --out-dir out/    # batch -> out/*.pdf
+crv2pdf --watch post.crv                    # rebuild on every save
 ```
 
 Output format defaults to `--pdf`. `--html` emits a self-contained styled document
 (CSS inlined); `--md` / `--txt` use the renderer's native flattening converters.
+
+**Batch.** Pass several `.crv` files (or set `--out-dir DIR`) to render each; outputs
+are named `<basename>.<fmt>` beside the input or in `--out-dir`.
+
+**Watch.** `--watch <input>` builds once, then rebuilds on every change. Uses
+`inotifywait` when available (event-driven), else a 1s mtime poll - no extra deps.
 
 ## Pipeline
 
