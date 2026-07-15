@@ -1,0 +1,56 @@
+/* carve-pdf :: print.css
+ *
+ * Paged-media layer on top of base.css. Page geometry, section page-breaks,
+ * document header/byline, and print color fidelity. The footer (page numbers)
+ * is injected by print_cdp.py via Chrome's footerTemplate, not here (Blink
+ * ignores CSS margin-box counters).
+ */
+
+@page {
+  size: A4;
+  margin: 20mm 18mm;
+}
+
+html {
+  -webkit-print-color-adjust: exact;
+  print-color-adjust: exact;
+}
+
+body {
+  font-size: 12.5px;
+}
+
+/* each top-level section (##) starts a fresh page */
+h2 {
+  break-before: page;
+  margin-top: 0;
+  padding-top: 0;
+}
+
+/* thematic-break separators are redundant once sections page-break */
+hr { display: none; }
+
+/* keep headings attached to the content that follows */
+h1, h2, h3, h4 { break-after: avoid; }
+figure, table, pre, .admonition, details, .tabs, .code-group, blockquote { break-inside: avoid; }
+
+/* document header (kicker) + byline footer emitted by wrap.py */
+.doc-header {
+  margin: 0 0 6px;
+  padding: 0 0 12px;
+  border-bottom: 3px solid var(--ink);
+}
+.doc-header .kicker {
+  margin: 0;
+  font-size: 10.5px;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+}
+.doc-byline {
+  margin-top: 30px;
+  padding-top: 10px;
+  border-top: 1px solid var(--line);
+  font-size: 11px;
+  color: var(--faint);
+}

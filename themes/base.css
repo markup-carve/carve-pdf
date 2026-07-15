@@ -1,0 +1,233 @@
+/* carve-pdf :: base.css
+ *
+ * Target-agnostic styling for the HTML that carve-php emits. Styles the Carve
+ * construct vocabulary (admonitions, tables, tabs, code-group, footnotes,
+ * definition lists, math, ...) and is reusable for screen / print / email.
+ * Page geometry and paged-media concerns live in print.css.
+ */
+
+:root {
+  --ink: #1a1a1a;
+  --muted: #5a5a5a;
+  --faint: #8a8a8a;
+  --line: #d9d9d9;
+  --link: #1565c0;
+  --code-bg: #f4f4f6;
+  --code-ink: #24292f;
+  --accent: #2e7d32;
+
+  --tip: #2e7d32;      --tip-bg: #eaf6ea;
+  --note: #1565c0;     --note-bg: #e8f1fb;
+  --warning: #b26a00;  --warning-bg: #fdf3e2;
+  --danger: #c62828;   --danger-bg: #fbeaea;
+  --info: #00838f;     --info-bg: #e4f5f7;
+  --success: #2e7d32;  --success-bg: #eaf6ea;
+
+  --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, monospace;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font: 13px/1.62 var(--font-body);
+  color: var(--ink);
+  margin: 0;
+}
+
+/* ---- headings & sections ---- */
+h1, h2, h3, h4, h5, h6 { line-height: 1.25; font-weight: 700; break-after: avoid; }
+h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+h2 { font-size: 20px; margin: 22px 0 10px; }
+h3 { font-size: 15.5px; margin: 18px 0 6px; }
+h4 { font-size: 13px; margin: 14px 0 4px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+h5, h6 { font-size: 12px; margin: 12px 0 4px; color: var(--muted); }
+section { margin: 0; }
+
+p { margin: 0 0 10px; }
+a { color: var(--link); text-decoration: none; }
+a[href^="http"]::after { content: ""; } /* external-link hook, no glyph by default */
+
+/* ---- inline marks ---- */
+strong { font-weight: 700; }
+em { font-style: italic; }
+u { text-decoration: none; border-bottom: 1px solid currentColor; }
+s, del { color: var(--danger); }
+del { text-decoration: line-through; }
+ins { text-decoration: none; background: var(--tip-bg); box-shadow: inset 0 -2px var(--tip); }
+mark { background: #fff2a8; padding: 0 2px; border-radius: 2px; }
+sup, sub { font-size: 0.72em; line-height: 0; }
+abbr[title] { text-decoration: underline dotted; cursor: help; }
+.mention, .wikilink { color: var(--link); font-weight: 500; }
+.mention strong, .tag strong { font-weight: 600; }
+.tag { color: var(--accent); }
+kbd {
+  font-family: var(--font-mono); font-size: 0.82em; line-height: 1;
+  padding: 2px 6px; border: 1px solid #c4c4c4; border-bottom-width: 2px;
+  border-radius: 4px; background: #fbfbfb; color: var(--code-ink); white-space: nowrap;
+}
+
+/* ---- code ---- */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow: auto;
+  margin: 0 0 12px;
+  break-inside: avoid;
+}
+pre code { background: none; padding: 0; font-size: 12px; line-height: 1.5; }
+
+/* ---- blockquote ---- */
+blockquote {
+  margin: 14px 0;
+  padding: 6px 16px;
+  border-left: 4px solid var(--line);
+  color: var(--muted);
+  font-style: italic;
+}
+blockquote blockquote { margin: 8px 0; }
+
+/* ---- lists ---- */
+ul, ol { margin: 0 0 10px; padding-left: 22px; }
+li { margin: 3px 0; }
+li > p { margin: 0 0 6px; }
+ul ul, ul ol, ol ul, ol ol { margin: 3px 0; }
+
+/* task lists: minimal glyph marker, no native checkbox, no double bullet */
+li:has(> input[type="checkbox"]) { list-style: none; }
+li > input[type="checkbox"] { display: none; }
+li:has(> input[type="checkbox"])::before {
+  content: "\25CB"; display: inline-block; width: 16px; margin-left: -16px;
+  color: #b0b0b0; font-weight: 700;
+}
+li:has(> input[type="checkbox"]:checked)::before { content: "\2713"; color: var(--tip); }
+
+/* ---- definition lists ---- */
+dl { margin: 0 0 12px; }
+dt { font-weight: 700; margin-top: 8px; }
+dd { margin: 2px 0 0 18px; color: var(--muted); }
+
+/* ---- tables (pipe + list-table both emit real <table>) ---- */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  break-inside: avoid;
+}
+th, td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; }
+thead th { background: #f0f0f2; }
+caption { caption-side: top; text-align: left; font-weight: 700; margin-bottom: 6px; }
+tbody tr:nth-child(even) { background: #fafafa; }
+
+/* list-table fallback (bare carve without ListTableExtension emits nested <ul>) */
+.list-table { margin: 0 0 14px; break-inside: avoid; }
+.list-table > .admonition-title { font-weight: 700; margin: 0 0 6px; }
+.list-table > ul { display: table; width: 100%; list-style: none; padding: 0; margin: 0; }
+.list-table > ul > li { display: table-row; }
+.list-table > ul > li > ul { display: contents; }
+.list-table > ul > li > ul > li {
+  display: table-cell; border: 1px solid var(--line); padding: 6px 9px; vertical-align: top;
+}
+.list-table > ul > li:first-child > ul > li { background: #f0f0f2; font-weight: 700; }
+
+/* ---- figures & images ---- */
+img { max-width: 100%; height: auto; }
+figure { margin: 0 0 14px; break-inside: avoid; text-align: center; }
+figcaption { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+
+/* ---- admonitions (aside.admonition.<type>) ---- */
+.admonition {
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 14px;
+  background: #fafafa;
+  break-inside: avoid;
+}
+.admonition-title { font-weight: 700; margin: 0 0 4px; }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition.tip { border-left-color: var(--tip); background: var(--tip-bg); }
+.admonition.tip .admonition-title { color: var(--tip); }
+.admonition.note { border-left-color: var(--note); background: var(--note-bg); }
+.admonition.note .admonition-title { color: var(--note); }
+.admonition.warning { border-left-color: var(--warning); background: var(--warning-bg); }
+.admonition.warning .admonition-title { color: var(--warning); }
+.admonition.danger { border-left-color: var(--danger); background: var(--danger-bg); }
+.admonition.danger .admonition-title { color: var(--danger); }
+.admonition.info { border-left-color: var(--info); background: var(--info-bg); }
+.admonition.info .admonition-title { color: var(--info); }
+.admonition.success { border-left-color: var(--success); background: var(--success-bg); }
+.admonition.success .admonition-title { color: var(--success); }
+
+/* ---- details / spoiler (static mode -> <details open>) ---- */
+details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin: 0 0 14px;
+  break-inside: avoid;
+}
+details > summary {
+  font-weight: 700;
+  margin: -8px -14px 8px;
+  padding: 8px 14px;
+  background: #f0f0f2;
+  border-radius: 7px 7px 0 0;
+  list-style: none;
+}
+details > summary::-webkit-details-marker { display: none; }
+details.spoiler { border-style: dashed; }
+.spoiler:not(details) { background: #eee; border-radius: 3px; } /* inline spoiler */
+
+/* ---- tabs (static -> div.tabs > section.tabs-panel > p.tabs-label) ---- */
+.tabs, .code-group { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 14px; overflow: hidden; break-inside: avoid; }
+.tabs-panel, .code-group-panel { border-top: 1px solid var(--line); }
+.tabs-panel:first-child, .code-group-panel:first-child { border-top: none; }
+.tabs-label, .code-group-label {
+  margin: 0; padding: 6px 12px; font-weight: 700; font-size: 12px;
+  background: #f0f0f2; border-bottom: 1px solid var(--line);
+}
+.tabs-panel > :not(.tabs-label), .code-group-panel > :not(.code-group-label) { margin: 10px 14px; }
+.code-group-panel pre { border: none; border-radius: 0; margin: 0; }
+
+/* ---- math (static mode renders TeX source in \(..\) / \[..\] delimiters) ---- */
+.math { font-family: var(--font-mono); font-size: 0.9em; }
+.math.inline { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.math.display {
+  display: block; text-align: center; background: var(--code-bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 0 0 14px;
+  break-inside: avoid;
+}
+
+/* ---- line block (verse / addresses) ---- */
+.line-block { margin: 0 0 12px; }
+.line-block p { margin: 0; }
+
+/* ---- table of contents (ul.toc) ---- */
+ul.toc {
+  list-style: none; padding: 12px 16px; margin: 0 0 16px;
+  background: #fafafa; border: 1px solid var(--line); border-radius: 8px;
+}
+ul.toc > li { margin: 2px 0; }
+ul.toc a { color: var(--ink); }
+
+/* ---- footnotes ---- */
+[role="doc-noteref"] sup { font-weight: 600; }
+[role="doc-endnotes"] { margin-top: 26px; padding-top: 8px; font-size: 11.5px; color: var(--muted); }
+[role="doc-endnotes"] ol { padding-left: 18px; }
+.fn { font-size: 0.85em; vertical-align: super; color: var(--muted); }
+
+/* ---- thematic break ---- */
+hr { border: none; border-top: 1px solid var(--line); margin: 20px 0; }

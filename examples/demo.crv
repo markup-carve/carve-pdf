@@ -1,0 +1,174 @@
+---yaml
+title: "Carve Field Guide: Every Construct, One Source"
+description: "A single Carve document exercising the full markup spectrum, rendered to PDF."
+author: Mark Scherer
+date: 2026-07-15
+kicker: "carve-pdf · full markup reference"
+tags: [carve, reference, pdf]
+lang: en
+---
+
+# Carve Field Guide
+
+This document is a *working reference*: one plain-text Carve source that exercises
+(nearly) every construct the renderer supports, then prints to a clean PDF. It doubles
+as the coffee handbook for /Carve Coffee Roasters/ --- because a reference is easier to
+read when it actually says something.
+
+Text carries the usual inline marks: *bold*, /italic/, _underline_, {=highlighted=},
+{+inserted+}, {-deleted-}, ~struck~, `inline code`, super{^script^} and sub{,script,},
+plus an abbreviation like HTML and a keyboard hint :kbd[Ctrl] + :kbd[C]. Smart typography
+turns "straight quotes" curly, 'single' too, and --- / -- into proper dashes.
+
+*[HTML]: HyperText Markup Language
+
+## Origin and tasting
+
+Coffees from a /single/ farm, washing station, or co-operative --- never blended. Each
+lot tastes of its place: the soil, the altitude, the process.
+
+![Roast levels from light to French](roast.svg)
+^ Figure 1: the four roast stages, lightest to darkest
+
+> We roast light to let origin speak. No dark, no bitter, no hiding behind the roast ---
+> only the character of the bean.
+>
+> > And yes, that is a nested blockquote.
+
+::: note "House style"
+New lots land every few weeks. Roast dates are printed on every bag, and we ship within
+48 hours of roasting.
+:::
+
+The address on every bag, as a line block:
+
+::: |
+Carve Coffee Roasters
+14 Kaffeegasse
+Vienna, AT
+:::
+
+## Brew methods
+
+Ordered steps for a pour-over (note the list starts at 1, then a custom-start list):
+
+1. Rinse the filter, preheat the carafe.
+2. Add grounds, make a shallow well.
+3. Bloom with twice the coffee weight.
+
+Continuing the same recipe, renumbered:
+
+4. Pour in slow, steady spirals.
+5. Let it draw down fully.
+
+A checklist you can actually tick:
+
+- [x] beans weighed
+- [x] water at 94 °C
+- [ ] second pour
+- [ ] tasted and logged
+
+A pipe table with per-column alignment:
+
+|= Method    |=> Ratio |=~ Grind      |
+| V60        |    1:16 |  Medium-fine |
+| Aeropress  |    1:14 |  Fine        |
+| Batch brew |    1:17 |  Medium      |
+
+The same data as a `list-table` (renders to a real table under the faithful renderer):
+
+{header-rows=1}
+::: list-table "Recipe by method"
+- - Method
+  - Time
+- - V60
+  - 2:45
+- - Aeropress
+  - 1:30
+:::
+
+::: tip "Brew it bright"
+Keep the water just off the boil (94 °C) and don't over-extract --- the florals fade fast.
+:::
+
+::: warning "Storage"
+Keep the bag sealed and away from light. Whole bean stays bright for about three weeks.
+:::
+
+## Reference
+
+A definition list:
+
+:: Washed
+:: Natural
+:  Fruit removed before drying --- clean, bright cups.
+:  Dried in the whole cherry --- heavier, fruit-forward cups.
+
+Code, three ways. A plain fenced block:
+
+``` php
+$html = (new CarveConverter(safeMode: true))->convert($source);
+```
+
+A `code-group` (tabs flatten to labeled sections in print):
+
+::: code-group
+``` bash [composer]
+composer require markup-carve/shopware-carve
+```
+``` bash [git]
+git clone https://github.com/markup-carve/carve-php
+```
+:::
+
+A `tabs` block:
+
+:::: tabs
+::: tab "Storefront"
+Rendered server-side through the Twig `|carve` filter.
+:::
+::: tab "CLI"
+Rendered from a `.crv` file with `carve --html`.
+:::
+::::
+
+Inline math $`c = \sqrt{a^2 + b^2}` and a display block:
+
+$$`\text{extraction \%} = \frac{\text{TDS} \times \text{beverage mass}}{\text{dose}}`
+
+## Notes and fine print
+
+Footnotes come in two flavors: a referenced note[^ratio] and an inline one[the grind
+matters as much as the ratio]{.fn}.
+
+[^ratio]: A 1:16 ratio means 1 g of coffee to 16 g of water.
+
+A collapsible detail (open in print):
+
+::: details "Why rest coffee after roasting?"
+Fresh-roasted beans off-gas CO2, which disrupts extraction. A 3--7 day rest lets the gas
+settle so the brew tastes even.
+:::
+
+A block spoiler and an inline :spoiler[hidden tasting note]:
+
+::: spoiler "Cupping score"
+This lot scored 87.5 on the SCA scale.
+:::
+
+::: danger "Never do this"
+Do not brew with boiling water straight off the heat --- it scorches delicate florals.
+:::
+
+::: info "Did you know"
+Autolinked bare URLs work too: https://github.com/markup-carve/carve-php
+:::
+
+::: success "You're set"
+Grind, brew, taste, adjust. Then do it again tomorrow.
+:::
+
+You can @mention a roaster or tag a #single-origin topic inline, and reference-style
+links like [our brew guide][guide] resolve from a definition at the bottom.
+
+[guide]: https://example.com/brew "Brew guide"
