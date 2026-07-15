@@ -8,8 +8,12 @@
 #            | print_cdp.py (Chrome DevTools -> PDF with page numbers).
 #
 # Env:
-#   CARVE_PHP_AUTOLOAD  composer autoloader providing MarkupCarve\Carve
+#   CARVE_RENDERER      php | js | auto (default auto: php if available, else js)
+#   CARVE_PHP_AUTOLOAD  composer autoloader providing MarkupCarve\Carve (php backend)
+#   CARVE_JS            carve-js checkout or dist/index.js (js backend)
 #   CARVE_SMART_LOCALE  smart-quotes locale (default: en)
+#   CARVE_PDF_FOOTER    footer template with {page}/{pages} (default: Page {page} of {pages});
+#                       frontmatter `footer:` wins over this; empty string disables the footer
 #   CHROME_BIN          Chrome/Chromium binary (default: autodetect)
 set -euo pipefail
 
@@ -39,10 +43,38 @@ FRAG="$WORK/frag.html"
 META="$WORK/meta.json"
 DOC="$WORK/doc.html"
 
-php "$LIB/render.php" "$IN" > "$FRAG"
-php "$LIB/render.php" --meta "$IN" > "$META"
+# --- pick a renderer backend ------------------------------------------------
+RENDERER="${CARVE_RENDERER:-auto}"
+if [ "$RENDERER" = "auto" ]; then
+  if command -v php >/dev/null 2>&1; then
+    RENDERER="php"
+  elif command -v node >/dev/null 2>&1; then
+    RENDERER="js"
+  else
+    echo "crv2pdf: no renderer available (need php or node)" >&2
+    exit 1
+  fi
+fi
+
+case "$RENDERER" in
+  php) php "$LIB/render.php" "$IN" > "$FRAG" ;;
+  js)  node "$LIB/render.mjs" "$IN" > "$FRAG" ;;
+  *)   echo "crv2pdf: unknown CARVE_RENDERER '$RENDERER' (want php|js|auto)" >&2; exit 2 ;;
+esac
+
+# --- frontmatter (renderer-independent) -------------------------------------
+python3 "$LIB/meta.py" "$IN" > "$META"
 SRCDIR="$(cd "$(dirname "$IN")" && pwd)"
 python3 "$LIB/wrap.py" "$FRAG" "$META" "$SRCDIR" "$DOC" "$THEMES/base.css" "$THEMES/print.css"
-python3 "$LIB/print_cdp.py" "$DOC" "$OUT"
 
-echo "PDF: $OUT"
+# --- footer: frontmatter `footer` wins (even when explicitly empty), else the
+#     print_cdp default chain ($CARVE_PDF_FOOTER, then the English default) ----
+FOOTER_PRESENT="$(python3 -c 'import json,sys; print(int("footer" in json.load(open(sys.argv[1]))))' "$META")"
+if [ "$FOOTER_PRESENT" = "1" ]; then
+  FOOTER="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["footer"])' "$META")"
+  python3 "$LIB/print_cdp.py" "$DOC" "$OUT" "$FOOTER"   # empty string disables the footer
+else
+  python3 "$LIB/print_cdp.py" "$DOC" "$OUT"
+fi
+
+echo "PDF: $OUT ($RENDERER backend)"

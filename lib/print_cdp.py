@@ -5,9 +5,15 @@ Why CDP instead of `chrome --print-to-pdf`: the CLI flag can't set a custom
 footer (page numbers), and Blink ignores CSS `@bottom-center` counters. CDP
 gives footerTemplate + printBackground (keeps admonition colors).
 
-Usage: print_cdp.py <input.html> <output.pdf>
+Usage: print_cdp.py <input.html> <output.pdf> [footer-template]
+
+The footer template is plain text with two placeholders, {page} and {pages}
+(e.g. "Page {page} of {pages}" or "Seite {page} von {pages}"). Precedence:
+argv[3], then $CARVE_PDF_FOOTER, then the English default. An empty template
+disables the footer entirely.
 """
 import base64
+import html
 import json
 import os
 import shutil
@@ -21,20 +27,38 @@ from pathlib import Path
 
 import websocket  # websocket-client (synchronous)
 
-if len(sys.argv) != 3:
-    sys.exit("usage: print_cdp.py <input.html> <output.pdf>")
+if len(sys.argv) < 3:
+    sys.exit("usage: print_cdp.py <input.html> <output.pdf> [footer-template]")
 
 HTML = Path(sys.argv[1]).resolve()
 PDF = Path(sys.argv[2]).resolve()
 if not HTML.is_file():
     sys.exit(f"print_cdp.py: input not found: {HTML}")
 
-FOOTER = (
-    '<div style="font-size:9px;width:100%;text-align:center;color:#8a8a8a;'
-    'font-family:sans-serif;padding:0 18mm;">'
-    'Seite <span class="pageNumber"></span> von <span class="totalPages"></span>'
-    "</div>"
-)
+# Footer template: argv[3] > $CARVE_PDF_FOOTER > English default. Empty -> no footer.
+_default_footer = "Page {page} of {pages}"
+if len(sys.argv) >= 4:
+    footer_tpl = sys.argv[3]
+else:
+    footer_tpl = os.environ.get("CARVE_PDF_FOOTER", _default_footer)
+
+
+def build_footer(tpl: str) -> str:
+    if tpl.strip() == "":
+        return ""
+    body = (
+        html.escape(tpl)
+        .replace("{page}", '<span class="pageNumber"></span>')
+        .replace("{pages}", '<span class="totalPages"></span>')
+    )
+    return (
+        '<div style="font-size:9px;width:100%;text-align:center;color:#8a8a8a;'
+        'font-family:sans-serif;padding:0 18mm;">' + body + "</div>"
+    )
+
+
+FOOTER = build_footer(footer_tpl)
+DISPLAY_FOOTER = FOOTER != ""
 HEADER = "<span></span>"  # empty -> suppresses Chrome's default header
 
 
@@ -122,9 +146,9 @@ try:
     result = cmd("Page.printToPDF", {
         "printBackground": True,
         "preferCSSPageSize": True,
-        "displayHeaderFooter": True,
+        "displayHeaderFooter": DISPLAY_FOOTER,
         "headerTemplate": HEADER,
-        "footerTemplate": FOOTER,
+        "footerTemplate": FOOTER if DISPLAY_FOOTER else "<span></span>",
     })
 
     # Atomic write: temp then replace, so a failure never leaves a partial PDF.
