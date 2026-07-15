@@ -1,0 +1,7 @@
+---yaml
+title: Diagram fixture
+---
+
+``` mermaid
+graph LR; A-->B;
+```

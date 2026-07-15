@@ -1,0 +1,50 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout carve-pdf
+        uses: actions/checkout@v4
+
+      # carve-php and carve-js are pre-1.0 and not published to Packagist/npm,
+      # so build both backends from their org repos.
+      - name: Checkout carve-php
+        uses: actions/checkout@v4
+        with:
+          repository: markup-carve/carve-php
+          path: _deps/carve-php
+      - name: Checkout carve-js
+        uses: actions/checkout@v4
+        with:
+          repository: markup-carve/carve-js
+          path: _deps/carve-js
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - name: Build carve-php autoloader
+        working-directory: _deps/carve-php
+        run: composer install --no-interaction --no-progress
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Build carve-js
+        working-directory: _deps/carve-js
+        run: |
+          npm ci
+          npm run build
+
+      - name: Run tests
+        env:
+          CARVE_PHP_AUTOLOAD: ${{ github.workspace }}/_deps/carve-php/vendor/autoload.php
+          CARVE_JS: ${{ github.workspace }}/_deps/carve-js/dist/index.js
+        run: ./tests/test.sh

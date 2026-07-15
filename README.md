@@ -1,5 +1,7 @@
 # carve-pdf
 
+[![CI](https://github.com/markup-carve/carve-pdf/actions/workflows/ci.yml/badge.svg)](https://github.com/markup-carve/carve-pdf/actions/workflows/ci.yml)
+
 Render [Carve](https://github.com/markup-carve) (`.crv`) documents to clean, paginated
 PDFs. Faithful to the `shopware-carve` plugin's rendering (same extension set), with
 section page-breaks and page numbers.
@@ -135,6 +137,18 @@ Styling is two CSS files in `themes/`:
 - `base.css` - the Carve construct vocabulary (admonitions, tables, tabs, code-group,
   footnotes, definition lists, math, ...). Target-agnostic; reusable for screen/email.
 - `print.css` - paged-media layer: `@page`, section page-breaks, header/byline.
+
+## Tests
+
+`tests/test.sh` renders the fixtures under `tests/fixtures/` with every available
+backend and asserts structural invariants (bold -> `<strong>`, `list-table` -> real
+`<table>`, `mermaid`/`chart` blocks, page-geometry validation, ...). It runs whichever
+of php/js is present and fails if neither is. CI (`.github/workflows/ci.yml`) builds
+both carve-php and carve-js from their repos and runs it on every push.
+
+```bash
+./tests/test.sh
+```
 
 ## Install (symlink onto PATH)
 

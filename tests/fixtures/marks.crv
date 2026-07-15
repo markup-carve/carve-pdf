@@ -1,0 +1,30 @@
+---yaml
+title: Marks fixture
+---
+
+# Heading one
+
+Text with *bold*, /italic/, _underline_, {=highlight=}, {+insert+}, {-delete-},
+~strike~, `code`, super{^2^}, sub{,2,}, and an abbreviation HTML, plus a key
+:kbd[Ctrl].
+
+*[HTML]: HyperText Markup Language
+
+::: tip "A tip"
+Tip body.
+:::
+
+{header-rows=1}
+::: list-table "Grid"
+- - Method
+  - Ratio
+- - V60
+  - 1:16
+:::
+
+:: Washed
+:  Fruit removed before drying.
+
+A footnote[^n].
+
+[^n]: The note.
