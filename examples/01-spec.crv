@@ -1,0 +1,63 @@
+---yaml
+title: "Carve Engineering Spec"
+description: "A living document describing the Carve pipeline: architecture, engines, and status."
+author: Mark Scherer
+date: 2026-07-20
+kicker: "carve-pdf · structural constructs"
+tags: [carve, spec, architecture]
+lang: en
+pageBreaks: none
+---
+
+# Carve Engineering Spec
+
+A /living/ document describing the *Carve* pipeline. See the [spec](https://github.com/markup-carve/carve) and `Carve.parse` for the AST.
+
+## Architecture
+
+The parser runs in *two passes*:
+
+1. Block identification (whole document)
+2. Inline parsing (delimiter stack, no backtracking)
+   - links and images
+   - emphasis: *strong*, /emphasis/, /*bold italic*/
+   - `inline code`
+
+> Design principle: plain text should render beautifully and stay readable at the source.
+^ Carve design doc
+
+## Engines
+
+|= Engine  |= Language  |= Status   |
+| carve-js | TypeScript | reference |
+| carve-rs | Rust       | reference |
+| carve-php| PHP        | full      |
+| carve-rb | Ruby (FFI) | full      |
+
+## Task status
+
+- [x] Block parser
+- [x] Inline parser
+- [x] HTML renderer
+- [ ] PDF renderer polish
+  - [x] tables
+  - [x] math images
+
+## Notes
+
+:: Term
+:  A single unit of markup meaning.
+
+:: AST
+:  The parsed tree returned by `Carve.parse`.
+
+```rust
+pub fn parse(source: &str) -> Document {
+    // block pass, then inline pass
+    Document::from(source)
+}
+```
+
+---
+
+Printed through Chrome DevTools by `crv2pdf`, from a faithful Carve HTML fragment.

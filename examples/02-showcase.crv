@@ -1,0 +1,46 @@
+---yaml
+title: "Feature Showcase"
+description: "Every inline decoration, critic markup, admonitions, and a table with row and column spans."
+author: Mark Scherer
+date: 2026-07-20
+kicker: "carve-pdf · inline decorations"
+tags: [carve, showcase, inline]
+lang: en
+pageBreaks: none
+---
+
+# Feature Showcase
+
+Every inline decoration: *strong*, /emphasis/, _underline_, ~strikethrough~,
+=highlighted= text, and /*bold italic*/. A [link](https://carve.example) with a
+footnote.^[Inline footnote content, rendered as an endnote.]
+
+Superscript {^note^} and subscript {,index,} both render as decorations.
+
+An image resolves relative to the `.crv` file, via the injected `<base href>`:
+
+![Roast levels from light to French](roast.svg)
+^ Figure 1: the four roast stages, lightest to darkest
+
+## Table with row and column spans
+
+|= Region  |= Q1 |= Q2 |= Q3 |
+| EMEA     | 12  | 15  | 19  |
+| APAC     | 8   | 11  | 22  |
+| ^        | 20  | <   | 25  |
+
+The `^` in the last row extends the "APAC" cell down two rows; the `<` merges
+into the cell on its left.
+
+## Critic markup
+
+The quick {+brown+} fox {-lazy-} jumps over the {~dog~>log~}.
+
+## Admonition
+
+::: note
+This is an admonition block - rendered as a tinted container.
+:::
+
+> Plain text should render beautifully and stay readable at the source.
+^ Design principle

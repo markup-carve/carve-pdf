@@ -170,4 +170,6 @@ Or symlink by hand: `ln -s "$PWD/crv2pdf.sh" ~/.local/bin/crv2pdf`.
   by safe mode (an XSS defense inherited from carve-php). Relative paths resolve against
   the `.crv`'s directory via an injected `<base href>`.
 
-See `examples/demo.crv` for a document exercising the full markup spectrum.
+See `examples/demo.crv` for a document exercising the full markup spectrum, and
+[`examples/README.md`](examples/README.md) for the smaller focused examples
+(structure, inline decorations, math / diagrams / charts).
