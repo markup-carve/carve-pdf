@@ -6,7 +6,7 @@ title: Marks fixture
 
 Text with *bold*, /italic/, _underline_, {=highlight=}, {+insert+}, {-delete-},
 ~strike~, `code`, super{^2^}, sub{,2,}, and an abbreviation HTML, plus a key
-:kbd[Ctrl].
+[Ctrl]{kbd}.
 
 *[HTML]: HyperText Markup Language
 
