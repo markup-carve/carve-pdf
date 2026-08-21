@@ -17,7 +17,7 @@ read when it actually says something.
 
 Text carries the usual inline marks: *bold*, /italic/, _underline_, {=highlighted=},
 {+inserted+}, {-deleted-}, ~struck~, `inline code`, super{^script^} and sub{,script,},
-plus an abbreviation like HTML and a keyboard hint :kbd[Ctrl] + :kbd[C]. Smart typography
+plus an abbreviation like HTML and a keyboard hint [Ctrl]{kbd} + [C]{kbd}. Smart typography
 turns "straight quotes" curly, 'single' too, and --- / -- into proper dashes.
 
 *[HTML]: HyperText Markup Language
