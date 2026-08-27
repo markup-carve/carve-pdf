@@ -85,6 +85,8 @@ python3 "$LIB/wrap.py" "$WORK/frag.html" "$WORK/ok.json" "$FIX" "$WORK/ok.html" 
 has  "valid paper inlined"  "$WORK/ok.html" "size: Letter;"
 has  "recipe theme inlined" "$WORK/ok.html" "--carve-tree-indent"
 has  "Carve theme scope"     "$WORK/ok.html" '<body class="carve">'
+has  "PHP syntax highlighted" "$WORK/ok.html" 'syntax-highlighted'
+has  "Carve syntax highlighted" "$WORK/ok.html" 'class="tok-gs">strong</span>'
 
 # injection attempt -> rejected, not inlined
 printf '{"paper":"A4; } body { background: red } @page {"}' > "$WORK/evil.json"

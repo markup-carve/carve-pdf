@@ -70,7 +70,7 @@ Both probe a few common locations if unset.
 | Need | For |
 |------|-----|
 | A renderer backend (PHP **or** Node, see above) | `render.php` / `render.mjs` |
-| Python 3 + `websocket-client` | `meta.py`, `wrap.py`, `print_cdp.py` |
+| Python 3 + `websocket-client` + Pygments | metadata, syntax highlighting (including Carve), composition, printing |
 | Google Chrome or Chromium | PDF printing |
 
 ## Frontmatter
@@ -96,6 +96,11 @@ pageBreaks: h2                      # h2 (each ## a new page) | none | manual
 **Page breaks.** `h2` (default) starts each top-level section on a fresh page; `none`
 lets content flow; `manual` breaks only at an explicit `::: pagebreak` block in the
 source. The `::: pagebreak` marker works in every mode.
+
+**Code.** Named fences such as ` ```php `, ` ```bash `, and ` ```carve ` are
+highlighted statically with Pygments before HTML/PDF output. The bundled Carve lexer
+understands Carve's own block and inline syntax; no browser script or network request
+is needed. Without Pygments, fences remain readable but monochrome.
 
 **Math.** `$`...`$` inline and `$$`...`$$` block math are typeset with KaTeX (bundled,
 offline) when a KaTeX install is found; point `CARVE_KATEX` at its `dist/` dir, or it

@@ -28,3 +28,13 @@ Tip body.
 A footnote[^n].
 
 [^n]: The note.
+
+```php
+$answer = 42;
+```
+
+```carve
+::: tip "Carve fence"
+Use *strong* source and {=marks=}.
+:::
+```

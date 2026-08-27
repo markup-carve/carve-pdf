@@ -132,9 +132,10 @@ A definition list:
 :  Fruit removed before drying --- clean, bright cups.
 :  Dried in the whole cherry --- heavier, fruit-forward cups.
 
-Code, three ways. A plain fenced block:
+Named code fences are highlighted before printing. A PHP block:
 
 ``` php
+<?php
 $html = (new CarveConverter(safeMode: true))->convert($source);
 ```
 
@@ -146,6 +147,12 @@ composer require markup-carve/shopware-carve
 ```
 ``` bash [git]
 git clone https://github.com/markup-carve/carve-php
+```
+``` carve [Carve]
+::: tip "Highlighted Carve"
+Use *semantic source* with [links](https://markup-carve.github.io/carve/),
+{=marks=}, and `code`.
+:::
 ```
 :::
 

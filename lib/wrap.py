@@ -27,6 +27,49 @@ fragment = frag_path.read_text(encoding="utf-8")
 # Reveal all disclosure widgets (details + spoilers) in print - there is no
 # click to open a PDF. Adds `open` to any <details> that lacks it.
 fragment = re.sub(r"<details(?![^>]*\bopen\b)", "<details open", fragment)
+
+
+def highlight_code(fragment_html: str) -> str:
+    """Highlight named fences statically so HTML and PDF need no client JS."""
+    try:
+        from pygments import highlight
+        from pygments.formatters import HtmlFormatter
+        from pygments.lexers import get_lexer_by_name
+        from pygments.util import ClassNotFound
+        from carve_lexer import CarveLexer
+    except ImportError:
+        if re.search(r'<code[^>]*class="[^"]*language-', fragment_html):
+            sys.stderr.write("wrap.py: Pygments not found; leaving code fences unhighlighted\n")
+        return fragment_html
+
+    block = re.compile(r"<pre(?P<pre>[^>]*)><code(?P<code>[^>]*)>(?P<body>.*?)</code></pre>", re.DOTALL)
+
+    def replace(match):
+        pre_attrs, code_attrs = match.group("pre"), match.group("code")
+        classes = re.search(r'class="([^"]*)"', code_attrs)
+        language = next(
+            (name[9:] for name in classes.group(1).split() if name.startswith("language-")),
+            "",
+        ) if classes else ""
+        if not language or language in ("mermaid", "chart"):
+            return match.group(0)
+        try:
+            lexer = CarveLexer() if language.lower() in ("carve", "crv") else get_lexer_by_name(language)
+        except ClassNotFound:
+            return match.group(0)
+        source = html.unescape(match.group("body"))
+        rendered = highlight(source, lexer, HtmlFormatter(nowrap=True, classprefix="tok-")).rstrip("\n")
+        if classes:
+            names = classes.group(1).split()
+            if "syntax-highlighted" not in names:
+                names.append("syntax-highlighted")
+            code_attrs = code_attrs[:classes.start(1)] + " ".join(names) + code_attrs[classes.end(1):]
+        return f"<pre{pre_attrs}><code{code_attrs}>{rendered}</code></pre>"
+
+    return block.sub(replace, fragment_html)
+
+
+fragment = highlight_code(fragment)
 try:
     meta = json.loads(meta_path.read_text(encoding="utf-8") or "{}")
 except Exception:

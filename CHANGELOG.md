@@ -10,6 +10,8 @@ Nothing released yet. The initial capability set:
 
 ### Added
 
+- Add static, print-safe syntax highlighting for named code fences, including a
+  bundled first-party Carve lexer for `carve` and `crv` fences.
 - Vendor the released `@markup-carve/carve-css` 0.1.0 token, core, extension, and recipe
   layers and inline them before the existing PDF theme, keeping standalone
   output current without requiring npm at runtime.
