@@ -10,7 +10,7 @@ Nothing released yet. The initial capability set:
 
 ### Added
 
-- Vendor the released `@markup-carve/carve-css` 0.1.0 token, core and extension
+- Vendor the released `@markup-carve/carve-css` 0.1.0 token, core, extension, and recipe
   layers and inline them before the existing PDF theme, keeping standalone
   output current without requiring npm at runtime.
 - Style both current engine spellings of keyboard input (`<kbd>` and the

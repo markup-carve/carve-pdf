@@ -203,7 +203,7 @@ doc = f"""<!doctype html>
 {css}
 </style>
 {client_head}
-</head><body>
+</head><body class="carve">
 {header}
 {fragment}
 {byline}

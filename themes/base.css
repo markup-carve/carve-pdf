@@ -201,7 +201,7 @@ details.spoiler { border-style: dashed; }
 
 /* ---- tabs (static -> div.tabs > section.tabs-panel > p.tabs-label) ---- */
 .tabs, .code-group { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 14px; overflow: hidden; break-inside: avoid; }
-.tabs-panel, .code-group-panel { border-top: 1px solid var(--line); }
+.carve .tabs-panel, .carve .code-group-panel { display: block; border-top: 1px solid var(--line); }
 .tabs-panel:first-child, .code-group-panel:first-child { border-top: none; }
 .tabs-label, .code-group-label {
   margin: 0; padding: 6px 12px; font-weight: 700; font-size: 12px;

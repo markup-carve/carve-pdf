@@ -135,7 +135,7 @@ footer (and page numbers) entirely.
 Styling is the released `carve-css` 0.1.0 construct vocabulary followed by two
 PDF-specific layers in `themes/`:
 
-- `carve-css/{tokens,core,extensions}.css` - byte-for-byte vendored from the
+- `carve-css/{tokens,core,extensions,recipes}.css` - byte-for-byte vendored from the
   stylesheet package so standalone installs cover the current rendered vocabulary.
 - `base.css` - the existing carve-pdf visual theme and compatibility overrides.
 - `print.css` - paged-media layer: `@page`, section page-breaks, header/byline.
