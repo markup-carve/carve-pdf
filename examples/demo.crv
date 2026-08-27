@@ -2,16 +2,19 @@
 title: "Carve Field Guide: Every Construct, One Source"
 description: "A single Carve document exercising the full markup spectrum, rendered to PDF."
 author: Mark Scherer
-date: 2026-07-15
+date: 2026-08-27
 kicker: "carve-pdf · full markup reference"
 tags: [carve, reference, pdf]
 lang: en
+pageBreaks: none
 ---
 
 # Carve Field Guide
 
+{.lead}
 This document is a *working reference*: one plain-text Carve source that exercises
-(nearly) every construct the renderer supports, then prints to a clean PDF. It doubles
+every construct in the PDF renderer profile and the newest CSS-only recipes, then prints
+to a clean PDF. It doubles
 as the coffee handbook for /Carve Coffee Roasters/ --- because a reference is easier to
 read when it actually says something.
 
@@ -19,6 +22,7 @@ Text carries the usual inline marks: *bold*, /italic/, _underline_, {=highlighte
 {+inserted+}, {-deleted-}, ~struck~, `inline code`, super{^script^} and sub{,script,},
 plus an abbreviation like HTML and a keyboard hint [Ctrl]{kbd} + [C]{kbd}. Smart typography
 turns "straight quotes" curly, 'single' too, and --- / -- into proper dashes.
+Revision marks also express a replacement: the {~old recipe~>new recipe~} wins.
 
 *[HTML]: HyperText Markup Language
 
@@ -75,6 +79,13 @@ A pipe table with per-column alignment:
 | Aeropress  |    1:14 |  Fine        |
 | Batch brew |    1:17 |  Medium      |
 
+A compact span table uses `^` to continue the cell above and `<` to merge left:
+
+|= Bar |= Mon |= Tue |= Total |
+| Vienna | 12 | 15 | 27 |
+| Prague | 8 | 11 | 19 |
+| ^ | 20 | < | 46 |
+
 The same data as a `list-table` (renders to a real table under the faithful renderer):
 
 {header-rows=1}
@@ -121,9 +132,10 @@ A definition list:
 :  Fruit removed before drying --- clean, bright cups.
 :  Dried in the whole cherry --- heavier, fruit-forward cups.
 
-Code, three ways. A plain fenced block:
+Named code fences are highlighted before printing. A PHP block:
 
 ``` php
+<?php
 $html = (new CarveConverter(safeMode: true))->convert($source);
 ```
 
@@ -135,6 +147,12 @@ composer require markup-carve/shopware-carve
 ```
 ``` bash [git]
 git clone https://github.com/markup-carve/carve-php
+```
+``` carve [Carve]
+::: tip "Highlighted Carve"
+Use *semantic source* with [links](https://markup-carve.github.io/carve/),
+{=marks=}, and `code`.
+:::
 ```
 :::
 
@@ -152,6 +170,93 @@ Rendered from a `.crv` file with `carve --html`.
 Inline math $`c = \sqrt{a^2 + b^2}` and a display block:
 
 $$`\text{extraction \%} = \frac{\text{TDS} \times \text{beverage mass}}{\text{dose}}`
+
+## Layout recipes
+
+The recipe layer turns ordinary semantic Carve into polished layouts without adding
+parser extensions. The same source remains useful in Markdown and plain text.
+
+### A connected project tree
+
+{data-guides="dotted"}
+::: tree
+- coffee-guide/
+  - beans/
+    - ethiopia.crv
+    - colombia.crv
+  - recipes/
+    - aeropress.crv
+    - v60.crv
+  - assets/
+    - roast.svg
+  - README.crv
+:::
+
+### Cards and badges
+
+::: cards
+- *Source-first* - one readable `.crv` file feeds every output.
+- *Print-ready* - typography, color, diagrams, and page furniture are embedded.
+- *Portable* - PHP and JavaScript backends produce the same document structure.
+:::
+
+Release status: [stable]{.badge data-tone="success"}, quality [verified]{.badge},
+and output [PDF]{.badge data-tone="info"}.
+
+### Columns and steps
+
+{data-columns="3"}
+::: columns
+*Choose.* Pick a freshly roasted coffee whose origin and process sound interesting.
+
+*Grind.* Start medium-fine, then change one variable at a time after tasting.
+
+*Record.* Keep the ratio, temperature, time, and a short sensory note together.
+:::
+
+::: steps
+1. Write semantic Carve.
+2. Render it through the selected engine.
+3. Inline the complete stylesheet and local media.
+4. Wait for math, charts, and diagrams, then print.
+:::
+
+### Gallery, aside, and wide content
+
+{data-fit="contain"}
+::: gallery
+![Roast spectrum](roast.svg)
+^ Light-to-dark roast development
+
+![The same vector, kept crisp at print resolution](roast.svg)
+^ SVG media remains sharp when enlarged
+:::
+
+::: aside
+*Margin note.* Recipe containers are generic Carve blocks. Their meaning survives even
+when a target ignores the visual recipe.
+:::
+
+::: wide
+This wide callout can escape a deliberately narrow reading measure for diagrams, large
+tables, or other material that benefits from the full printable width.
+:::
+
+### Dense and scroll-safe data
+
+{.striped .compact .sticky-head}
+|= Engine |= Recipes |= Math |= Diagrams |
+| PHP | yes | yes | yes |{.ok}
+| JavaScript | yes | yes | yes |{.ok}
+| Plain text | semantic fallback | TeX source | diagram source |
+
+::: scroll
+|= Processing stage |= Input |= Output |= Preserved quality |
+| Parse | Carve source | AST | document meaning |
+| Render | AST | HTML fragment | semantic structure |
+| Compose | fragment + theme | standalone HTML | local assets and metadata |
+| Print | ready document | paginated PDF | vectors, links, and color |
+:::
 
 ## Notes and fine print
 

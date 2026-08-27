@@ -1,0 +1,437 @@
+/*
+ * Carve recipes - constructs that need no engine support at all.
+ *
+ * Everything in core.css and extensions.css styles HTML the SPEC pins: an
+ * admonition's class, a tab set's structure, a footnote's role. Those selectors
+ * are safe because the engine guarantees them.
+ *
+ * This layer is different, and the difference is the reason it is a separate
+ * file. `::: name` is Tier-1 core syntax that is always on, and a word with no
+ * registered handler falls through to a generic `<div class="name">`. So
+ *
+ *     ::: cards
+ *     - One
+ *     - Two
+ *     :::
+ *
+ * already renders as `<div class="cards"><ul>...` out of every engine, with no
+ * extension, no configuration and no parser change. The only thing missing is
+ * CSS. Same for `[text]{.badge}` -> `<span class="badge">`, and for any class or
+ * `data-*` pair on an attribute line above a block.
+ *
+ * The class names below are therefore a CONVENTION this package proposes, not a
+ * shape the spec pins. That is why this file is NOT imported by carve.css:
+ *
+ *   - Opting in is how a consumer says "I use these words the way carve-css
+ *     means them". Nobody should inherit that by installing a stylesheet.
+ *   - `columns`, `cards`, `scroll` and `wide` are generic enough that a host's
+ *     own framework may already define them. Scoping under `.carve` keeps the
+ *     blast radius inside rendered Carve, but the collision is real and opting
+ *     in is the honest way to accept it.
+ *
+ * Take it with:
+ *
+ *     @import "@markup-carve/carve-css";
+ *     @import "@markup-carve/carve-css/recipes.css";
+ *
+ * Every rule resolves through the same tokens as the rest of the package, so a
+ * consumer that has themed tokens has themed these too. Where a recipe needs a
+ * value of its own, it reads a token with a fallback, so it can be retuned
+ * without overriding a selector.
+ */
+
+/* --- Trees --------------------------------------------------------------- */
+
+/*
+ * `::: tree` over a nested list. The connectors are pseudo-elements on the list
+ * items rather than characters in the source, which is the whole point: the
+ * markup stays a real `<ul>`, so a screen reader still announces nesting and
+ * every node keeps its links. Pasted `tree(1)` art in a code fence has none of
+ * that.
+ */
+.carve .tree {
+  font-family: var(--carve-font-mono);
+  font-size: var(--carve-font-size-small);
+  line-height: 1.85;
+  /* The inner list is zeroed so the connectors line up, which leaves the
+   * construct with no trailing space of its own. */
+  margin-block-end: var(--carve-space-4);
+}
+.carve .tree ul,
+.carve .tree ol {
+  list-style: none;
+  margin: 0;
+  padding-inline-start: var(--carve-tree-indent, 0.95em);
+}
+/* The outermost list holds roots, which have no parent to connect to. */
+.carve .tree > :is(ul, ol) {
+  padding-inline-start: 0;
+}
+.carve .tree li {
+  position: relative;
+  padding-inline-start: 1.4em;
+}
+.carve .tree > :is(ul, ol) > li {
+  padding-inline-start: 0;
+}
+.carve .tree li::before {
+  content: "";
+  position: absolute;
+  inset-block: 0;
+  inset-inline-start: 0;
+  border-inline-start: var(--carve-border-width) solid
+    var(--carve-tree-guide, var(--carve-border));
+}
+.carve .tree li::after {
+  content: "";
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0.92em;
+  inline-size: 0.85em;
+  border-block-start: var(--carve-border-width) solid
+    var(--carve-tree-guide, var(--carve-border));
+}
+/* A last child's vertical guide stops at its own elbow instead of running on
+ * past it - the difference between a drawn tree and a set of stray lines. */
+.carve .tree li:last-child::before {
+  inset-block-end: auto;
+  block-size: 0.92em;
+}
+.carve .tree > :is(ul, ol) > li::before,
+.carve .tree > :is(ul, ol) > li::after {
+  display: none;
+}
+
+/* Per-instance variation without a second class, from an attribute line:
+ * `{.tree data-guides="dotted"}`. */
+.carve .tree[data-guides="dotted"] li::before {
+  border-inline-start-style: dotted;
+}
+.carve .tree[data-guides="dotted"] li::after {
+  border-block-start-style: dotted;
+}
+.carve .tree[data-guides="none"] li::before,
+.carve .tree[data-guides="none"] li::after {
+  display: none;
+}
+
+/*
+ * A collapsible tree reaches this markup as nested `<details>`, whichever way
+ * it was produced - `::: details` containers per branch, a host extension, or a
+ * script. All three land here.
+ */
+.carve .tree summary {
+  cursor: pointer;
+  list-style: none;
+}
+.carve .tree summary::-webkit-details-marker {
+  display: none;
+}
+.carve .tree summary::before {
+  content: "\25B8";
+  display: inline-block;
+  inline-size: 1em;
+  color: var(--carve-ink-soft);
+  transition: transform 0.12s ease;
+}
+.carve .tree details[open] > summary::before {
+  transform: rotate(90deg);
+}
+@media (prefers-reduced-motion: reduce) {
+  .carve .tree summary::before {
+    transition: none;
+  }
+}
+/* The disclosure body sits where the nested list would have, so it inherits the
+ * same indent rather than adding one of its own. */
+.carve .tree details > :is(ul, ol) {
+  padding-inline-start: var(--carve-tree-indent, 0.95em);
+}
+
+/* --- Columns ------------------------------------------------------------- */
+
+/*
+ * `::: columns` flows its body into newspaper columns. `data-columns` sets the
+ * count, so one class covers every arity instead of `.columns-2`, `.columns-3`
+ * and whatever comes next.
+ */
+.carve .columns {
+  column-count: 2;
+  column-gap: var(--carve-space-6);
+  margin-block-end: var(--carve-space-4);
+}
+.carve .columns[data-columns="3"] {
+  column-count: 3;
+}
+.carve .columns[data-columns="4"] {
+  column-count: 4;
+}
+/* A paragraph, list or figure that breaks across a column boundary is harder to
+ * read than a short column, so keep each block whole. */
+.carve .columns > * {
+  break-inside: avoid;
+  margin-block-start: 0;
+}
+/* One column on a narrow screen. Columns are a wide-viewport affordance; below
+ * this they only shorten the line length. */
+@media (width < 40rem) {
+  .carve .columns {
+    column-count: 1;
+  }
+}
+
+/* --- Cards --------------------------------------------------------------- */
+
+/*
+ * `::: cards` over a list turns each item into a panel. The list stays a list -
+ * this is a presentation of the same document, not a different one, which
+ * matters for the non-HTML targets where the same source renders as bullets.
+ */
+.carve .cards {
+  margin-block-end: var(--carve-space-4);
+}
+.carve .cards > :is(ul, ol) {
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(14rem, 1fr));
+  gap: var(--carve-space-4);
+  margin: 0;
+  padding: 0;
+}
+.carve .cards > :is(ul, ol) > li {
+  background: var(--carve-sunk);
+  border: var(--carve-border-width) solid var(--carve-rule);
+  border-radius: var(--carve-radius);
+  padding: var(--carve-space-4);
+}
+.carve .cards > :is(ul, ol) > li > :first-child {
+  margin-block-start: 0;
+}
+.carve .cards > :is(ul, ol) > li > :last-child {
+  margin-block-end: 0;
+}
+
+/* --- Gallery ------------------------------------------------------------- */
+
+/*
+ * `::: gallery` over a run of images. A lone image in a block position is
+ * emitted as a bare `<img>`, and one carrying a caption as a `<figure>`, so
+ * both are laid out.
+ */
+.carve .gallery {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  gap: var(--carve-space-3);
+  margin-block-end: var(--carve-space-4);
+}
+.carve .gallery > figure {
+  margin: 0;
+}
+.carve .gallery :is(img, video) {
+  inline-size: 100%;
+  /* Uniform tiles: without this a gallery is a ragged wall of source aspect
+   * ratios. `data-ratio` retunes it per instance. */
+  aspect-ratio: var(--carve-gallery-ratio, 4 / 3);
+  object-fit: cover;
+  border-radius: var(--carve-radius);
+}
+.carve .gallery[data-fit="contain"] :is(img, video) {
+  object-fit: contain;
+}
+
+/* --- Steps --------------------------------------------------------------- */
+
+/*
+ * `::: steps` over an ordered list. The numbers come from a CSS counter rather
+ * than the list marker, so they can be a shape the marker cannot be while the
+ * document still says "ordered list".
+ */
+.carve .steps {
+  margin-block-end: var(--carve-space-4);
+}
+.carve .steps > ol {
+  list-style: none;
+  counter-reset: carve-step;
+  margin: 0;
+  padding: 0;
+}
+.carve .steps > ol > li {
+  counter-increment: carve-step;
+  position: relative;
+  /* The marker is out of flow, so the text has to clear its full width AND
+   * leave a gutter after it. Deriving the padding from the same property that
+   * sizes the marker is what keeps the two from meeting: they were both a bare
+   * 1.5rem, which put the text flush against the circle. */
+  padding-inline-start: calc(
+    var(--carve-step-marker, 1.5rem) + var(--carve-space-3)
+  );
+  padding-block-end: var(--carve-space-4);
+}
+.carve .steps > ol > li::before {
+  content: counter(carve-step);
+  position: absolute;
+  inset-inline-start: 0;
+  inset-block-start: 0;
+  display: grid;
+  place-items: center;
+  inline-size: var(--carve-step-marker, 1.5rem);
+  block-size: var(--carve-step-marker, 1.5rem);
+  border-radius: 50%;
+  background: var(--carve-accent-soft);
+  color: var(--carve-accent-ink);
+  font-size: var(--carve-font-size-small);
+  font-weight: 600;
+  /* The counter is the only thing on the page whose digits must line up
+   * vertically across items. */
+  font-variant-numeric: tabular-nums;
+}
+.carve .steps > ol > li > :first-child {
+  margin-block-start: 0;
+}
+
+/* --- Overflow and width -------------------------------------------------- */
+
+/*
+ * `::: scroll` around anything too wide to fit - a table, a long fence, a
+ * diagram. The page body must never scroll sideways, so the overflow belongs to
+ * the construct.
+ */
+.carve .scroll {
+  overflow-x: auto;
+  margin-block-end: var(--carve-space-4);
+}
+
+/*
+ * `::: wide` lets one construct exceed the prose measure. It only does anything
+ * where the consumer has told it how far it may go; the fallback is the
+ * container's own width, so this is inert rather than broken in a layout that
+ * has no room to give.
+ */
+.carve .wide {
+  inline-size: var(--carve-wide-size, 100%);
+  max-inline-size: 100vw;
+  margin-inline: auto;
+  margin-block-end: var(--carve-space-4);
+}
+
+/* --- Margin notes -------------------------------------------------------- */
+
+/*
+ * `::: aside` sets a note beside the text rather than in it. It floats only
+ * when there is a margin to float into; on a narrow screen it becomes an
+ * ordinary indented block, which is what the content meant anyway.
+ */
+.carve .aside {
+  font-size: var(--carve-font-size-small);
+  color: var(--carve-ink-soft);
+  border-inline-start: var(--carve-accent-width) solid var(--carve-rule);
+  padding-inline-start: var(--carve-space-3);
+  margin-block-end: var(--carve-space-4);
+}
+.carve .aside > :first-child {
+  margin-block-start: 0;
+}
+.carve .aside > :last-child {
+  margin-block-end: 0;
+}
+@media (width >= 60rem) {
+  .carve .aside {
+    float: inline-end;
+    inline-size: var(--carve-aside-size, 14rem);
+    margin-inline-start: var(--carve-space-6);
+    margin-block-start: var(--carve-space-1);
+  }
+}
+
+/* --- Inline recipes ------------------------------------------------------ */
+
+/*
+ * `{.lead}` on the line above a paragraph. An opening paragraph set larger is
+ * the oldest signal in typography that a document has a summary.
+ */
+.carve p.lead {
+  font-size: 1.15em;
+  line-height: 1.5;
+  color: var(--carve-ink-soft);
+}
+
+/*
+ * `[beta]{.badge}` - a status pill. `data-tone` picks the semantic colour from
+ * the same pairs the admonitions use, so a badge and a warning agree about what
+ * warning looks like.
+ */
+.carve .badge {
+  display: inline-block;
+  padding: 0 var(--carve-space-2);
+  border-radius: var(--carve-radius);
+  background: var(--carve-neutral-wash);
+  color: var(--carve-neutral);
+  font-size: var(--carve-font-size-small);
+  font-weight: 600;
+  line-height: 1.6;
+  white-space: nowrap;
+}
+.carve .badge[data-tone="info"] {
+  background: var(--carve-info-wash);
+  color: var(--carve-info);
+}
+.carve .badge[data-tone="success"] {
+  background: var(--carve-success-wash);
+  color: var(--carve-success);
+}
+.carve .badge[data-tone="warn"] {
+  background: var(--carve-warn-wash);
+  color: var(--carve-warn);
+}
+.carve .badge[data-tone="danger"] {
+  background: var(--carve-danger-wash);
+  color: var(--carve-danger);
+}
+
+/* --- Table modifiers ----------------------------------------------------- */
+
+/*
+ * Attributes on the line above a table reach the `<table>` element, and
+ * attributes on a row's closing pipe reach its `<tr>`. Between them that covers
+ * most of what people install a table plugin for. There is no cell-level
+ * attribute in Carve, so a row is the finest grain these can address.
+ */
+.carve table.striped tbody tr:nth-child(even) {
+  background: var(--carve-sunk);
+}
+.carve table.compact :is(th, td) {
+  padding: var(--carve-space-1) var(--carve-space-2);
+}
+
+/* A long table keeps its header in view while the body scrolls. This needs a
+ * scrolling ancestor to stick against - pair it with `::: scroll`, or a
+ * consumer's own scroll container. */
+.carve table.sticky-head thead th {
+  position: sticky;
+  inset-block-start: 0;
+  z-index: 1;
+}
+
+/* Row status, for the matrices that tables are most often used for: a support
+ * grid, a test result, a migration checklist. */
+.carve tr.ok {
+  background: var(--carve-success-wash);
+}
+.carve tr.warn {
+  background: var(--carve-warn-wash);
+}
+.carve tr.fail {
+  background: var(--carve-danger-wash);
+}
+/* A stripe outweighs a status class on specificity alone, so every second
+ * status row would repaint back to the stripe. Restate them at the stripe's
+ * weight rather than reaching for !important. */
+.carve table.striped tbody tr.ok {
+  background: var(--carve-success-wash);
+}
+.carve table.striped tbody tr.warn {
+  background: var(--carve-warn-wash);
+}
+.carve table.striped tbody tr.fail {
+  background: var(--carve-danger-wash);
+}

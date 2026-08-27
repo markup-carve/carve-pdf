@@ -87,6 +87,32 @@ pre {
 }
 pre code { background: none; padding: 0; font-size: 12px; line-height: 1.5; }
 
+/* Pygments token colors: restrained, high-contrast, and safe on white paper. */
+.syntax-highlighted .tok-c, .syntax-highlighted .tok-c1, .syntax-highlighted .tok-cm,
+.syntax-highlighted .tok-cp, .syntax-highlighted .tok-cs { color: #667085; font-style: italic; }
+.syntax-highlighted .tok-k, .syntax-highlighted .tok-kc, .syntax-highlighted .tok-kd,
+.syntax-highlighted .tok-kn, .syntax-highlighted .tok-kp, .syntax-highlighted .tok-kr,
+.syntax-highlighted .tok-kt { color: #7c3aed; font-weight: 600; }
+.syntax-highlighted .tok-s, .syntax-highlighted .tok-s1, .syntax-highlighted .tok-s2,
+.syntax-highlighted .tok-sa, .syntax-highlighted .tok-sb, .syntax-highlighted .tok-sc,
+.syntax-highlighted .tok-sd, .syntax-highlighted .tok-se, .syntax-highlighted .tok-sh,
+.syntax-highlighted .tok-si, .syntax-highlighted .tok-sr, .syntax-highlighted .tok-ss,
+.syntax-highlighted .tok-sx { color: #16794b; }
+.syntax-highlighted .tok-m, .syntax-highlighted .tok-mb, .syntax-highlighted .tok-mf,
+.syntax-highlighted .tok-mh, .syntax-highlighted .tok-mi, .syntax-highlighted .tok-mo,
+.syntax-highlighted .tok-il { color: #b54708; }
+.syntax-highlighted .tok-nf, .syntax-highlighted .tok-fm { color: #005cc5; font-weight: 600; }
+.syntax-highlighted .tok-nc, .syntax-highlighted .tok-nd, .syntax-highlighted .tok-ne,
+.syntax-highlighted .tok-nn { color: #9a3412; }
+.syntax-highlighted .tok-na, .syntax-highlighted .tok-nv, .syntax-highlighted .tok-vc,
+.syntax-highlighted .tok-vg, .syntax-highlighted .tok-vi, .syntax-highlighted .tok-vm { color: #075985; }
+.syntax-highlighted .tok-nt { color: #b42318; }
+.syntax-highlighted .tok-o, .syntax-highlighted .tok-ow { color: #9f1239; }
+.syntax-highlighted .tok-gh, .syntax-highlighted .tok-gu { color: #7c3aed; font-weight: 700; }
+.syntax-highlighted .tok-gs { font-weight: 700; }
+.syntax-highlighted .tok-ge { font-style: italic; }
+.syntax-highlighted .tok-err { color: #b42318; background: #fee4e2; }
+
 /* mermaid diagrams: drop the code-block chrome, center the rendered SVG */
 pre.mermaid { background: none; border: none; padding: 0; margin: 0 0 14px; text-align: center; break-inside: avoid; }
 pre.mermaid svg { max-width: 100%; height: auto; }
@@ -201,7 +227,7 @@ details.spoiler { border-style: dashed; }
 
 /* ---- tabs (static -> div.tabs > section.tabs-panel > p.tabs-label) ---- */
 .tabs, .code-group { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 14px; overflow: hidden; break-inside: avoid; }
-.tabs-panel, .code-group-panel { border-top: 1px solid var(--line); }
+.carve .tabs-panel, .carve .code-group-panel { display: block; border-top: 1px solid var(--line); }
 .tabs-panel:first-child, .code-group-panel:first-child { border-top: none; }
 .tabs-label, .code-group-label {
   margin: 0; padding: 6px 12px; font-weight: 700; font-size: 12px;

@@ -44,6 +44,8 @@ abbr[title]::after {
 /* keep headings attached to the content that follows */
 h1, h2, h3, h4 { break-after: avoid; }
 figure, table, pre, .admonition, details, .tabs, .code-group, blockquote { break-inside: avoid; }
+thead { display: table-header-group; }
+tr { break-inside: avoid; }
 
 /* document header (kicker) + byline footer emitted by wrap.py */
 .doc-header {

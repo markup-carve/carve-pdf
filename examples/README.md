@@ -9,13 +9,12 @@ Carve source (`.crv`) with the rendered PDF next to each one. Regenerate one, or
 
 | Source | PDF | Shows |
 | ------ | --- | ----- |
-| [`demo.crv`](demo.crv) | `demo.pdf` | The full markup spectrum in one document: every admonition, tabs, `code-group`, `list-table`, line block, definition list, footnotes, spoilers, abbreviations, smart typography. Uses the default `pageBreaks: h2`, so each `##` starts a fresh page. |
+| [`demo.crv`](demo.crv) | [`demo.pdf`](demo.pdf) | The full markup spectrum in one document: every admonition, tabs, `code-group`, `list-table`, line block, definition list, footnotes, spoilers, abbreviations, smart typography, plus the newer tree, cards, columns, gallery, steps, aside, wide, badge, and table recipes. |
 | [`01-spec.crv`](01-spec.crv) | `01-spec.pdf` | Structural constructs: headings, nested / ordered / task lists, a table with a header row, definition list, block quote with attribution, fenced code, thematic break. |
 | [`02-showcase.crv`](02-showcase.crv) | `02-showcase.pdf` | Every inline decoration (bold, italic, underline, strikethrough, highlight, super/subscript), a captioned image, critic markup, an admonition, and a table with **row and column spans**. |
 | [`03-math-diagrams.crv`](03-math-diagrams.crv) | `03-math-diagrams.pdf` | **Math, diagrams and charts**: inline and display math via KaTeX, two Mermaid flowcharts, and a Chart.js chart. |
 
-The three numbered examples set `pageBreaks: none` in their frontmatter so short
-documents flow instead of spending a page per section; `demo.crv` keeps the default.
+All examples set `pageBreaks: none` in their frontmatter so their sections flow naturally.
 
 ## Math, diagrams and charts
 

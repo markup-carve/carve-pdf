@@ -70,7 +70,7 @@ Both probe a few common locations if unset.
 | Need | For |
 |------|-----|
 | A renderer backend (PHP **or** Node, see above) | `render.php` / `render.mjs` |
-| Python 3 + `websocket-client` | `meta.py`, `wrap.py`, `print_cdp.py` |
+| Python 3 + `websocket-client` + Pygments | metadata, syntax highlighting (including Carve), composition, printing |
 | Google Chrome or Chromium | PDF printing |
 
 ## Frontmatter
@@ -96,6 +96,11 @@ pageBreaks: h2                      # h2 (each ## a new page) | none | manual
 **Page breaks.** `h2` (default) starts each top-level section on a fresh page; `none`
 lets content flow; `manual` breaks only at an explicit `::: pagebreak` block in the
 source. The `::: pagebreak` marker works in every mode.
+
+**Code.** Named fences such as ` ```php `, ` ```bash `, and ` ```carve ` are
+highlighted statically with Pygments before HTML/PDF output. The bundled Carve lexer
+understands Carve's own block and inline syntax; no browser script or network request
+is needed. Without Pygments, fences remain readable but monochrome.
 
 **Math.** `$`...`$` inline and `$$`...`$$` block math are typeset with KaTeX (bundled,
 offline) when a KaTeX install is found; point `CARVE_KATEX` at its `dist/` dir, or it
@@ -135,7 +140,7 @@ footer (and page numbers) entirely.
 Styling is the released `carve-css` 0.1.0 construct vocabulary followed by two
 PDF-specific layers in `themes/`:
 
-- `carve-css/{tokens,core,extensions}.css` - byte-for-byte vendored from the
+- `carve-css/{tokens,core,extensions,recipes}.css` - byte-for-byte vendored from the
   stylesheet package so standalone installs cover the current rendered vocabulary.
 - `base.css` - the existing carve-pdf visual theme and compatibility overrides.
 - `print.css` - paged-media layer: `@page`, section page-breaks, header/byline.
