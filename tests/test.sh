@@ -17,6 +17,13 @@ ok()   { echo "  ok   - $1"; pass=$((pass+1)); }
 bad()  { echo "  FAIL - $1"; fail=$((fail+1)); }
 has()  { if grep -qF "$3" "$2"; then ok "$1"; else bad "$1 (missing: $3)"; fi; }
 hasnt(){ if grep -qF "$3" "$2"; then bad "$1 (unexpected: $3)"; else ok "$1"; fi; }
+has_any() {
+  if grep -qF "$3" "$2" || grep -qF "$4" "$2"; then
+    ok "$1"
+  else
+    bad "$1 (missing both: $3, $4)"
+  fi
+}
 
 # --- which backends can run? ------------------------------------------------
 backends=()
@@ -51,7 +58,9 @@ for be in "${backends[@]}"; do
   has  "delete"          "$m" "<del>delete</del>"
   has  "superscript"     "$m" "<sup>2</sup>"
   has  "subscript"       "$m" "<sub>2</sub>"
-  has  "kbd"             "$m" "<kbd>Ctrl</kbd>"
+  # PHP currently preserves the attribute spelling while JS emits the semantic
+  # element; both remain keyboard input and the bundled theme styles both.
+  has_any "kbd"           "$m" "<kbd>Ctrl</kbd>" '<span kbd="">Ctrl</span>'
   has  "abbr"            "$m" '<abbr title="HyperText Markup Language">HTML</abbr>'
   has  "admonition tip"  "$m" 'class="admonition tip"'
   has  "list-table->table" "$m" "<table>"
@@ -72,12 +81,12 @@ render "${backends[0]}" "$FIX/marks.crv" "$WORK/frag.html"
 
 # valid paper/margin -> @page override present
 echo '{"paper":"Letter","margin":"12mm"}' > "$WORK/ok.json"
-python3 "$LIB/wrap.py" "$WORK/frag.html" "$WORK/ok.json" "$FIX" "$WORK/ok.html" "$HERE/themes/base.css" "$HERE/themes/print.css" 2>/dev/null
+python3 "$LIB/wrap.py" "$WORK/frag.html" "$WORK/ok.json" "$FIX" "$WORK/ok.html" "$HERE/themes/carve-css/tokens.css" "$HERE/themes/carve-css/core.css" "$HERE/themes/carve-css/extensions.css" "$HERE/themes/base.css" "$HERE/themes/print.css" 2>/dev/null
 has  "valid paper inlined"  "$WORK/ok.html" "size: Letter;"
 
 # injection attempt -> rejected, not inlined
 printf '{"paper":"A4; } body { background: red } @page {"}' > "$WORK/evil.json"
-python3 "$LIB/wrap.py" "$WORK/frag.html" "$WORK/evil.json" "$FIX" "$WORK/evil.html" "$HERE/themes/base.css" "$HERE/themes/print.css" 2>/dev/null
+python3 "$LIB/wrap.py" "$WORK/frag.html" "$WORK/evil.json" "$FIX" "$WORK/evil.html" "$HERE/themes/carve-css/tokens.css" "$HERE/themes/carve-css/core.css" "$HERE/themes/carve-css/extensions.css" "$HERE/themes/base.css" "$HERE/themes/print.css" 2>/dev/null
 hasnt "css injection rejected" "$WORK/evil.html" "background: red"
 
 echo

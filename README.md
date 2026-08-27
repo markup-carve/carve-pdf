@@ -132,10 +132,12 @@ footer (and page numbers) entirely.
 
 ## Themes
 
-Styling is two CSS files in `themes/`:
+Styling is the released `carve-css` 0.1.0 construct vocabulary followed by two
+PDF-specific layers in `themes/`:
 
-- `base.css` - the Carve construct vocabulary (admonitions, tables, tabs, code-group,
-  footnotes, definition lists, math, ...). Target-agnostic; reusable for screen/email.
+- `carve-css/{tokens,core,extensions}.css` - byte-for-byte vendored from the
+  stylesheet package so standalone installs cover the current rendered vocabulary.
+- `base.css` - the existing carve-pdf visual theme and compatibility overrides.
 - `print.css` - paged-media layer: `@page`, section page-breaks, header/byline.
 
 ## Tests

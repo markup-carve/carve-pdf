@@ -10,6 +10,12 @@ Nothing released yet. The initial capability set:
 
 ### Added
 
+- Vendor the released `@markup-carve/carve-css` 0.1.0 token, core and extension
+  layers and inline them before the existing PDF theme, keeping standalone
+  output current without requiring npm at runtime.
+- Style both current engine spellings of keyboard input (`<kbd>` and the
+  compatibility `<span kbd>` form) so PHP- and JavaScript-backed PDFs agree.
+
 - `crv2pdf` renders a `.crv` document to a paginated PDF through Chrome
   DevTools, with a page-number footer and `printBackground` enabled.
 - Alternate output formats: `--html` (self-contained, CSS inlined), `--md` and

@@ -1,0 +1,144 @@
+/*
+ * Carve tokens.
+ *
+ * Every colour, space and font in this package resolves through a custom
+ * property defined here. Nothing downstream needs to override a selector to
+ * restyle Carve - overriding a token is enough, which is the difference between
+ * theming this package and forking it.
+ *
+ * The palette is DELIBERATELY neutral. This is the layer six different
+ * consumers were each writing by hand, so it has to disappear into a WordPress
+ * admin, a Hugo site, a Zensical page and a print stylesheet without arguing
+ * with any of them. A house style belongs in the consumer's own tokens, not
+ * here.
+ *
+ * Three theme states, not two. An explicit choice stamps data-theme on the root
+ * element; the default "system" setting stamps nothing, and only
+ * prefers-color-scheme separates light from dark there. So: bare :root carries
+ * the complete light palette, the media query redefines tokens for an unstamped
+ * dark root, and [data-theme='dark'] redefines them again so an explicit
+ * toggle wins in both directions.
+ */
+
+:root {
+  /* Surfaces. --carve-surface is the page; --carve-sunk is anything inset
+   * (code, admonition body, table stripes); --carve-raised is anything that
+   * sits above the page (a tab strip, a popover). */
+  --carve-surface: #ffffff;
+  --carve-sunk: #f4f5f7;
+  --carve-raised: #ffffff;
+
+  /* Text. --carve-ink-soft is for anything the reader can skip: captions,
+   * attributions, footnote back-links, index page numbers. */
+  --carve-ink: #16191d;
+  --carve-ink-soft: #5a626d;
+  --carve-ink-inverse: #ffffff;
+
+  /* Lines. --carve-rule is a divider; --carve-border is an edge that encloses
+   * something. Keeping them separate lets a consumer make borders visible
+   * while keeping rules faint, which print stylesheets in particular want. */
+  --carve-rule: #e3e6ea;
+  --carve-border: #cfd4da;
+
+  /* The one hue this package spends. Links, focus rings, active tab. */
+  --carve-accent: #14607f;
+  --carve-accent-soft: #e6f0f4;
+  --carve-accent-ink: #0e4459;
+
+  /* Semantic colours for admonitions and critic markup. Each pairs an ink with
+   * a wash, so a consumer changing one changes both halves of the construct. */
+  --carve-info: #14607f;
+  --carve-info-wash: #e8f1f5;
+  --carve-success: #1f6b45;
+  --carve-success-wash: #e8f2ec;
+  --carve-warn: #8a5a0b;
+  --carve-warn-wash: #f7efdf;
+  --carve-danger: #9c2c1c;
+  --carve-danger-wash: #f8eae7;
+  --carve-neutral: #4a5560;
+  --carve-neutral-wash: #eef0f2;
+
+  /* Type. No @font-face and no @import: a stylesheet that reaches out to a font
+   * host cannot be used behind a strict CSP, and every consumer here already
+   * has its own type stack. These inherit by default. */
+  --carve-font-body: inherit;
+  --carve-font-heading: inherit;
+  --carve-font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas,
+    "Liberation Mono", monospace;
+  --carve-font-size-small: 0.875em;
+  --carve-line-height: 1.6;
+
+  /* Space. One scale, so constructs align with each other rather than each
+   * carrying its own hand-picked padding. */
+  --carve-space-1: 0.25rem;
+  --carve-space-2: 0.5rem;
+  --carve-space-3: 0.75rem;
+  --carve-space-4: 1rem;
+  --carve-space-6: 1.5rem;
+
+  --carve-radius: 3px;
+  --carve-border-width: 1px;
+  /* The stripe down the side of an admonition, a callout, a blockquote. */
+  --carve-accent-width: 3px;
+}
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --carve-surface: #14171b;
+    --carve-sunk: #1c2126;
+    --carve-raised: #1f252b;
+
+    --carve-ink: #e7eaee;
+    --carve-ink-soft: #9aa4b0;
+    --carve-ink-inverse: #14171b;
+
+    --carve-rule: #262d34;
+    --carve-border: #384149;
+
+    --carve-accent: #6fb6d4;
+    --carve-accent-soft: #16252e;
+    --carve-accent-ink: #a8d4e6;
+
+    /* Washes go dark rather than inverting: a pale wash on a dark ground is a
+     * light box the reader's eye has to fight, which is exactly the mistake a
+     * naive inversion makes. */
+    --carve-info: #6fb6d4;
+    --carve-info-wash: #13232b;
+    --carve-success: #74c79e;
+    --carve-success-wash: #12241b;
+    --carve-warn: #ddab52;
+    --carve-warn-wash: #261d0d;
+    --carve-danger: #f0897a;
+    --carve-danger-wash: #291411;
+    --carve-neutral: #a4aeb9;
+    --carve-neutral-wash: #1d2227;
+  }
+}
+
+:root[data-theme="dark"] {
+  --carve-surface: #14171b;
+  --carve-sunk: #1c2126;
+  --carve-raised: #1f252b;
+
+  --carve-ink: #e7eaee;
+  --carve-ink-soft: #9aa4b0;
+  --carve-ink-inverse: #14171b;
+
+  --carve-rule: #262d34;
+  --carve-border: #384149;
+
+  --carve-accent: #6fb6d4;
+  --carve-accent-soft: #16252e;
+  --carve-accent-ink: #a8d4e6;
+
+  --carve-info: #6fb6d4;
+  --carve-info-wash: #13232b;
+  --carve-success: #74c79e;
+  --carve-success-wash: #12241b;
+  --carve-warn: #ddab52;
+  --carve-warn-wash: #261d0d;
+  --carve-danger: #f0897a;
+  --carve-danger-wash: #291411;
+  --carve-neutral: #a4aeb9;
+  --carve-neutral-wash: #1d2227;
+}
