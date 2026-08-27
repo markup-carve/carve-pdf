@@ -1,0 +1,394 @@
+/*
+ * Carve extension constructs.
+ *
+ * These render only when the corresponding extension is enabled, so this layer
+ * is separate: a consumer running the core renderer alone can ship core.css and
+ * nothing here.
+ *
+ * The constructs in this file are the reason the package exists. Across the six
+ * hand-written Carve stylesheets in this organization, callouts, the glossary
+ * and the index were each styled by exactly ONE of them, and critic markup by
+ * one - so the union of six copies still left most of this unstyled everywhere
+ * but a single repo.
+ */
+
+/* --- Tab sets ------------------------------------------------------------ */
+
+/* Two shapes reach the page, and both are current.
+ *
+ * The radio shape is a CSS-only tab set: sibling <input class="tabs-radio">
+ * elements, their <label class="tabs-label"> partners, and one
+ * <div class="tabs-panel"> per tab. No JavaScript, which is why it exists.
+ *
+ * The plain shape is <div class="tabs"> holding <div class="tab"> children,
+ * each labelled with a reused .admonition-title. It has no interactive
+ * behaviour, so it is styled as stacked, labelled sections rather than
+ * pretending to be tabs the reader can click. */
+
+.carve .tabs {
+  border: var(--carve-border-width) solid var(--carve-rule);
+  border-radius: var(--carve-radius);
+  margin-block-end: var(--carve-space-4);
+  /* Establishes the row for the radio shape's labels; harmless for the other. */
+  display: flex;
+  flex-wrap: wrap;
+}
+
+/* The inputs drive the panels and must never be seen, but must stay focusable -
+ * so they are clipped, not display:none, which would take them out of the tab
+ * order and make the whole construct keyboard-inert. */
+.carve .tabs-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.carve .tabs-label {
+  order: -1;
+  padding: var(--carve-space-2) var(--carve-space-4);
+  cursor: pointer;
+  color: var(--carve-ink-soft);
+  border-block-end: var(--carve-accent-width) solid transparent;
+  font-size: var(--carve-font-size-small);
+  font-weight: 600;
+}
+.carve .tabs-label:hover {
+  color: var(--carve-ink);
+}
+.carve .tabs-radio:checked + .tabs-label {
+  color: var(--carve-accent);
+  border-block-end-color: var(--carve-accent);
+}
+/* The focus ring belongs on the label, because the input it belongs to is
+ * clipped out of sight. */
+.carve .tabs-radio:focus-visible + .tabs-label {
+  outline: 2px solid var(--carve-accent);
+  outline-offset: -2px;
+}
+
+.carve .tabs-panel {
+  display: none;
+  /* Full row, below the labels. */
+  flex: 1 0 100%;
+  padding: var(--carve-space-4);
+  border-block-start: var(--carve-border-width) solid var(--carve-rule);
+}
+.carve .tabs-panel > :last-child {
+  margin-block-end: 0;
+}
+/* Each radio precedes its own label and panel, so the checked input selects the
+ * panel that follows its label. */
+.carve .tabs-radio:checked + .tabs-label + .tabs-panel {
+  display: block;
+}
+
+/* The non-interactive shape: every child is visible, so each needs its own
+ * separator and its label needs to read as a heading rather than as an
+ * admonition title. */
+.carve .tabs > .tab {
+  flex: 1 0 100%;
+  padding: var(--carve-space-4);
+  border-block-start: var(--carve-border-width) solid var(--carve-rule);
+}
+.carve .tabs > .tab:first-child {
+  border-block-start: 0;
+}
+.carve .tabs > .tab > .admonition-title {
+  color: var(--carve-ink-soft);
+  font-size: var(--carve-font-size-small);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+}
+.carve .tabs > .tab > :last-child {
+  margin-block-end: 0;
+}
+
+/* --- Code groups --------------------------------------------------------- */
+
+/* Same two-shape story as tabs: a radio-driven labelled group, and a plain
+ * <div class="code-group"> holding bare <pre> children. */
+.carve .code-group {
+  border: var(--carve-border-width) solid var(--carve-rule);
+  border-radius: var(--carve-radius);
+  margin-block-end: var(--carve-space-4);
+  display: flex;
+  flex-wrap: wrap;
+}
+.carve .code-group > pre {
+  flex: 1 0 100%;
+  margin: 0;
+  border: 0;
+  border-block-start: var(--carve-border-width) solid var(--carve-rule);
+  border-radius: 0;
+}
+.carve .code-group > pre:first-child {
+  border-block-start: 0;
+}
+
+.carve .code-group-radio {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.carve .code-group-label {
+  order: -1;
+  padding: var(--carve-space-2) var(--carve-space-3);
+  cursor: pointer;
+  font-family: var(--carve-font-mono);
+  font-size: var(--carve-font-size-small);
+  color: var(--carve-ink-soft);
+  border-block-end: var(--carve-accent-width) solid transparent;
+}
+.carve .code-group-radio:checked + .code-group-label {
+  color: var(--carve-accent);
+  border-block-end-color: var(--carve-accent);
+}
+.carve .code-group-radio:focus-visible + .code-group-label {
+  outline: 2px solid var(--carve-accent);
+  outline-offset: -2px;
+}
+.carve .code-group-panel {
+  display: none;
+  flex: 1 0 100%;
+  border-block-start: var(--carve-border-width) solid var(--carve-rule);
+}
+.carve .code-group-radio:checked + .code-group-label + .code-group-panel {
+  display: block;
+}
+.carve .code-group-panel > pre {
+  margin: 0;
+  border: 0;
+  border-radius: 0;
+}
+
+/* --- Spoiler ------------------------------------------------------------- */
+
+/* <details class="spoiler"><summary>. A real disclosure element, so the UA
+ * already handles the toggling and the keyboard. */
+.carve .spoiler {
+  border: var(--carve-border-width) solid var(--carve-rule);
+  border-radius: var(--carve-radius);
+  padding: var(--carve-space-2) var(--carve-space-3);
+  margin-block-end: var(--carve-space-4);
+  background: var(--carve-sunk);
+}
+.carve .spoiler > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--carve-accent);
+}
+.carve .spoiler[open] > summary {
+  margin-block-end: var(--carve-space-2);
+}
+.carve .spoiler > :last-child {
+  margin-block-end: 0;
+}
+.carve .spoiler-title {
+  font-weight: 600;
+}
+
+/* --- Code callouts ------------------------------------------------------- */
+
+/* A marker inside the code (<b class="callout" data-callout="N">) bound to an
+ * item in the list that follows (<ol class="callouts"><li value="N">). The two
+ * carry the same number, so they are styled as one badge in both places - that
+ * matching is the whole construct. */
+.carve .callout {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 1.35em;
+  height: 1.35em;
+  padding-inline: 0.3em;
+  border-radius: 1em;
+  background: var(--carve-accent);
+  color: var(--carve-ink-inverse);
+  font-family: var(--carve-font-body);
+  font-size: 0.8em;
+  font-weight: 600;
+  line-height: 1;
+  vertical-align: baseline;
+}
+.carve .callouts {
+  list-style: none;
+  padding-inline-start: 0;
+  counter-reset: none;
+  font-size: var(--carve-font-size-small);
+}
+.carve .callouts > li {
+  display: flex;
+  gap: var(--carve-space-2);
+  margin-block-end: var(--carve-space-2);
+}
+/* The <li value="N"> number is what binds the item to its marker, and a plain
+ * list-style would show it as "N." rather than as the same badge. */
+.carve .callouts > li::before {
+  content: counter(list-item);
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  flex: none;
+  min-width: 1.35em;
+  height: 1.35em;
+  padding-inline: 0.3em;
+  border-radius: 1em;
+  background: var(--carve-accent);
+  color: var(--carve-ink-inverse);
+  font-size: 0.85em;
+  font-weight: 600;
+  line-height: 1;
+}
+
+/* --- Table of contents --------------------------------------------------- */
+
+.carve .toc {
+  border: var(--carve-border-width) solid var(--carve-rule);
+  border-radius: var(--carve-radius);
+  padding: var(--carve-space-3) var(--carve-space-4);
+  margin-block-end: var(--carve-space-4);
+  background: var(--carve-sunk);
+  font-size: var(--carve-font-size-small);
+}
+.carve .toc ul {
+  list-style: none;
+  padding-inline-start: var(--carve-space-4);
+  margin-block: 0;
+}
+.carve .toc > ul {
+  padding-inline-start: 0;
+}
+.carve .toc a {
+  text-decoration: none;
+}
+.carve .toc a:hover {
+  text-decoration: underline;
+}
+/* An empty toc means the document had no headings to collect. Rendering an
+ * empty bordered box as if it were content is worse than rendering nothing. */
+.carve .toc:empty {
+  display: none;
+}
+
+/* --- Glossary, terms and index ------------------------------------------- */
+
+.carve .glossary {
+  border-inline-start: var(--carve-accent-width) solid var(--carve-rule);
+  padding-inline-start: var(--carve-space-4);
+  margin-block-end: var(--carve-space-4);
+}
+/* A glossary term used in prose, linked back to its definition. Dotted rather
+ * than solid, so it reads as a definition rather than as a navigation link. */
+.carve .term {
+  border-block-end: 1px dotted var(--carve-border);
+  cursor: help;
+  text-decoration: none;
+}
+
+.carve .index-term,
+.carve .ext-index {
+  /* An index anchor is a marker for the generated index, not decoration for the
+   * reader. It must not change how the sentence looks. */
+  all: unset;
+  font: inherit;
+  color: inherit;
+}
+.carve .index-list {
+  list-style: none;
+  padding-inline-start: 0;
+  columns: 2;
+  column-gap: var(--carve-space-6);
+  font-size: var(--carve-font-size-small);
+}
+.carve .index-list li {
+  break-inside: avoid;
+}
+.carve .index-backref {
+  color: var(--carve-ink-soft);
+  margin-inline-start: var(--carve-space-1);
+  font-variant-numeric: tabular-nums;
+  text-decoration: none;
+}
+
+/* --- Math and diagrams --------------------------------------------------- */
+
+.carve .math {
+  font-family: var(--carve-font-mono);
+}
+/* Display math is its own block and can be wider than the measure. */
+.carve .math.display {
+  display: block;
+  overflow-x: auto;
+  margin-block: var(--carve-space-4);
+  text-align: center;
+}
+
+/* Diagram fences degrade to their source in static mode, and are replaced by a
+ * client-side renderer otherwise. Either way the container must not clip. */
+.carve :is(.mermaid, .d2, .plantuml, .graphviz, .wavedrom, .abc, .vega-lite, .chart) {
+  overflow-x: auto;
+  margin-block-end: var(--carve-space-4);
+}
+.carve :is(.mermaid, .d2) svg {
+  max-width: 100%;
+  height: auto;
+}
+
+/* --- Colour swatches ----------------------------------------------------- */
+
+.carve .swatch {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--carve-space-1);
+  white-space: nowrap;
+}
+.carve .swatch-chip {
+  /* The chip's background is the colour being shown, set inline by the engine.
+   * A border keeps a white or transparent swatch visible on white. */
+  display: inline-block;
+  width: 0.85em;
+  height: 0.85em;
+  border: var(--carve-border-width) solid var(--carve-border);
+  border-radius: 2px;
+  vertical-align: -0.05em;
+}
+.carve .swatch-val {
+  font-family: var(--carve-font-mono);
+  font-size: var(--carve-font-size-small);
+}
+
+/* --- List tables and wiki links ------------------------------------------ */
+
+/* A list-table is a nested list the extension marks as tabular. Without the
+ * markers it reads as an ordinary nested list, which is wrong twice over: the
+ * outer level is rows and the inner is cells. */
+.carve .list-table > ul {
+  list-style: none;
+  padding-inline-start: 0;
+  margin: 0;
+}
+.carve .list-table > ul > li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--carve-space-3);
+  border-block-end: var(--carve-border-width) solid var(--carve-rule);
+  padding-block: var(--carve-space-2);
+}
+.carve .list-table > ul > li > ul {
+  display: contents;
+  list-style: none;
+}
+
+.carve .wikilink {
+  color: var(--carve-accent);
+}
+/* A heading cross-reference resolved by the numbered-crossrefs extension. */
+.carve .heading-ref {
+  text-decoration: none;
+}
+.carve .heading-ref:hover {
+  text-decoration: underline;
+}

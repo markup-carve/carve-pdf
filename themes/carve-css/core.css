@@ -1,0 +1,336 @@
+/*
+ * Carve core constructs - everything the CORE renderer emits, with no
+ * extensions enabled.
+ *
+ * Every selector here was read off real engine output rather than inferred from
+ * a construct name, which matters more than it sounds: Carve's footnote section
+ * carries no class at all and is addressed by ARIA role, a blockquote with an
+ * attribution is a <figure> rather than a <blockquote>, and a mention wraps its
+ * text in <strong>. A stylesheet written from the syntax guide misses all
+ * three.
+ *
+ * Scope: everything is under .carve, so this cannot leak into a host page's own
+ * markup. Set the class on whatever element holds rendered Carve.
+ */
+
+.carve {
+  color: var(--carve-ink);
+  background: var(--carve-surface);
+  font-family: var(--carve-font-body);
+  line-height: var(--carve-line-height);
+}
+
+/* --- Sections and headings ------------------------------------------------ */
+
+/* Carve wraps each heading and its content in <section id="...">, so the
+ * heading's own margin would double the section's. The section owns vertical
+ * space; the heading owns none above it. */
+.carve section {
+  margin-block: var(--carve-space-6) 0;
+}
+.carve section:first-child {
+  margin-block-start: 0;
+}
+.carve h1,
+.carve h2,
+.carve h3,
+.carve h4,
+.carve h5,
+.carve h6 {
+  font-family: var(--carve-font-heading);
+  line-height: 1.25;
+  margin-block: 0 var(--carve-space-3);
+  text-wrap: balance;
+}
+
+/* The permalink anchor the heading-permalinks extension adds. Hidden until the
+ * heading is hovered or the link itself is focused - keyboard users must be
+ * able to reach it, so this is opacity rather than display:none. */
+.carve .permalink {
+  opacity: 0;
+  margin-inline-start: var(--carve-space-2);
+  text-decoration: none;
+  transition: opacity 120ms ease-in-out;
+}
+.carve :is(h1, h2, h3, h4, h5, h6):hover .permalink,
+.carve .permalink:focus-visible {
+  opacity: 1;
+}
+@media (prefers-reduced-motion: reduce) {
+  .carve .permalink {
+    transition: none;
+  }
+}
+
+/* Auto-numbering, when the section-numbers extension is on. */
+.carve .section-number {
+  color: var(--carve-ink-soft);
+  margin-inline-end: var(--carve-space-2);
+  font-variant-numeric: tabular-nums;
+}
+
+/* --- Inline -------------------------------------------------------------- */
+
+.carve a {
+  color: var(--carve-accent);
+  text-underline-offset: 2px;
+}
+.carve a:hover {
+  color: var(--carve-accent-ink);
+}
+.carve :focus-visible {
+  outline: 2px solid var(--carve-accent);
+  outline-offset: 2px;
+}
+
+.carve code {
+  font-family: var(--carve-font-mono);
+  font-size: var(--carve-font-size-small);
+  background: var(--carve-sunk);
+  border-radius: var(--carve-radius);
+  padding: 0.1em 0.35em;
+}
+.carve pre code {
+  background: none;
+  padding: 0;
+  font-size: inherit;
+}
+
+/* A mention and a tag each wrap their text in <strong>, so the weight is
+ * already carried; these only add the colour and keep the marker attached to
+ * the word. */
+.carve .mention,
+.carve .tag {
+  color: var(--carve-accent);
+  white-space: nowrap;
+}
+.carve .mention strong,
+.carve .tag strong {
+  font-weight: 600;
+}
+
+.carve ins {
+  background: var(--carve-success-wash);
+  color: var(--carve-success);
+  text-decoration: none;
+}
+.carve del {
+  background: var(--carve-danger-wash);
+  color: var(--carve-danger);
+}
+/* An editorial comment in critic markup is a note to a human, not content. */
+.carve .critic-comment {
+  background: var(--carve-warn-wash);
+  color: var(--carve-warn);
+  border-radius: var(--carve-radius);
+  padding: 0.1em 0.35em;
+  font-size: var(--carve-font-size-small);
+}
+
+/* --- Blocks -------------------------------------------------------------- */
+
+.carve p,
+.carve ul,
+.carve ol,
+.carve dl,
+.carve pre,
+.carve table,
+.carve blockquote,
+.carve figure {
+  margin-block: 0 var(--carve-space-4);
+}
+
+.carve blockquote {
+  border-inline-start: var(--carve-accent-width) solid var(--carve-border);
+  padding-inline-start: var(--carve-space-4);
+  margin-inline: 0;
+  color: var(--carve-ink-soft);
+}
+
+.carve pre {
+  background: var(--carve-sunk);
+  border: var(--carve-border-width) solid var(--carve-rule);
+  border-radius: var(--carve-radius);
+  font-family: var(--carve-font-mono);
+  font-size: var(--carve-font-size-small);
+  padding: var(--carve-space-3);
+  /* Code is the construct most likely to be wider than the page, and the page
+   * body must never scroll sideways. */
+  overflow-x: auto;
+}
+
+.carve hr {
+  border: 0;
+  border-block-start: var(--carve-border-width) solid var(--carve-rule);
+  margin-block: var(--carve-space-6);
+}
+
+/* Task list items. The engine emits a disabled <input type="checkbox"> with an
+ * aria-label, inline in the item text. */
+.carve li > input[type="checkbox"] {
+  margin-inline-end: var(--carve-space-2);
+  /* A disabled control is greyed by the UA, which reads as "broken" rather than
+   * "a rendered state". The list is a document, not a form. */
+  opacity: 1;
+  accent-color: var(--carve-accent);
+}
+
+.carve dt {
+  font-weight: 600;
+}
+.carve dd {
+  margin-inline-start: var(--carve-space-4);
+  margin-block-end: var(--carve-space-2);
+}
+
+/* --- Admonitions --------------------------------------------------------- */
+
+/* <aside class="admonition TYPE"> plus an optional
+ * <p class="admonition-title">. The type word comes from the source, so it is
+ * an open vocabulary: the base rule has to stand on its own for a type this
+ * package has never heard of, and the semantic colours below are additions
+ * rather than requirements. */
+.carve .admonition {
+  --carve-adm: var(--carve-neutral);
+  --carve-adm-wash: var(--carve-neutral-wash);
+  border-inline-start: var(--carve-accent-width) solid var(--carve-adm);
+  border-radius: var(--carve-radius);
+  background: var(--carve-adm-wash);
+  padding: var(--carve-space-3) var(--carve-space-4);
+  margin-block: 0 var(--carve-space-4);
+}
+.carve .admonition > :last-child {
+  margin-block-end: 0;
+}
+.carve .admonition-title {
+  font-weight: 600;
+  color: var(--carve-adm);
+  margin-block-end: var(--carve-space-2);
+}
+
+.carve .admonition:is(.note, .info) {
+  --carve-adm: var(--carve-info);
+  --carve-adm-wash: var(--carve-info-wash);
+}
+.carve .admonition:is(.tip, .success, .hint) {
+  --carve-adm: var(--carve-success);
+  --carve-adm-wash: var(--carve-success-wash);
+}
+.carve .admonition:is(.warning, .caution, .attention) {
+  --carve-adm: var(--carve-warn);
+  --carve-adm-wash: var(--carve-warn-wash);
+}
+.carve .admonition:is(.danger, .error, .bug) {
+  --carve-adm: var(--carve-danger);
+  --carve-adm-wash: var(--carve-danger-wash);
+}
+.carve .admonition.important {
+  --carve-adm: var(--carve-accent);
+  --carve-adm-wash: var(--carve-accent-soft);
+}
+
+/* The label a `[ref]` on a container produces. */
+.carve .div-label {
+  color: var(--carve-ink-soft);
+  font-size: var(--carve-font-size-small);
+  font-family: var(--carve-font-mono);
+}
+
+/* --- Figures ------------------------------------------------------------- */
+
+/* A quote with an attribution is a <figure> holding a <blockquote>, not a
+ * bare blockquote - so a figcaption here is an attribution and reads better
+ * aligned with the quote's text than centred under it. */
+.carve figure {
+  margin-inline: 0;
+}
+.carve figcaption {
+  color: var(--carve-ink-soft);
+  font-size: var(--carve-font-size-small);
+  margin-block-start: var(--carve-space-2);
+}
+.carve figure > img,
+.carve figure > video {
+  max-width: 100%;
+  height: auto;
+  display: block;
+}
+
+/* A composite figure: one group holding numbered panels. The panels sit side by
+ * side when there is room and stack when there is not, without a media query
+ * picking an arbitrary breakpoint. */
+.carve .carve-figure-group {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--carve-space-4);
+}
+.carve .carve-figure-panel {
+  flex: 1 1 16rem;
+  margin: 0;
+}
+
+/* --- Tables -------------------------------------------------------------- */
+
+.carve table {
+  border-collapse: collapse;
+  width: 100%;
+}
+/* Wide tables scroll inside their own container. The engine does not emit a
+ * wrapper, so a consumer that wants this adds one; the rule is here so it
+ * behaves consistently when they do. */
+.carve .table-scroll {
+  overflow-x: auto;
+  margin-block-end: var(--carve-space-4);
+}
+.carve :is(th, td) {
+  border-block-end: var(--carve-border-width) solid var(--carve-rule);
+  padding: var(--carve-space-2) var(--carve-space-3);
+  text-align: start;
+}
+.carve th {
+  font-weight: 600;
+}
+/* Carve distinguishes a column header from a ROW header - `|=` in a body row
+ * emits <th scope="row"> - and the two should not look alike. A column header
+ * caps the table; a row header labels its line. */
+.carve th[scope="col"] {
+  background: var(--carve-sunk);
+  border-block-end: var(--carve-border-width) solid var(--carve-border);
+}
+.carve th[scope="row"] {
+  background: none;
+  color: var(--carve-ink);
+}
+.carve tbody tr:last-child :is(th, td) {
+  border-block-end: 0;
+}
+
+/* --- Footnotes ----------------------------------------------------------- */
+
+/* No class: the endnote section is addressed by role, and so are the reference
+ * and the back-link. This is the part of Carve's HTML a hand-written theme most
+ * often misses entirely. */
+.carve [role="doc-endnotes"] {
+  margin-block-start: var(--carve-space-6);
+  font-size: var(--carve-font-size-small);
+  color: var(--carve-ink-soft);
+}
+.carve [role="doc-endnotes"] hr {
+  margin-block: 0 var(--carve-space-3);
+}
+.carve [role="doc-noteref"] {
+  text-decoration: none;
+}
+.carve [role="doc-noteref"] sup {
+  /* A superscript reference should not open the line it sits in. */
+  line-height: 0;
+}
+.carve [role="doc-backlink"] {
+  margin-inline-start: var(--carve-space-2);
+  text-decoration: none;
+}
+
+/* A citation, when the citations extension is on. */
+.carve .citation {
+  white-space: nowrap;
+}

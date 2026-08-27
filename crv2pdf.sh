@@ -102,7 +102,8 @@ build_one() {  # build_one <input.crv> <output>
   python3 "$LIB/meta.py" "$in" > "$WORK/meta.json"
   local srcdir; srcdir="$(cd "$(dirname "$in")" && pwd)"
   python3 "$LIB/wrap.py" "$WORK/frag" "$WORK/meta.json" "$srcdir" "$WORK/doc.html" \
-    "$THEMES/base.css" "$THEMES/print.css"
+    "$THEMES/carve-css/tokens.css" "$THEMES/carve-css/core.css" \
+    "$THEMES/carve-css/extensions.css" "$THEMES/base.css" "$THEMES/print.css"
 
   if [ "$FORMAT" = "html" ]; then
     cp "$WORK/doc.html" "$out"
