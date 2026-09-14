@@ -145,18 +145,6 @@ PDF-specific layers in `themes/`:
 - `base.css` - the existing carve-pdf visual theme and compatibility overrides.
 - `print.css` - paged-media layer: `@page`, section page-breaks, header/byline.
 
-## Tests
-
-`tests/test.sh` renders the fixtures under `tests/fixtures/` with every available
-backend and asserts structural invariants (bold -> `<strong>`, `list-table` -> real
-`<table>`, `mermaid`/`chart` blocks, page-geometry validation, ...). It runs whichever
-of php/js is present and fails if neither is. CI (`.github/workflows/ci.yml`) builds
-both carve-php and carve-js from their repos and runs it on every push.
-
-```bash
-./tests/test.sh
-```
-
 ## Install (symlink onto PATH)
 
 ```bash
@@ -180,3 +168,7 @@ Or symlink by hand: `ln -s "$PWD/crv2pdf.sh" ~/.local/bin/crv2pdf`.
 See `examples/demo.crv` for a document exercising the full markup spectrum, and
 [`examples/README.md`](examples/README.md) for the smaller focused examples
 (structure, inline decorations, math / diagrams / charts).
+
+## Development
+
+Contributor setup, testing, and maintenance notes are in the [development guide](docs/development.md).
