@@ -15,6 +15,7 @@ crv2pdf post.crv --txt               # plain text              -> post.txt
 
 crv2pdf a.crv b.crv c.crv --out-dir out/    # batch -> out/*.pdf
 crv2pdf --watch post.crv                    # rebuild on every save
+crv2pdf book/main.crv --include-root "$PWD/book" # contained includes
 ```
 
 Output format defaults to `--pdf`. `--html` emits a self-contained styled document
@@ -23,8 +24,14 @@ Output format defaults to `--pdf`. `--html` emits a self-contained styled docume
 **Batch.** Pass several `.crv` files (or set `--out-dir DIR`) to render each; outputs
 are named `<basename>.<fmt>` beside the input or in `--out-dir`.
 
-**Watch.** `--watch <input>` builds once, then rebuilds on every change. Uses
-`inotifywait` when available (event-driven), else a 1s mtime poll - no extra deps.
+**Includes.** Named files expand `{{ path }}` inside their own directory by
+default. Pass an absolute `--include-root` to widen or narrow that boundary.
+Traversal and symlink escapes stay literal and emit warnings without exposing
+the containment path.
+
+**Watch.** `--watch <input>` builds once, then polls the input and every resolved
+include reported by the renderer. Adding or changing an include rebuilds the
+output and refreshes the dependency set.
 
 ## Pipeline
 
@@ -125,6 +132,7 @@ promise that print_cdp awaits, so every renderer finishes before the PDF is capt
 | `CARVE_PHP_AUTOLOAD` | autodetect | Composer autoloader providing `MarkupCarve\Carve` (php) |
 | `CARVE_JS` | autodetect | carve-js checkout or `dist/index.js` (js) |
 | `CARVE_SMART_LOCALE` | `en` | Smart-quotes locale (php backend) |
+| `CARVE_INCLUDE_ROOT` | input directory | Absolute containment root for includes |
 | `CARVE_PDF_FOOTER` | `Page {page} of {pages}` | Footer template; `{page}`/`{pages}` placeholders. Frontmatter `footer:` overrides it; empty string disables the footer |
 | `CARVE_KATEX` | autodetect | KaTeX `dist/` dir for math typesetting |
 | `CARVE_MERMAID` | autodetect | `mermaid.min.js` for diagram rendering |

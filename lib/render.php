@@ -35,6 +35,8 @@ use MarkupCarve\Carve\Extension\SpoilerExtension;
 use MarkupCarve\Carve\Extension\TableOfContentsExtension;
 use MarkupCarve\Carve\Extension\TabsExtension;
 use MarkupCarve\Carve\Renderer\RenderMode;
+use MarkupCarve\Carve\Transform\FilesystemIncludeResolver;
+use MarkupCarve\Carve\Transform\IncludeExpander;
 
 function fail(string $msg): never
 {
@@ -69,6 +71,7 @@ if (!class_exists(CarveConverter::class)) {
 $args = array_slice($argv, 1);
 $metaOnly = false;
 $format = 'html';
+$includeRoot = null;
 $rest = [];
 for ($i = 0; $i < count($args); $i++) {
     $a = $args[$i];
@@ -76,6 +79,8 @@ for ($i = 0; $i < count($args); $i++) {
         $metaOnly = true;
     } elseif ($a === '--format') {
         $format = $args[++$i] ?? 'html';
+    } elseif ($a === '--include-root') {
+        $includeRoot = $args[++$i] ?? null;
     } elseif (in_array($a, ['--html', '--md', '--txt'], true)) {
         $format = ltrim($a, '-');
     } else {
@@ -90,6 +95,18 @@ if ($input === null || !is_file($input)) {
 $source = file_get_contents($input);
 if ($source === false) {
     fail("could not read {$input}");
+}
+$sourcePath = realpath($input);
+$includeRoot ??= dirname($sourcePath);
+if (!str_starts_with($includeRoot, DIRECTORY_SEPARATOR) && !preg_match('/^[A-Za-z]:[\\\\\/]/', $includeRoot)) {
+    fail('--include-root must be absolute');
+}
+$rootPath = realpath($includeRoot);
+if ($rootPath === false || !is_dir($rootPath)) {
+    fail('--include-root must name a readable directory');
+}
+if ($sourcePath !== $rootPath && !str_starts_with($sourcePath, rtrim($rootPath, DIRECTORY_SEPARATOR) . DIRECTORY_SEPARATOR)) {
+    fail('input file must be inside --include-root');
 }
 
 // --- frontmatter (leading ---<fmt> ... --- block) ---------------------------
@@ -121,43 +138,53 @@ if ($metaOnly) {
     exit(0);
 }
 
-// --- md / txt: carve-php's native flattening converters ---------------------
-if ($format === 'md') {
-    echo CarveConverter::markdown()->convert($source);
-    exit(0);
-}
-if ($format === 'txt') {
-    echo CarveConverter::plainText()->convert($source);
-    exit(0);
-}
-
 // --- html: the faithful converter -------------------------------------------
-$converter = new CarveConverter(
-    warnings: true,
-    safeMode: true,
-    mode: RenderMode::STATIC,
-);
-$converter->addExtensions([
-    new AdmonitionExtension(),
-    new CodeGroupExtension(),
-    new DetailsExtension(),
-    new SpoilerExtension(),
-    new TabsExtension(),
-    new ListTableExtension(),
-    new InlineFootnotesExtension(),
-    new AutolinkExtension(),
-    new ExternalLinksExtension(rel: 'nofollow noopener', target: '_blank'),
-    new TableOfContentsExtension(),
-    new MathBlockExtension(),
-    FencedRenderExtension::mermaid(),
-    FencedRenderExtension::chart(),
-    new SmartQuotesExtension(locale: (string) (getenv('CARVE_SMART_LOCALE') ?: 'en')),
-]);
-
-$html = $converter->convert($source);
-
-foreach ($converter->getWarnings() as $w) {
-    fwrite(STDERR, "warning: {$w}\n");
+$converter = $format === 'md'
+    ? CarveConverter::markdown()
+    : ($format === 'txt' ? CarveConverter::plainText() : new CarveConverter(
+        warnings: true,
+        safeMode: true,
+        mode: RenderMode::STATIC,
+    ));
+if ($format === 'html') {
+    $converter->addExtensions([
+        new AdmonitionExtension(),
+        new CodeGroupExtension(),
+        new DetailsExtension(),
+        new SpoilerExtension(),
+        new TabsExtension(),
+        new ListTableExtension(),
+        new InlineFootnotesExtension(),
+        new AutolinkExtension(),
+        new ExternalLinksExtension(rel: 'nofollow noopener', target: '_blank'),
+        new TableOfContentsExtension(),
+        new MathBlockExtension(),
+        FencedRenderExtension::mermaid(),
+        FencedRenderExtension::chart(),
+        new SmartQuotesExtension(locale: (string) (getenv('CARVE_SMART_LOCALE') ?: 'en')),
+    ]);
 }
 
-echo $html;
+$expander = new IncludeExpander(
+    resolver: new FilesystemIncludeResolver($rootPath),
+    currentPath: $sourcePath,
+    source: $source,
+);
+$document = $converter->transform($converter->parse($source), $expander);
+
+foreach ($expander->getWarnings() as $warning) {
+    $file = $warning->getFile();
+    if ($file !== null && str_starts_with($file, $rootPath)) {
+        $file = '[include-root]' . substr($file, strlen($rootPath));
+    }
+    fwrite(STDERR, sprintf("%s:%d:%d %s - %s\n", $file ?? $input, $warning->getLine(), $warning->getColumn(), $warning->getRule(), $warning->getMessage()));
+}
+$dependenciesFile = getenv('CARVE_DEPENDENCIES_FILE');
+if (is_string($dependenciesFile) && $dependenciesFile !== '') {
+    $dependencies = array_map(static function ($dependency): array {
+        return ['path' => $dependency->getTarget(), 'resolved' => $dependency->isResolved()];
+    }, $expander->getDependencies());
+    file_put_contents($dependenciesFile, json_encode($dependencies, JSON_UNESCAPED_SLASHES));
+}
+
+echo $converter->render($document);
