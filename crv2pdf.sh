@@ -21,6 +21,7 @@
 #   CARVE_JS            carve-js checkout or dist/index.js (js backend)
 #   CARVE_KATEX         KaTeX dist/ dir for math typesetting (default: autodetect)
 #   CARVE_SMART_LOCALE  smart-quotes locale (default: en)
+#   CARVE_INCLUDE_ROOT  absolute containment root for includes (default: input directory)
 #   CARVE_PDF_FOOTER    footer template with {page}/{pages} (default: Page {page} of {pages});
 #                       frontmatter `footer:` wins over this; empty string disables the footer
 #   CHROME_BIN          Chrome/Chromium binary (default: autodetect)
@@ -39,6 +40,7 @@ THEMES="$HERE/themes"
 FORMAT="pdf"
 WATCH=0
 OUT_DIR=""
+INCLUDE_ROOT="${CARVE_INCLUDE_ROOT:-}"
 POS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -47,12 +49,14 @@ while [ $# -gt 0 ]; do
     --watch|-w) WATCH=1 ;;
     --out-dir) OUT_DIR="${2:-}"; shift ;;
     --out-dir=*) OUT_DIR="${1#--out-dir=}" ;;
+    --include-root) INCLUDE_ROOT="${2:-}"; shift ;;
+    --include-root=*) INCLUDE_ROOT="${1#--include-root=}" ;;
     *) POS+=("$1") ;;
   esac
   shift
 done
 
-usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR]" >&2; exit 2; }
+usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR]" >&2; exit 2; }
 [ ${#POS[@]} -ge 1 ] || usage
 
 # Batch mode iff --out-dir is set, or several positionals that ALL end in .crv
@@ -80,9 +84,11 @@ WORK="$(mktemp -d "${TMPDIR:-/tmp}/crv2pdf.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
 render() {  # render() <in> <format> -> writes $WORK/frag
+  local include_args=()
+  [ -z "$INCLUDE_ROOT" ] || include_args=(--include-root "$INCLUDE_ROOT")
   case "$RENDERER" in
-    php) php "$LIB/render.php" --format "$2" "$1" > "$WORK/frag" ;;
-    js)  node "$LIB/render.mjs" --format "$2" "$1" > "$WORK/frag" ;;
+    php) CARVE_DEPENDENCIES_FILE="$WORK/dependencies.json" php "$LIB/render.php" --format "$2" "${include_args[@]}" "$1" > "$WORK/frag" ;;
+    js)  CARVE_DEPENDENCIES_FILE="$WORK/dependencies.json" node "$LIB/render.mjs" --format "$2" "${include_args[@]}" "$1" > "$WORK/frag" ;;
     *)   echo "crv2pdf: unknown CARVE_RENDERER '$RENDERER' (want php|js|auto)" >&2; exit 2 ;;
   esac
 }
@@ -138,28 +144,32 @@ if [ "$WATCH" = "1" ]; then
   OUT="$(out_for "$IN")"; [ -n "$OUT_DIR" ] || OUT="${POS[1]:-$OUT}"
   build_one "$IN" "$OUT" || true
   echo "[watch] $IN -> $OUT (Ctrl-C to stop)"
-  dir="$(cd "$(dirname "$IN")" && pwd)"; base="$(basename "$IN")"
-
-  mtime() {  # portable mtime in epoch seconds
-    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
+  watch_signature() {
+    python3 - "$IN" "$WORK/dependencies.json" <<'PY'
+import json, os, sys
+paths = [os.path.realpath(sys.argv[1])]
+try:
+    paths += [row["path"] for row in json.load(open(sys.argv[2])) if row.get("resolved")]
+except (FileNotFoundError, json.JSONDecodeError, KeyError, TypeError):
+    pass
+for path in sorted(set(paths)):
+    try:
+        stat = os.stat(path)
+        print(path, stat.st_mtime_ns, stat.st_size)
+    except OSError:
+        print(path, "missing")
+PY
   }
 
-  if command -v inotifywait >/dev/null 2>&1; then
-    # event-driven (blocks on inotify events, no sleep-poll)
-    inotifywait -m -q -e close_write,moved_to,create --format '%f' "$dir" | while read -r f; do
-      [ "$f" = "$base" ] && { echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true; }
-    done
-  else
-    # portable fallback: 1s mtime poll
-    last="$(mtime "$IN")"
-    while true; do
-      sleep 1
-      now="$(mtime "$IN")"
-      if [ "$now" != "$last" ]; then
-        last="$now"; echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true
-      fi
-    done
-  fi
+  last="$(watch_signature)"
+  while true; do
+    sleep 1
+    now="$(watch_signature)"
+    if [ "$now" != "$last" ]; then
+      echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true
+      last="$(watch_signature)"
+    fi
+  done
   exit 0
 fi
 

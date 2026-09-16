@@ -10,6 +10,9 @@ Nothing released yet. The initial capability set:
 
 ### Added
 
+- Contained `{{ path }}` expansion for file-backed PHP and JavaScript renders,
+  with `--include-root`, sanitized warnings, dependency tracking, and include-aware
+  watch rebuilds.
 - Add static, print-safe syntax highlighting for named code fences, including a
   bundled first-party Carve lexer for `carve` and `crv` fences.
 - Vendor the released `@markup-carve/carve-css` 0.1.0 token, core, extension, and recipe

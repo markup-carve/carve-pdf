@@ -73,6 +73,29 @@ for be in "${backends[@]}"; do
 
   c="$WORK/chart.$be.html"; render "$be" "$FIX/chart.crv" "$c"
   has  "chart block"     "$c" 'class="chart"'
+
+  mkdir -p "$WORK/includes/parts/nested"
+  printf 'Before.\n\n{{ parts/one.crv }}\n\nAfter.\n' > "$WORK/includes/main.crv"
+  printf 'One.\n\n{{ nested/two.crv }}\n' > "$WORK/includes/parts/one.crv"
+  printf 'Two.\n' > "$WORK/includes/parts/nested/two.crv"
+  i="$WORK/includes.$be.html"
+  deps="$WORK/includes.$be.json"
+  case "$be" in
+    php) CARVE_DEPENDENCIES_FILE="$deps" php "$LIB/render.php" "$WORK/includes/main.crv" > "$i" ;;
+    js)  CARVE_DEPENDENCIES_FILE="$deps" node "$LIB/render.mjs" "$WORK/includes/main.crv" > "$i" ;;
+  esac
+  has "nested includes" "$i" "Two."
+  hasnt "include directives consumed" "$i" "{{"
+  has "dependency identities recorded" "$deps" '"resolved":true'
+
+  printf '{{ ../outside.crv }}\n' > "$WORK/includes/escape.crv"
+  e="$WORK/includes.$be.err"
+  case "$be" in
+    php) php "$LIB/render.php" "$WORK/includes/escape.crv" >/dev/null 2> "$e" ;;
+    js)  node "$LIB/render.mjs" "$WORK/includes/escape.crv" >/dev/null 2> "$e" ;;
+  esac
+  has "escape warning has stable rule" "$e" "include-unresolved"
+  hasnt "escape warning hides containment path" "$e" "$WORK/includes"
 done
 
 # --- wrap.py: page-geometry validation --------------------------------------
