@@ -14,7 +14,7 @@ declare(strict_types=1);
  *         php render.php --meta <input.crv>                   # frontmatter as JSON
  *
  * Include options:
- *   --include-root DIR  absolute containment root (default: the input's directory)
+ *   --include-root DIR  containment root, relative to the cwd (default: the input's directory)
  *   --no-includes       leave {{ path }} directives literal
  *   --deps FILE         write the files the render read, root-relative, one per line
  *
@@ -73,6 +73,22 @@ if (!class_exists(CarveConverter::class)) {
     fail("autoloader {$autoload} does not provide MarkupCarve\\Carve\\CarveConverter");
 }
 
+/**
+ * A root typed as a flag means the current directory. The engine resolver
+ * refuses a relative root, which stays right for one read from configuration.
+ */
+function typedRoot(string $value): string
+{
+    if ($value === '') {
+        fail('--include-root requires a directory');
+    }
+    if (preg_match('~^(?:/|\\\\|[A-Za-z]:[/\\\\])~', $value) === 1) {
+        return $value;
+    }
+
+    return getcwd() . DIRECTORY_SEPARATOR . $value;
+}
+
 // --- args -------------------------------------------------------------------
 $args = array_slice($argv, 1);
 $metaOnly = false;
@@ -90,7 +106,7 @@ for ($i = 0; $i < count($args); $i++) {
     } elseif (in_array($a, ['--html', '--md', '--txt'], true)) {
         $format = ltrim($a, '-');
     } elseif ($a === '--include-root') {
-        $includeRoot = $args[++$i] ?? fail('--include-root requires a directory');
+        $includeRoot = typedRoot($args[++$i] ?? '');
     } elseif ($a === '--no-includes') {
         $noIncludes = true;
     } elseif ($a === '--deps') {
@@ -152,10 +168,6 @@ function belowRoot(string $path, string $root): ?string
 
 /**
  * The document with includes expanded, or null to render the source unchanged.
- *
- * A configured root reaches the resolver as given: the resolver refuses a
- * relative one, and resolving it here would contain includes to the working
- * directory. Only the derived default is canonicalized.
  */
 function expandIncludes(CarveConverter $converter, string $source, string $input, ?string $root, bool $off, ?string $depsOut): ?Document
 {

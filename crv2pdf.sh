@@ -7,7 +7,7 @@
 #   crv2pdf --watch <input.crv> [output] [--fmt]               rebuild on change
 #
 # Includes ({{ path }} directives) expand against the input's directory:
-#   --include-root DIR   absolute containment root to use instead
+#   --include-root DIR   containment root to use instead, relative to the cwd
 #   --no-includes        leave directives literal
 # --watch also rebuilds when an included file changes.
 #

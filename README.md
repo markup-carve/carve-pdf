@@ -15,7 +15,7 @@ crv2pdf post.crv --txt               # plain text              -> post.txt
 
 crv2pdf a.crv b.crv c.crv --out-dir out/    # batch -> out/*.pdf
 crv2pdf --watch post.crv                    # rebuild on every save
-crv2pdf book/main.crv --include-root "$PWD"  # {{ path }} includes contained to $PWD
+crv2pdf book/main.crv --include-root .      # {{ path }} includes contained to the cwd
 ```
 
 Output format defaults to `--pdf`. `--html` emits a self-contained styled document
@@ -33,8 +33,8 @@ resolve is not watched, so creating the missing file needs a save of the input.
 Paths resolve against the file that writes them, and nothing outside the containment
 root is read: by default that root is the input document's directory.
 
-- `--include-root DIR` sets a different root. It must be an absolute path; a relative
-  one is refused rather than resolved against the working directory.
+- `--include-root DIR` sets a different root. A relative path resolves against the
+  directory you run the command from.
 - `--no-includes` leaves directives literal.
 
 A directive that cannot be resolved stays in the output as written, and a warning

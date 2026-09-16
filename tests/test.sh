@@ -118,11 +118,9 @@ for be in "${backends[@]}"; do
   "${R[@]}" --include-root "$INC" "$INC/doc/nested.crv" > "$o.wide.nested" 2>/dev/null
   has   "top-level path resolves against the input, not the root" "$o.wide.nested" "Beta nested"
 
-  # Resolved against the working directory, `..` would admit ../outside.
-  if (cd "$INC/doc" && "${R[@]}" --include-root .. escape.crv > "$o.rel" 2> "$o.rel.err"); then
-    bad "relative root refused"
-  else ok "relative root refused"; fi
-  hasnt "relative root expands nothing"       "$o.rel" "SECRET-OUTSIDE"
+  # A typed root resolves against the cwd: "." read against the input's directory would not reach ../outside.
+  (cd "$INC" && "${R[@]}" --include-root . doc/escape.crv) > "$o.rel" 2> "$o.rel.err"
+  has   "relative root resolves against the cwd" "$o.rel" "SECRET-OUTSIDE"
 
   "${R[@]}" --no-includes --deps "$o.off.deps" "$INC/doc/nested.crv" > "$o.off" 2> "$o.off.err"
   has   "--no-includes leaves directives literal" "$o.off" "{{ sub/a.crv }}"
@@ -175,6 +173,8 @@ fi
 echo "== includes: crv2pdf front end =="
 CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --md --include-root "$INC" "$INC/doc/escape.crv" "$WORK/front.md" >/dev/null 2>&1
 has   "crv2pdf passes --include-root"         "$WORK/front.md" "SECRET-OUTSIDE"
+(cd "$INC" && CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --md --include-root=. doc/escape.crv "$WORK/front-rel.md") >/dev/null 2>&1
+has   "crv2pdf resolves a relative root against the cwd" "$WORK/front-rel.md" "SECRET-OUTSIDE"
 CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --md --no-includes "$INC/doc/nested.crv" "$WORK/front-off.md" >/dev/null 2>&1
 has   "crv2pdf passes --no-includes"          "$WORK/front-off.md" "{{ sub/a.crv }}"
 
