@@ -10,8 +10,13 @@ declare(strict_types=1);
  * Renders in STATIC mode (interactive constructs flattened, no client JS) with
  * safe mode on (raw HTML escaped).
  *
- * Usage:  php render.php [--format html|md|txt] <input.crv>   # rendered output to stdout
+ * Usage:  php render.php [--format html|md|txt] [include options] <input.crv>
  *         php render.php --meta <input.crv>                   # frontmatter as JSON
+ *
+ * Include options:
+ *   --include-root DIR  absolute containment root (default: the input's directory)
+ *   --no-includes       leave {{ path }} directives literal
+ *   --deps FILE         write the files the render read, root-relative, one per line
  *
  * html (default) applies the faithful extension set; md/txt use carve-php's
  * markdown/plain converters (which flatten interactive constructs natively).
@@ -34,7 +39,10 @@ use MarkupCarve\Carve\Extension\SmartQuotesExtension;
 use MarkupCarve\Carve\Extension\SpoilerExtension;
 use MarkupCarve\Carve\Extension\TableOfContentsExtension;
 use MarkupCarve\Carve\Extension\TabsExtension;
+use MarkupCarve\Carve\Node\Document;
 use MarkupCarve\Carve\Renderer\RenderMode;
+use MarkupCarve\Carve\Transform\FilesystemIncludeResolver;
+use MarkupCarve\Carve\Transform\IncludeExpander;
 
 function fail(string $msg): never
 {
@@ -69,6 +77,9 @@ if (!class_exists(CarveConverter::class)) {
 $args = array_slice($argv, 1);
 $metaOnly = false;
 $format = 'html';
+$includeRoot = null;
+$noIncludes = false;
+$depsOut = null;
 $rest = [];
 for ($i = 0; $i < count($args); $i++) {
     $a = $args[$i];
@@ -78,6 +89,12 @@ for ($i = 0; $i < count($args); $i++) {
         $format = $args[++$i] ?? 'html';
     } elseif (in_array($a, ['--html', '--md', '--txt'], true)) {
         $format = ltrim($a, '-');
+    } elseif ($a === '--include-root') {
+        $includeRoot = $args[++$i] ?? fail('--include-root requires a directory');
+    } elseif ($a === '--no-includes') {
+        $noIncludes = true;
+    } elseif ($a === '--deps') {
+        $depsOut = $args[++$i] ?? fail('--deps requires a file');
     } else {
         $rest[] = $a;
     }
@@ -121,13 +138,91 @@ if ($metaOnly) {
     exit(0);
 }
 
-// --- md / txt: carve-php's native flattening converters ---------------------
-if ($format === 'md') {
-    echo CarveConverter::markdown()->convert($source);
-    exit(0);
+// --- includes (PART 9 section 19) --------------------------------------------
+/**
+ * The path below $root, or null when it is not below it. Keeps host paths out
+ * of everything this script prints.
+ */
+function belowRoot(string $path, string $root): ?string
+{
+    $prefix = rtrim($root, '/') . '/';
+
+    return str_starts_with($path, $prefix) ? substr($path, strlen($prefix)) : null;
 }
-if ($format === 'txt') {
-    echo CarveConverter::plainText()->convert($source);
+
+/**
+ * The document with includes expanded, or null to render the source unchanged.
+ *
+ * A configured root reaches the resolver as given: the resolver refuses a
+ * relative one, and resolving it here would contain includes to the working
+ * directory. Only the derived default is canonicalized.
+ */
+function expandIncludes(CarveConverter $converter, string $source, string $input, ?string $root, bool $off, ?string $depsOut): ?Document
+{
+    $explicit = $root !== null;
+    $deps = [];
+    $document = null;
+    if (!$off && ($explicit || str_contains($source, '{{'))) {
+        $document = expandWithRoot($converter, $source, $input, $root, $explicit, $deps);
+    }
+    if ($depsOut !== null && file_put_contents($depsOut, implode('', array_map(static fn ($d) => $d . "\n", $deps))) === false) {
+        fail("could not write {$depsOut}");
+    }
+
+    return $document;
+}
+
+/**
+ * @param array<string> $deps
+ */
+function expandWithRoot(CarveConverter $converter, string $source, string $input, ?string $root, bool $explicit, array &$deps): ?Document
+{
+    $inputReal = (string)realpath($input);
+    if (!class_exists(IncludeExpander::class)) {
+        if ($explicit) {
+            fail('this carve-php has no include support; drop --include-root or upgrade carve-php');
+        }
+        fwrite(STDERR, "warning: include directives left literal: this carve-php has no include support\n");
+
+        return null;
+    }
+    try {
+        $resolver = new FilesystemIncludeResolver($root ?? dirname($inputReal));
+    } catch (RuntimeException $e) {
+        fail($e->getMessage());
+    }
+    $rootReal = (string)realpath($root ?? dirname($inputReal));
+
+    $expander = new IncludeExpander(
+        resolver: $resolver,
+        currentPath: $inputReal,
+        source: $source,
+        extensions: $converter->getExtensions(),
+    );
+    $document = $converter->transform($converter->parse($source), $expander);
+
+    foreach ($expander->getWarnings() as $w) {
+        $file = $w->getFile() === null ? null : belowRoot($w->getFile(), $rootReal);
+        fwrite(STDERR, 'warning: ' . $w->getMessage() . ' [' . ($w->getRule() ?? 'include') . ']' . ($file === null ? '' : " in {$file}") . "\n");
+    }
+    if ($expander->getSuppressedWarnings() > 0) {
+        fwrite(STDERR, 'warning: ' . $expander->getSuppressedWarnings() . " further include warning(s) suppressed\n");
+    }
+    foreach ($expander->getDependencies() as $dependency) {
+        $relative = $dependency->isResolved() ? belowRoot($dependency->getTarget(), $rootReal) : null;
+        if ($relative !== null) {
+            $deps[] = $relative;
+        }
+    }
+
+    return $document;
+}
+
+// --- md / txt: carve-php's native flattening converters ---------------------
+if ($format === 'md' || $format === 'txt') {
+    $flat = $format === 'md' ? CarveConverter::markdown() : CarveConverter::plainText();
+    $expanded = expandIncludes($flat, $source, $input, $includeRoot, $noIncludes, $depsOut);
+    echo $expanded === null ? $flat->convert($source) : $flat->render($expanded);
     exit(0);
 }
 
@@ -154,7 +249,8 @@ $converter->addExtensions([
     new SmartQuotesExtension(locale: (string) (getenv('CARVE_SMART_LOCALE') ?: 'en')),
 ]);
 
-$html = $converter->convert($source);
+$expanded = expandIncludes($converter, $source, $input, $includeRoot, $noIncludes, $depsOut);
+$html = $expanded === null ? $converter->convert($source) : $converter->render($expanded);
 
 foreach ($converter->getWarnings() as $w) {
     fwrite(STDERR, "warning: {$w}\n");

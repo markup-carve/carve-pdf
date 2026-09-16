@@ -6,6 +6,11 @@
 #   crv2pdf a.crv b.crv ...        [--out-dir DIR] [--fmt]     batch
 #   crv2pdf --watch <input.crv> [output] [--fmt]               rebuild on change
 #
+# Includes ({{ path }} directives) expand against the input's directory:
+#   --include-root DIR   absolute containment root to use instead
+#   --no-includes        leave directives literal
+# --watch also rebuilds when an included file changes.
+#
 # Output format (default --pdf):
 #   --pdf   paginated PDF (render -> wrap -> Chrome print)
 #   --html  standalone styled HTML document (render -> wrap)
@@ -39,6 +44,8 @@ THEMES="$HERE/themes"
 FORMAT="pdf"
 WATCH=0
 OUT_DIR=""
+INCLUDE_ROOT=""
+INC_ARGS=()
 POS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -47,12 +54,15 @@ while [ $# -gt 0 ]; do
     --watch|-w) WATCH=1 ;;
     --out-dir) OUT_DIR="${2:-}"; shift ;;
     --out-dir=*) OUT_DIR="${1#--out-dir=}" ;;
+    --include-root) INCLUDE_ROOT="${2:-}"; INC_ARGS+=(--include-root "${2:-}"); shift ;;
+    --include-root=*) INCLUDE_ROOT="${1#--include-root=}"; INC_ARGS+=(--include-root "$INCLUDE_ROOT") ;;
+    --no-includes) INC_ARGS+=(--no-includes) ;;
     *) POS+=("$1") ;;
   esac
   shift
 done
 
-usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR]" >&2; exit 2; }
+usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes]" >&2; exit 2; }
 [ ${#POS[@]} -ge 1 ] || usage
 
 # Batch mode iff --out-dir is set, or several positionals that ALL end in .crv
@@ -79,10 +89,10 @@ fi
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/crv2pdf.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
-render() {  # render() <in> <format> -> writes $WORK/frag
+render() {  # render() <in> <format> -> writes $WORK/frag and $WORK/deps
   case "$RENDERER" in
-    php) php "$LIB/render.php" --format "$2" "$1" > "$WORK/frag" ;;
-    js)  node "$LIB/render.mjs" --format "$2" "$1" > "$WORK/frag" ;;
+    php) php "$LIB/render.php" --format "$2" --deps "$WORK/deps" ${INC_ARGS[@]+"${INC_ARGS[@]}"} "$1" > "$WORK/frag" ;;
+    js)  node "$LIB/render.mjs" --format "$2" --deps "$WORK/deps" ${INC_ARGS[@]+"${INC_ARGS[@]}"} "$1" > "$WORK/frag" ;;
     *)   echo "crv2pdf: unknown CARVE_RENDERER '$RENDERER' (want php|js|auto)" >&2; exit 2 ;;
   esac
 }
@@ -138,25 +148,42 @@ if [ "$WATCH" = "1" ]; then
   OUT="$(out_for "$IN")"; [ -n "$OUT_DIR" ] || OUT="${POS[1]:-$OUT}"
   build_one "$IN" "$OUT" || true
   echo "[watch] $IN -> $OUT (Ctrl-C to stop)"
-  dir="$(cd "$(dirname "$IN")" && pwd)"; base="$(basename "$IN")"
+  # The renderers resolve includes from the input's real path, so watch that.
+  in_real="$(readlink -f "$IN" 2>/dev/null || echo "$IN")"
+  dir="$(cd "$(dirname "$in_real")" && pwd -P)"; base="$(basename "$in_real")"
+  # Dependencies are written relative to the include root.
+  root="$dir"
+  if [ -n "$INCLUDE_ROOT" ]; then root="$(cd "$INCLUDE_ROOT" 2>/dev/null && pwd -P || echo "$dir")"; fi
+
+  watched_files() {  # the input plus every file the last render read
+    echo "$dir/$base"
+    [ -f "$WORK/deps" ] && while IFS= read -r d; do echo "$root/$d"; done < "$WORK/deps"
+    return 0
+  }
 
   mtime() {  # portable mtime in epoch seconds
     stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
   }
+  signature() { watched_files | while IFS= read -r f; do echo "$f $(mtime "$f")"; done; }
 
   if command -v inotifywait >/dev/null 2>&1; then
     # event-driven (blocks on inotify events, no sleep-poll)
-    inotifywait -m -q -e close_write,moved_to,create --format '%f' "$dir" | while read -r f; do
-      [ "$f" = "$base" ] && { echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true; }
+    watch_dirs=("$dir")
+    case "$dir/" in "$root"/*) watch_dirs=("$root") ;; *) watch_dirs+=("$root") ;; esac
+    inotifywait -m -r -q -e close_write,moved_to,create,delete,moved_from --format '%w%f' "${watch_dirs[@]}" | while IFS= read -r f; do
+      if watched_files | grep -qxF -- "$f"; then
+        echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true
+      fi
     done
   else
     # portable fallback: 1s mtime poll
-    last="$(mtime "$IN")"
+    last="$(signature)"
     while true; do
       sleep 1
-      now="$(mtime "$IN")"
+      now="$(signature)"
       if [ "$now" != "$last" ]; then
-        last="$now"; echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true
+        echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true
+        last="$(signature)"
       fi
     done
   fi

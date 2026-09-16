@@ -15,6 +15,7 @@ crv2pdf post.crv --txt               # plain text              -> post.txt
 
 crv2pdf a.crv b.crv c.crv --out-dir out/    # batch -> out/*.pdf
 crv2pdf --watch post.crv                    # rebuild on every save
+crv2pdf book/main.crv --include-root "$PWD"  # {{ path }} includes contained to $PWD
 ```
 
 Output format defaults to `--pdf`. `--html` emits a self-contained styled document
@@ -25,6 +26,21 @@ are named `<basename>.<fmt>` beside the input or in `--out-dir`.
 
 **Watch.** `--watch <input>` builds once, then rebuilds on every change. Uses
 `inotifywait` when available (event-driven), else a 1s mtime poll - no extra deps.
+It also rebuilds when a file the document includes changes. An include that did not
+resolve is not watched, so creating the missing file needs a save of the input.
+
+**Includes.** `{{ path }}` directives expand before rendering, in every output format.
+Paths resolve against the file that writes them, and nothing outside the containment
+root is read: by default that root is the input document's directory.
+
+- `--include-root DIR` sets a different root. It must be an absolute path; a relative
+  one is refused rather than resolved against the working directory.
+- `--no-includes` leaves directives literal.
+
+A directive that cannot be resolved stays in the output as written, and a warning
+naming it goes to stderr. Warnings name files relative to the root. Includes need a
+carve-php or carve-js that ships the include pass; with an older engine the directives
+stay literal and a warning says so.
 
 ## Pipeline
 
