@@ -64,7 +64,7 @@ The Carve -> HTML step is pluggable. `CARVE_RENDERER` selects it (default `auto`
 | Backend | Script | Needs | Notes |
 |---------|--------|-------|-------|
 | `php` | `render.php` | PHP 8.2+ and a `MarkupCarve\Carve` autoloader | default when PHP is present |
-| `js`  | `render.mjs` | Node 18+ and a carve-js checkout | runs PHP-free |
+| `js`  | `render.mjs` | Node 18+ and the `markup-carve/carve` npm package | runs PHP-free |
 
 `auto` uses PHP if available, else Node. Both register the same extension set (the
 shopware-carve plugin's) in static mode. Output is **equivalent, not byte-identical**:
@@ -75,9 +75,18 @@ shopware-carve plugin's) in static mode. Output is **equivalent, not byte-identi
   `InlineFootnotesExtension`) but plain inline `<span class="fn">` under JS (carve-js
   has no such extension). Regular `[^1]` footnotes work identically in both.
 
+Both engines are published, so neither backend needs a checkout:
+
+```bash
+composer require markup-carve/carve-php
+npm install "@markup-carve/carve"
+```
+
 Point the backend at its library:
-- `CARVE_PHP_AUTOLOAD` - a `vendor/autoload.php` providing `MarkupCarve\Carve`.
-- `CARVE_JS` - a carve-js checkout dir or its `dist/index.js`.
+- `CARVE_PHP_AUTOLOAD` - a `vendor/autoload.php` providing `MarkupCarve\Carve`,
+  such as the `vendor/autoload.php` Composer writes.
+- `CARVE_JS` - a carve-js dist dir or its `dist/index.js`, such as
+  `node_modules/@markup-carve/carve/dist/index.js`. A checkout works too.
 
 Both probe a few common locations if unset.
 
@@ -139,7 +148,7 @@ promise that print_cdp awaits, so every renderer finishes before the PDF is capt
 |-----|---------|---------|
 | `CARVE_RENDERER` | `auto` | Backend: `php`, `js`, or `auto` |
 | `CARVE_PHP_AUTOLOAD` | autodetect | Composer autoloader providing `MarkupCarve\Carve` (php) |
-| `CARVE_JS` | autodetect | carve-js checkout or `dist/index.js` (js) |
+| `CARVE_JS` | autodetect | carve-js dist dir or `dist/index.js`, e.g. under `node_modules` (js) |
 | `CARVE_SMART_LOCALE` | `en` | Smart-quotes locale (php backend) |
 | `CARVE_PDF_FOOTER` | `Page {page} of {pages}` | Footer template; `{page}`/`{pages}` placeholders. Frontmatter `footer:` overrides it; empty string disables the footer |
 | `CARVE_KATEX` | autodetect | KaTeX `dist/` dir for math typesetting |
