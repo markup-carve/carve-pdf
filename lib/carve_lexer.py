@@ -2,7 +2,8 @@
 
 Vendored from markup-carve/pygments-carve (MIT) for offline PDF rendering.
 
-Carve is a lightweight markup language for documents. Its inline delimiters
+Carve is a lightweight markup language for documents and the web. Its inline
+delimiters
 deliberately differ from Markdown's, which is why a Markdown lexer produces
 actively wrong output on a Carve document rather than merely plain text:
 
