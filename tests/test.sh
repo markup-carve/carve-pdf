@@ -196,6 +196,14 @@ printf '{"paper":"A4; } body { background: red } @page {"}' > "$WORK/evil.json"
 python3 "$LIB/wrap.py" "$WORK/frag.html" "$WORK/evil.json" "$FIX" "$WORK/evil.html" "$HERE/themes/carve-css/tokens.css" "$HERE/themes/carve-css/core.css" "$HERE/themes/carve-css/extensions.css" "$HERE/themes/carve-css/recipes.css" "$HERE/themes/base.css" "$HERE/themes/print.css" 2>/dev/null
 hasnt "css injection rejected" "$WORK/evil.html" "background: red"
 
+# --- panel visibility -------------------------------------------------------
+# Its own script because it needs a browser and the printed PDF, which nothing
+# else here does. A skip inside it is reported as a skip, not as a pass.
+echo
+if ! "$HERE/tests/panels.sh"; then
+  fail=$((fail+1))
+fi
+
 echo
 echo "passed: $pass  failed: $fail"
 [ "$fail" -eq 0 ]

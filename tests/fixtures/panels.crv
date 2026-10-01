@@ -1,0 +1,30 @@
+---yaml
+title: Panels fixture
+---
+
+# Panels
+
+A tab set and a code group, the two constructs whose panels a stylesheet can
+hide outright. Each panel body carries a unique word so an extracted PDF or a
+rendered page can be asked whether the panel reached the reader at all.
+
+:::: tabs
+
+::: tab [Alpha]
+PANELBODYALPHA in the first tab.
+:::
+
+::: tab [Beta]
+PANELBODYBETA in the second tab.
+:::
+
+::::
+
+::: code-group
+``` php [one.php]
+echo 'PANELBODYGAMMA';
+```
+``` js [two.js]
+console.log('PANELBODYDELTA');
+```
+:::
