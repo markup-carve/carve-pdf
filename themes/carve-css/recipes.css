@@ -220,14 +220,31 @@
  */
 .carve .gallery {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(12rem, 1fr));
+  grid-template-columns: repeat(
+    auto-fit,
+    minmax(min(100%, var(--carve-gallery-min-size)), 1fr)
+  );
   gap: var(--carve-space-3);
   margin-block-end: var(--carve-space-4);
 }
 .carve .gallery > figure {
   margin: 0;
 }
-.carve .gallery :is(img, video) {
+/* The grid's `gap` owns the spacing between tiles, so core's block-image margin
+ * is dead height inside a cell: it separates no caption and costs every row
+ * 16px. A captioned tile needs no reset because it is a figure, which core's
+ * margin already excludes, and its own margin is cleared above.
+ *
+ * The reset sits here rather than as a `.gallery` exclusion in core, because
+ * core is always loaded and this layer is opt-in. Without recipes.css a
+ * `div.gallery` is an ordinary block container with no grid and no gap, and
+ * there the margin is the only thing separating two stacked images. Core
+ * cannot know which of the two it is looking at; this file can. */
+.carve .gallery > :is(img, video) {
+  margin-block-end: 0;
+}
+.carve .gallery > :is(img, video),
+.carve .gallery > figure > :is(img, video) {
   inline-size: 100%;
   /* Uniform tiles: without this a gallery is a ragged wall of source aspect
    * ratios. `data-ratio` retunes it per instance. */
@@ -235,7 +252,8 @@
   object-fit: cover;
   border-radius: var(--carve-radius);
 }
-.carve .gallery[data-fit="contain"] :is(img, video) {
+.carve .gallery[data-fit="contain"] > :is(img, video),
+.carve .gallery[data-fit="contain"] > figure > :is(img, video) {
   object-fit: contain;
 }
 
@@ -298,7 +316,21 @@
  */
 .carve .scroll {
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
   margin-block-end: var(--carve-space-4);
+}
+.carve .scroll > table {
+  min-width: var(--carve-table-min-width);
+  margin-block-end: 0;
+}
+/* Same dead height as a gallery tile, reached by a different route: the
+ * container establishes a formatting context, so a trailing child's bottom
+ * margin cannot collapse out of it and sits above the scrollbar on top of the
+ * container's own 16px. The table rule above is the same reset for the common
+ * case. Only the LAST child is cleared, because a scroll container is ordinary
+ * block flow and the margin between two stacked images there is load-bearing. */
+.carve .scroll > :is(img, video):last-child {
+  margin-block-end: 0;
 }
 
 /*

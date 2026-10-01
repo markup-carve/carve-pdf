@@ -39,6 +39,18 @@ jobs:
           composer show --working-dir=_deps/php markup-carve/carve-php | grep -E '^(name|versions)'
           node -p "require('./_deps/js/node_modules/@markup-carve/carve/package.json').version"
 
+      # The panel gate needs a browser and pdftotext, and it SKIPS without
+      # them. A skipped gate reports success over the surface it never
+      # rendered, which is the failure the gate itself exists to prevent, so
+      # these are installed rather than left to the runner image.
+      - name: Install the panel gate's dependencies
+        run: |
+          python3 -m pip install --quiet websocket-client \
+            || python3 -m pip install --quiet --break-system-packages websocket-client
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          google-chrome --version
+
       - name: Run tests
         env:
           CARVE_PHP_AUTOLOAD: ${{ github.workspace }}/_deps/php/vendor/autoload.php
@@ -90,6 +102,18 @@ jobs:
         run: |
           git -C _deps/carve-php log -1 --format='carve-php %h %s'
           git -C _deps/carve-js log -1 --format='carve-js %h %s'
+
+      # The panel gate needs a browser and pdftotext, and it SKIPS without
+      # them. A skipped gate reports success over the surface it never
+      # rendered, which is the failure the gate itself exists to prevent, so
+      # these are installed rather than left to the runner image.
+      - name: Install the panel gate's dependencies
+        run: |
+          python3 -m pip install --quiet websocket-client \
+            || python3 -m pip install --quiet --break-system-packages websocket-client
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          google-chrome --version
 
       - name: Run tests
         env:
