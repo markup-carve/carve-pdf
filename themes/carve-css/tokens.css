@@ -68,6 +68,15 @@
   --carve-font-size-small: 0.875em;
   --carve-line-height: 1.6;
 
+  /* Public component controls for compact readers and large-type layouts. */
+  --carve-table-min-width: 100%;
+  --carve-gallery-min-size: 12rem;
+  --carve-footnote-size: var(--carve-font-size-small);
+  --carve-footnote-rule-width: 25%;
+  --carve-print-link-destinations: inline;
+  --carve-print-index-columns: 2;
+  --carve-print-footnote-size: 0.8em;
+
   /* Space. One scale, so constructs align with each other rather than each
    * carrying its own hand-picked padding. */
   --carve-space-1: 0.25rem;

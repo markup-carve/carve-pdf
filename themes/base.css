@@ -225,14 +225,20 @@ details > summary::-webkit-details-marker { display: none; }
 details.spoiler { border-style: dashed; }
 .spoiler:not(details) { background: #eee; border-radius: 3px; } /* inline spoiler */
 
-/* ---- tabs (static -> div.tabs > section.tabs-panel > p.tabs-label) ---- */
+/* ---- tabs (static -> div.tabs > section.tabs-panel > h3.tabs-label) ----
+ * Panel visibility is the vendored stylesheet's job again. This layer used to
+ * force `display: block` and clear the first panel's separator, because the
+ * vendored copy hid every panel in every render mode and nothing unhid them.
+ * Upstream now does both, so the override is gone: keeping it would mask a
+ * future regression in the vendored copy instead of letting the panel gate
+ * fail. What is left is a print choice - a darker rule than the screen token,
+ * because #e3e6ea washes out on paper. */
 .tabs, .code-group { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 14px; overflow: hidden; break-inside: avoid; }
-.carve .tabs-panel, .carve .code-group-panel { display: block; border-top: 1px solid var(--line); }
-.tabs-panel:first-child, .code-group-panel:first-child { border-top: none; }
 .tabs-label, .code-group-label {
   margin: 0; padding: 6px 12px; font-weight: 700; font-size: 12px;
   background: #f0f0f2; border-bottom: 1px solid var(--line);
 }
+.carve .tabs-panel, .carve .code-group-panel { border-block-start-color: var(--line); }
 .tabs-panel > :not(.tabs-label), .code-group-panel > :not(.code-group-label) { margin: 10px 14px; }
 .code-group-panel pre { border: none; border-radius: 0; margin: 0; }
 

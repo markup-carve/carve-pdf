@@ -118,6 +118,16 @@
   background: var(--carve-danger-wash);
   color: var(--carve-danger);
 }
+/* `=highlight=` renders as <mark>, which the UA paints a fixed yellow. That
+ * ignores the palette in both themes while its two neighbours above adapt, so a
+ * highlight in a dark document is a light-mode patch. The accent wash is the
+ * pair the quality gate already holds to 4.5:1 in every palette. */
+.carve mark {
+  background: var(--carve-accent-soft);
+  color: var(--carve-accent-ink);
+  border-radius: var(--carve-radius);
+  padding: 0.1em 0.2em;
+}
 /* An editorial comment in critic markup is a note to a human, not content. */
 .carve .critic-comment {
   background: var(--carve-warn-wash);
@@ -157,6 +167,33 @@
   /* Code is the construct most likely to be wider than the page, and the page
    * body must never scroll sideways. */
   overflow-x: auto;
+}
+
+/* `{.diff}` above a fence reaches the page as <pre class="diff">. The engine
+ * marks no individual lines, so there is nothing here to colour green and red -
+ * only the block itself to mark as a diff rather than as a listing. A host that
+ * does mark lines (reveal-carve's plugin wraps them) paints them on top. */
+.carve pre.diff {
+  border-inline-start: var(--carve-accent-width) solid var(--carve-border);
+}
+
+/* `::: |` is a line block: the engine keeps the author's line breaks with <br>,
+ * so the one thing the layer has to do is stop a long line from being re-folded
+ * at a width the author did not choose. */
+.carve .line-block {
+  margin-block: 0 var(--carve-space-4);
+}
+.carve .line-block > p {
+  margin-block-end: 0;
+  text-indent: 0;
+}
+/* `::: \` is the same promise for ordinary prose: every source newline is a
+ * break. It carries paragraphs rather than one, so it keeps block spacing. */
+.carve .hardbreaks {
+  margin-block: 0 var(--carve-space-4);
+}
+.carve .hardbreaks > :last-child {
+  margin-block-end: 0;
 }
 
 .carve hr {
@@ -249,11 +286,51 @@
   font-size: var(--carve-font-size-small);
   margin-block-start: var(--carve-space-2);
 }
-.carve figure > img,
-.carve figure > video {
+.carve :is(img, video) {
   max-width: 100%;
   height: auto;
+}
+/* A BLOCK image - one the engine promoted out of its paragraph - has to read
+ * as a block, or it is indistinguishable from an inline one and the blank line
+ * the author wrote between two images reaches nothing. <img> is inline by
+ * default, so this is the rule that carries the distinction.
+ *
+ * The parent list was read off engine output, and the line it draws is whether
+ * the parent can hold TEXT beside a direct image child. It cannot in any of
+ * these, so a direct child is always a promoted block. It can in `p`, `a`, a
+ * heading and a `figcaption`, and also in `td` and `th`, which emit
+ * `text <img>` as siblings with no paragraph between them. Those are left
+ * alone.
+ *
+ * `li` and `dd` are excluded because no selector can separate the two cases
+ * there, not because they were overlooked. A tight item renders
+ * `<li>text <img> here</li>` and a compact description renders
+ * `<dd>text <img> here</dd>`, which is the same shape a promoted image in a
+ * list item produces. Leaving them inline keeps the inline case correct and
+ * costs a block image in a list item its block.
+ *
+ * The margin is the other half of the fix: a paragraph carries one and a bare
+ * promoted image does not, so `display: block` on its own stacks two images
+ * flush against each other. It is the same bottom-only `margin-block` every
+ * other block in this file uses, which is why there is no collapsing to reason
+ * about - a promoted image as the first child of a container adds nothing above
+ * itself, and `.admonition > :last-child` already clears the last one. The
+ * margin sits on this selector rather than on the sizing rule above so it
+ * cannot reach an inline image inside a paragraph. */
+.carve > :is(img, video),
+.carve :is(section, blockquote, aside, div, figure) > :is(img, video) {
   display: block;
+}
+/* A figure is in the set above but not in this one, and the two parent sets
+ * differ for a reason rather than by an oversight. A figure already carries a
+ * block margin of its own, so its image needs none to be separated from what
+ * follows the figure; what sits after the image is the caption, and a margin
+ * there collapses against the caption's own start margin and pushes the caption
+ * off the image it captions. The composite figure's panel is a figure too, so
+ * one exclusion covers both. */
+.carve > :is(img, video),
+.carve :is(section, blockquote, aside, div) > :is(img, video) {
+  margin-block: 0 var(--carve-space-4);
 }
 
 /* A composite figure: one group holding numbered panels. The panels sit side by
@@ -280,7 +357,12 @@
  * behaves consistently when they do. */
 .carve .table-scroll {
   overflow-x: auto;
+  overscroll-behavior-inline: contain;
   margin-block-end: var(--carve-space-4);
+}
+.carve .table-scroll > table {
+  min-width: var(--carve-table-min-width);
+  margin-block-end: 0;
 }
 .carve :is(th, td) {
   border-block-end: var(--carve-border-width) solid var(--carve-rule);
@@ -312,11 +394,13 @@
  * often misses entirely. */
 .carve [role="doc-endnotes"] {
   margin-block-start: var(--carve-space-6);
-  font-size: var(--carve-font-size-small);
+  font-size: var(--carve-footnote-size);
   color: var(--carve-ink-soft);
 }
 .carve [role="doc-endnotes"] hr {
   margin-block: 0 var(--carve-space-3);
+  inline-size: var(--carve-footnote-rule-width);
+  margin-inline-start: 0;
 }
 .carve [role="doc-noteref"] {
   text-decoration: none;
