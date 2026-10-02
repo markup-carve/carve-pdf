@@ -195,6 +195,20 @@ else
   bad "CHANGELOG.md carries a released version heading"
 fi
 
+# The tag-time gate runs tests/version-gate.sh over a tag name, which only a
+# tag push supplies. Both controls run here so a PR proves the check can go red
+# as well as green; a gate only ever exercised on the happy path is not a gate.
+if "$HERE/tests/version-gate.sh" "$ver_changelog" >/dev/null 2>&1; then
+  ok "version-gate accepts the version the repo claims"
+else
+  bad "version-gate accepts the version the repo claims"
+fi
+if "$HERE/tests/version-gate.sh" 9.9.9 >/dev/null 2>&1; then
+  bad "version-gate refuses a tag the repo does not claim"
+else
+  ok "version-gate refuses a tag the repo does not claim"
+fi
+
 # --- wrap.py: page-geometry validation --------------------------------------
 echo "== wrap.py page geometry =="
 render "${backends[0]}" "$FIX/marks.crv" "$WORK/frag.html"

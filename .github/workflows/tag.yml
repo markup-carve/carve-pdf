@@ -1,0 +1,85 @@
+name: Tag gate
+
+# Nothing used to fire on a tag, so a tag could be cut from any commit on any
+# branch and the first thing to notice would be an install. 0.1.0 was cut that
+# way: the commit it named still carried absolute host paths as engine
+# fallbacks, so it rendered on one machine and nowhere else.
+#
+# This refuses the tag instead. The version check is the leg no other check can
+# reach, and running the suite here is what puts the leak guard between a tag
+# and a release.
+
+on:
+  push:
+    tags: ['*']
+  # Rehearsal. A maintainer can run this against a branch with the tag they are
+  # about to cut, and read the answer before the ref exists.
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: The tag name to check this ref against (e.g. 0.1.0)
+        required: true
+
+jobs:
+  gate:
+    name: version and suite
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout carve-pdf
+        uses: actions/checkout@v4
+
+      - name: Resolve the tag under test
+        id: tag
+        run: |
+          if [ "${{ github.ref_type }}" = tag ]; then
+            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          else
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
+          fi
+
+      # Before the engines, because this needs none of them and a disagreement
+      # here is not worth a dependency install.
+      - name: The tag agrees with crv2pdf.sh and CHANGELOG.md
+        run: ./tests/version-gate.sh "${{ steps.tag.outputs.tag }}"
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - name: Install carve-php from Packagist
+        run: |
+          mkdir -p _deps/php
+          composer require --working-dir=_deps/php \
+            markup-carve/carve-php --no-interaction --no-progress
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install the carve package from npm
+        run: |
+          mkdir -p _deps/js
+          cd _deps/js
+          npm init -y > /dev/null
+          npm install "@markup-carve/carve" --no-audit --no-fund
+
+      - name: Report the resolved engine versions
+        run: |
+          composer show --working-dir=_deps/php markup-carve/carve-php | grep -E '^(name|versions)'
+          node -p "require('./_deps/js/node_modules/@markup-carve/carve/package.json').version"
+
+      # The panel gate SKIPS without a browser and pdftotext, and a skipped gate
+      # reports success over the surface it never rendered.
+      - name: Install the panel gate's dependencies
+        run: |
+          python3 -m pip install --quiet websocket-client \
+            || python3 -m pip install --quiet --break-system-packages websocket-client
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          google-chrome --version
+
+      - name: Run tests
+        env:
+          CARVE_PHP_AUTOLOAD: ${{ github.workspace }}/_deps/php/vendor/autoload.php
+          CARVE_JS: ${{ github.workspace }}/_deps/js/node_modules/@markup-carve/carve/dist/index.js
+        run: ./tests/test.sh
