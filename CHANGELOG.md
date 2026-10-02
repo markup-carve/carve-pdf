@@ -6,6 +6,16 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.1] - 2026-10-02
+
+### Fixed
+
+- `--pdf` without `websocket-client`, and `--html`/`--pdf` without `python3`,
+  exit before rendering with the missing piece named instead of a Python
+  traceback or `command not found` (#19).
+- `--html` and `--pdf` no longer print a path inside the temporary work
+  directory, and `--pdf` reports its output once (#19).
+
 ## [0.1.0] - 2026-10-02
 
 First release. Everything below is new, so the list describes the capability
