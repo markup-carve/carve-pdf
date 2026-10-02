@@ -73,6 +73,18 @@ done
 usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes] [--version]" >&2; exit 2; }
 [ ${#POS[@]} -ge 1 ] || usage
 
+# Fail before rendering, with the fix named, rather than mid-pipeline.
+if [ "$FORMAT" = "html" ] || [ "$FORMAT" = "pdf" ]; then
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "crv2pdf: --$FORMAT needs python3, which is not on PATH (--md and --txt work without it)" >&2
+    exit 1
+  fi
+  if [ "$FORMAT" = "pdf" ] && ! python3 -c 'import websocket' 2>/dev/null; then
+    echo "crv2pdf: --pdf needs the websocket-client Python package: pip install websocket-client" >&2
+    exit 1
+  fi
+fi
+
 # Batch mode iff --out-dir is set, or several positionals that ALL end in .crv
 # (so `crv2pdf input.crv output.pdf` stays single-file - output.pdf isn't .crv -
 # even when output.pdf already exists). Otherwise single-file, with an optional
@@ -148,7 +160,7 @@ build_one() {  # build_one <input.crv> <output>
   python3 "$LIB/wrap.py" "$WORK/frag" "$WORK/meta.json" "$srcdir" "$WORK/doc.html" \
     "$THEMES/carve-css/tokens.css" "$THEMES/carve-css/core.css" \
     "$THEMES/carve-css/extensions.css" "$THEMES/carve-css/recipes.css" \
-    "$THEMES/base.css" "$THEMES/print.css"
+    "$THEMES/base.css" "$THEMES/print.css" >/dev/null
 
   if [ "$FORMAT" = "html" ]; then
     cp "$WORK/doc.html" "$out"
@@ -161,9 +173,9 @@ build_one() {  # build_one <input.crv> <output>
   local present; present="$(python3 -c 'import json,sys; print(int("footer" in json.load(open(sys.argv[1]))))' "$WORK/meta.json")"
   if [ "$present" = "1" ]; then
     local footer; footer="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["footer"])' "$WORK/meta.json")"
-    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer"
+    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" >/dev/null
   else
-    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out"
+    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" >/dev/null
   fi
   echo "PDF: $out ($RENDERER backend)"
 }

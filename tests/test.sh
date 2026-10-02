@@ -248,6 +248,22 @@ else
   bad "make check passes when an engine resolves"
 fi
 
+# --- front-end output and dependency errors ----------------------------------
+echo "== front end: output and dependency errors =="
+CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --html "$FIX/marks.crv" "$WORK/quiet.html" > "$WORK/quiet.out" 2>&1
+hasnt "--html prints no temp-dir path" "$WORK/quiet.out" "crv2pdf."
+has   "--html reports the output it wrote" "$WORK/quiet.out" "$WORK/quiet.html"
+
+# A module that refuses to import stands in for a missing websocket-client.
+mkdir -p "$WORK/nows"; echo 'raise ImportError("shadowed")' > "$WORK/nows/websocket.py"
+if PYTHONPATH="$WORK/nows" CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" "$FIX/marks.crv" "$WORK/nows.pdf" > "$WORK/nows.out" 2>&1; then
+  bad "--pdf without websocket-client fails"
+else
+  ok "--pdf without websocket-client fails"
+fi
+has   "missing websocket-client names the package" "$WORK/nows.out" "pip install websocket-client"
+hasnt "missing websocket-client prints no traceback" "$WORK/nows.out" "Traceback"
+
 # --- no absolute author paths anywhere in the tree ---------------------------
 # These shipped once as resolver fallbacks: they leak the author's directory
 # layout into the release tarball, and they mask a broken default resolution by
