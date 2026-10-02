@@ -25,7 +25,10 @@ import time
 import urllib.request
 from pathlib import Path
 
-import websocket  # websocket-client (synchronous)
+try:
+    import websocket  # websocket-client (synchronous)
+except ImportError:
+    sys.exit("print_cdp.py: needs the websocket-client package: pip install websocket-client")
 
 if len(sys.argv) < 3:
     sys.exit("usage: print_cdp.py <input.html> <output.pdf> [footer-template]")
