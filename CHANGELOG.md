@@ -6,26 +6,43 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
-Nothing released yet. The initial capability set:
+## [0.1.0] - 2026-10-02
+
+First release. Everything below is new, so the list describes the capability
+set rather than a delta.
 
 ### Added
-
-- Add static, print-safe syntax highlighting for named code fences, including a
-  bundled first-party Carve lexer for `carve` and `crv` fences.
-- Vendor the released `@markup-carve/carve-css` 0.1.0 token, core, extension, and recipe
-  layers and inline them before the existing PDF theme, keeping standalone
-  output current without requiring npm at runtime.
-- Style both current engine spellings of keyboard input (`<kbd>` and the
-  compatibility `<span kbd>` form) so PHP- and JavaScript-backed PDFs agree.
 
 - `crv2pdf` renders a `.crv` document to a paginated PDF through Chrome
   DevTools, with a page-number footer and `printBackground` enabled.
 - Alternate output formats: `--html` (self-contained, CSS inlined), `--md` and
   `--txt` via the renderer's native flattening converters.
+- `--version` prints the version the installed script was cut from.
 - Batch rendering (several inputs, or `--out-dir DIR`) and `--watch`, which
   rebuilds on every save using `inotifywait` when present and a 1s mtime poll
   otherwise.
-- Pluggable Carve -> HTML backend selected by `CARVE_RENDERER`: `php`
-  (`render.php`), `js` (`render.mjs`), or `auto`. Both register the
-  shopware-carve extension set in static mode.
-- Themes under `themes/` and frontmatter support (title, author, date, kicker).
+- Pluggable Carve to HTML backend selected by `CARVE_RENDERER`: `php`
+  (`render.php`), `js` (`render.mjs`), or `auto`. Both register the extension
+  set in static render mode.
+- Themes under `themes/` and frontmatter support: title, author, date, kicker,
+  page geometry (`paper`, `margin`) and a per-document `footer` template.
+- `{{ path }}` include directives expand against the input's directory, with
+  `--include-root DIR` to widen containment and `--no-includes` to leave them
+  literal. A directive that escapes the root, names a missing file or forms a
+  cycle reports itself and stays literal rather than failing the render.
+- KaTeX math typesetting, Mermaid diagrams and Chart.js charts, each rendered
+  to static output so the printed page carries them.
+- Abbreviation expansions print inline, since a PDF has no hover.
+- Static, print-safe syntax highlighting for named code fences, including a
+  bundled first-party Carve lexer for `carve` and `crv` fences.
+- The vendored `@markup-carve/carve-css` token, core, extension and recipe
+  layers are inlined ahead of the PDF theme, so standalone output covers the
+  current rendered vocabulary without needing npm at runtime. The vendored
+  copy sits between carve-css 0.1.1 and 0.1.2; `themes/carve-css/UPSTREAM.md`
+  names the exact commit.
+- Both current engine spellings of keyboard input are styled (`<kbd>` and the
+  compatibility `<span kbd>` form), so PHP- and JavaScript-backed PDFs agree.
+- `make check` is a dependency preflight, `make install` symlinks `crv2pdf`
+  onto PATH under an overridable `PREFIX`, and `make uninstall` removes it.
+- An example set under `examples/`, covering structure, inline decorations,
+  math and charts.

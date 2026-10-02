@@ -178,6 +178,23 @@ has   "crv2pdf resolves a relative root against the cwd" "$WORK/front-rel.md" "S
 CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --md --no-includes "$INC/doc/nested.crv" "$WORK/front-off.md" >/dev/null 2>&1
 has   "crv2pdf passes --no-includes"          "$WORK/front-off.md" "{{ sub/a.crv }}"
 
+# --- version surface ---------------------------------------------------------
+# CRV2PDF_VERSION in crv2pdf.sh is the single source of truth, and the tag is
+# cut from the newest released CHANGELOG heading. Asserting one against the
+# other is what stops `crv2pdf --version` from naming a version nobody shipped.
+echo "== version =="
+ver_printed="$("$HERE/crv2pdf.sh" --version 2>/dev/null)"
+ver_changelog="$(grep -m1 -oE '^## \[[0-9]+\.[0-9]+\.[0-9]+\]' "$HERE/CHANGELOG.md" | tr -d '#[] ')"
+if [ -n "$ver_changelog" ]; then
+  if [ "$ver_printed" = "crv2pdf $ver_changelog" ]; then
+    ok "--version agrees with the newest CHANGELOG release ($ver_changelog)"
+  else
+    bad "--version agrees with the newest CHANGELOG release (printed '$ver_printed', CHANGELOG says $ver_changelog)"
+  fi
+else
+  bad "CHANGELOG.md carries a released version heading"
+fi
+
 # --- wrap.py: page-geometry validation --------------------------------------
 echo "== wrap.py page geometry =="
 render "${backends[0]}" "$FIX/marks.crv" "$WORK/frag.html"
