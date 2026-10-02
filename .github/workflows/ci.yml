@@ -5,10 +5,13 @@ on:
     branches: [main]
   pull_request:
 
+# Each job declares timeout-minutes so a hung step fails fast
+# instead of inheriting the 360-minute GitHub default.
 jobs:
   released:
     name: released engines
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout carve-pdf
         uses: actions/checkout@v4
@@ -63,6 +66,7 @@ jobs:
     # engines moved, not carve-pdf.
     name: engines from main
     runs-on: ubuntu-latest
+    timeout-minutes: 20
     steps:
       - name: Checkout carve-pdf
         uses: actions/checkout@v4
