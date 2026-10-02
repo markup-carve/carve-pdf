@@ -66,8 +66,14 @@ The Carve -> HTML step is pluggable. `CARVE_RENDERER` selects it (default `auto`
 | `php` | `render.php` | PHP 8.2+ and a `MarkupCarve\Carve` autoloader | default when PHP is present |
 | `js`  | `render.mjs` | Node 18+ and the `markup-carve/carve` npm package | runs PHP-free |
 
-`auto` uses PHP if available, else Node. Both register the same extension set (the
-shopware-carve plugin's) in static mode. Output is **equivalent, not byte-identical**:
+`auto` picks PHP when it can actually load a `MarkupCarve\Carve` autoloader, else
+Node, else it reports what to install. An interpreter on PATH is not enough: a machine
+with PHP but no carve-php would otherwise be sent to the PHP backend and fail there
+while a working Node engine sat unused. Setting `CARVE_RENDERER` explicitly skips the
+probe, so asking for a backend reports that backend's own error.
+
+Both register the same extension set (the shopware-carve plugin's) in static mode.
+Output is **equivalent, not byte-identical**:
 
 - carve-js emits `<aside>` / `<h3>` where carve-php emits `<div role=...>` / `<p>` -
   `base.css` styles by class, so the rendered PDF looks the same either way.
@@ -88,15 +94,30 @@ Point the backend at its library:
 - `CARVE_JS` - a carve-js dist dir or its `dist/index.js`, such as
   `node_modules/@markup-carve/carve/dist/index.js`. A checkout works too.
 
-Both probe a few common locations if unset.
+If unset, both look beside the `crv2pdf.sh` they were invoked through, in this order:
+a `node_modules` / `vendor` directory next to it (what `npm install` or
+`composer require` in this directory produces, and where a Homebrew install puts
+them), this repo's own `_deps/js` and `_deps/php` install, then a sibling checkout.
+No absolute path is ever consulted, so the same tarball resolves the same way on
+every machine.
 
 ## Dependencies
 
-| Need | For |
-|------|-----|
-| A renderer backend (PHP **or** Node, see above) | `render.php` / `render.mjs` |
-| Python 3 + `websocket-client` + Pygments | metadata, syntax highlighting (including Carve), composition, printing |
-| Google Chrome or Chromium | PDF printing |
+Only one thing is required: a renderer backend that can load a Carve engine. Everything
+else narrows what you can produce. `make check` reports each one and what its absence
+costs, and fails only when no engine resolves.
+
+| Need | Required for | Without it |
+|------|--------------|------------|
+| A renderer backend, PHP **or** Node, with its engine (see above) | everything | nothing renders |
+| Python 3 | `--html`, `--pdf` | `--md` and `--txt` still work |
+| `websocket-client` | `--pdf` | `--html`, `--md`, `--txt` still work |
+| Google Chrome or Chromium | `--pdf` | `--html`, `--md`, `--txt` still work |
+| Pygments | highlighted code fences | fences render readable but unhighlighted |
+| KaTeX | math | math renders as raw TeX |
+| Mermaid | ` ```mermaid ` blocks | the diagram source stays visible |
+| Chart.js | ` ```chart ` blocks | the chart JSON stays visible |
+| `inotifywait` | `--watch` responsiveness | `--watch` falls back to polling |
 
 ## Frontmatter
 
@@ -141,6 +162,13 @@ the JSON stays visible.
 
 KaTeX, Mermaid, and Chart.js all render in Chrome under one `window.__carveReady`
 promise that print_cdp awaits, so every renderer finishes before the PDF is captured.
+
+All three are optional and resolve like the engines: `CARVE_KATEX` / `CARVE_MERMAID` /
+`CARVE_CHART` first, then `node_modules/katex`, `node_modules/mermaid` and
+`node_modules/chart.js` beside `crv2pdf.sh`, then `_deps/js`, then a sibling checkout.
+Install them with `npm install katex mermaid chart.js`. When a document uses one and
+it cannot be found, the renderer says so on stderr and names the variable rather than
+dropping the math, diagram or chart in silence. `make check` lists which are present.
 
 ## Environment
 

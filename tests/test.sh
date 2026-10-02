@@ -213,6 +213,41 @@ printf '{"paper":"A4; } body { background: red } @page {"}' > "$WORK/evil.json"
 python3 "$LIB/wrap.py" "$WORK/frag.html" "$WORK/evil.json" "$FIX" "$WORK/evil.html" "$HERE/themes/carve-css/tokens.css" "$HERE/themes/carve-css/core.css" "$HERE/themes/carve-css/extensions.css" "$HERE/themes/carve-css/recipes.css" "$HERE/themes/base.css" "$HERE/themes/print.css" 2>/dev/null
 hasnt "css injection rejected" "$WORK/evil.html" "background: red"
 
+# --- make check: the preflight must name every optional dependency ----------
+# A preflight that omits a dependency reports ready and then degrades, which is
+# how Pygments went missing from it. These assertions are what stops the next
+# one going unnoticed; they check the target's output, not the host's state, so
+# they hold whether or not a given dependency is installed here.
+echo "== preflight =="
+make -C "$HERE" check > "$WORK/check.out" 2>&1 || true
+for dep in renderer python3 pygments websocket-client chrome inotifywait katex mermaid chart.js; do
+  has "make check reports $dep" "$WORK/check.out" "$dep"
+done
+has "make check separates required from optional" "$WORK/check.out" "optional:"
+
+# The one fatal condition, and the one thing that must never be fatal. Both are
+# asserted by running the target, because a check that cannot fail is worth
+# nothing and a check that fails on an optional dependency blocks an install.
+if make -C "$HERE" check >/dev/null 2>&1; then
+  ok "make check passes when an engine resolves"
+else
+  bad "make check passes when an engine resolves"
+fi
+
+# --- no absolute author paths anywhere in the tree ---------------------------
+# These shipped once as resolver fallbacks: they leak the author's directory
+# layout into the release tarball, and they mask a broken default resolution by
+# succeeding on one machine only.
+echo "== no absolute host paths =="
+leaks="$(git -C "$HERE" grep -nIE '(/media/[a-z]+|/home/[a-z]+|/Users/[a-z]+)/' -- \
+  ':!tests/*' ':!docs/*' ':!CHANGELOG.md' 2>/dev/null || true)"
+if [ -z "$leaks" ]; then
+  ok "no absolute host path is baked into the shipped files"
+else
+  bad "no absolute host path is baked into the shipped files"
+  echo "$leaks" | sed 's/^/         /'
+fi
+
 # --- panel visibility -------------------------------------------------------
 # Its own script because it needs a browser and the printed PDF, which nothing
 # else here does. A skip inside it is reported as a skip, not as a pass.
