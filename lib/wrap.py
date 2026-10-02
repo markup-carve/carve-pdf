@@ -11,10 +11,13 @@ Any CSS files given are inlined into a single <style> block.
 """
 import html
 import json
-import os
 import re
 import sys
 from pathlib import Path
+
+# assets.py owns where the optional client libraries live, so `make check`
+# reports on the same paths the renderer reads rather than its own copy of them.
+import assets
 
 if len(sys.argv) < 5:
     sys.exit("usage: wrap.py <fragment.html> <meta.json> <base_dir> <out.html> <css...>")
@@ -125,18 +128,20 @@ if overrides:
 # single window.__carveReady promise that print_cdp awaits, so multiple
 # renderers in one document all complete before the PDF is captured. Each is
 # only wired in when (a) the document uses it and (b) its library is found.
-def _first_file(env_name, *paths):
-    p = os.environ.get(env_name)
-    if p and Path(p).is_file():
-        return Path(p)
-    return next((Path(x) for x in paths if Path(x).is_file()), None)
-
-
-def _first_dir(env_name, *dirs):
-    d = os.environ.get(env_name)
-    if d and Path(d, "katex.min.css").is_file():
-        return Path(d)
-    return next((Path(x) for x in dirs if Path(x, "katex.min.css").is_file()), None)
+# A library the document asks for and we cannot supply is reported. Letting it
+# degrade in silence is how a PDF quietly loses its math.
+def _library(env_name, feature, package, kind):
+    found, ignored = assets.resolve(env_name, package, kind)
+    if ignored is not None:
+        sys.stderr.write(
+            f"wrap.py: ignoring ${env_name}={ignored!r}: not found there, trying the defaults\n"
+        )
+    if found is None:
+        sys.stderr.write(
+            f"wrap.py: {feature} left unrendered: no {package} found. "
+            f"Install it (npm install {package}) or point ${env_name} at it.\n"
+        )
+    return found
 
 
 def client_assets():
@@ -144,11 +149,7 @@ def client_assets():
 
     # KaTeX (math) - synchronous render
     if 'class="math' in fragment:
-        root = _first_dir(
-            "CARVE_KATEX",
-            "/media/mark/data/work/git/markup-carve-carve/node_modules/katex/dist",
-            "/media/mark/data/work/git/carve-js/node_modules/katex/dist",
-        )
+        root = _library("CARVE_KATEX", "math", "katex", "dir")
         if root:
             fonts_uri = (root / "fonts").resolve().as_uri()
             kcss = (root / "katex.min.css").read_text(encoding="utf-8").replace(
@@ -165,11 +166,7 @@ def client_assets():
 
     # Mermaid (diagrams) - async render to SVG
     if re.search(r'class="[^"]*\bmermaid\b', fragment):
-        src = _first_file(
-            "CARVE_MERMAID",
-            "/media/mark/data/work/git/vscode-carve/media/mermaid.min.js",
-            "/media/mark/data/work/git/carve-js/node_modules/mermaid/dist/mermaid.min.js",
-        )
+        src = _library("CARVE_MERMAID", "mermaid diagrams", "mermaid", "file")
         if src:
             lib_scripts.append(f"<script>{src.read_text(encoding='utf-8')}</script>")
             init_steps.append(
@@ -180,11 +177,7 @@ def client_assets():
 
     # Chart.js (charts) - JSON config -> canvas
     if re.search(r'class="[^"]*\bchart\b', fragment):
-        src = _first_file(
-            "CARVE_CHART",
-            "/media/mark/data/work/git/vscode-carve/media/chart.umd.js",
-            "/media/mark/data/work/git/markup-carve-carve/node_modules/chart.js/dist/chart.umd.js",
-        )
+        src = _library("CARVE_CHART", "charts", "chart.js", "file")
         if src:
             lib_scripts.append(f"<script>{src.read_text(encoding='utf-8')}</script>")
             init_steps.append(

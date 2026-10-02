@@ -22,7 +22,11 @@ declare(strict_types=1);
  * markdown/plain converters (which flatten interactive constructs natively).
  *
  * The composer autoloader that provides MarkupCarve\Carve is resolved from
- * $CARVE_PHP_AUTOLOAD, falling back to a few common locations.
+ * $CARVE_PHP_AUTOLOAD, falling back to locations relative to this script: the
+ * vendor/ beside it, the repo's _deps/php install, a sibling checkout.
+ *
+ * --probe exits 0 if the autoloader resolves and 1 if it does not, printing
+ * nothing, so crv2pdf can pick a backend that actually works.
  */
 
 use MarkupCarve\Carve\CarveConverter;
@@ -51,11 +55,20 @@ function fail(string $msg): never
 }
 
 // --- resolve autoloader -----------------------------------------------------
+// --probe answers "can this backend run?" so crv2pdf's `auto` can prefer a
+// backend it can actually resolve over one whose interpreter merely exists. It
+// needs no input file, so it is settled before anything else.
+$probeOnly = in_array('--probe', $argv, true);
+
 $candidates = array_filter([
     getenv('CARVE_PHP_AUTOLOAD') ?: null,
-    '/media/mark/data/work/git/shopware-carve/vendor/autoload.php',
-    __DIR__ . '/../../shopware-carve/vendor/autoload.php',
+    // Beside the script: what `composer require markup-carve/carve-php` at the
+    // repo root lays down.
     __DIR__ . '/../vendor/autoload.php',
+    // The repo's own dependency install, which CI builds and uses.
+    __DIR__ . '/../_deps/php/vendor/autoload.php',
+    // A sibling checkout, for working on the plugin and carve-pdf together.
+    __DIR__ . '/../../shopware-carve/vendor/autoload.php',
 ]);
 $autoload = null;
 foreach ($candidates as $c) {
@@ -64,13 +77,28 @@ foreach ($candidates as $c) {
         break;
     }
 }
+// Falling through from an unusable $CARVE_PHP_AUTOLOAD would otherwise load a
+// different engine than the one asked for, without saying so.
+$envAutoload = getenv('CARVE_PHP_AUTOLOAD') ?: null;
+if ($envAutoload !== null && $autoload !== null && $autoload !== $envAutoload && !$probeOnly) {
+    fwrite(STDERR, "render.php: ignoring \$CARVE_PHP_AUTOLOAD={$envAutoload}: not a file, using {$autoload}\n");
+}
 if ($autoload === null) {
+    if ($probeOnly) {
+        exit(1);
+    }
     fail('could not locate a composer autoloader providing MarkupCarve\\Carve; set $CARVE_PHP_AUTOLOAD');
 }
 require $autoload;
 
 if (!class_exists(CarveConverter::class)) {
+    if ($probeOnly) {
+        exit(1);
+    }
     fail("autoloader {$autoload} does not provide MarkupCarve\\Carve\\CarveConverter");
+}
+if ($probeOnly) {
+    exit(0);
 }
 
 /**

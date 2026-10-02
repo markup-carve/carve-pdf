@@ -22,7 +22,7 @@
 #            | print_cdp.py (Chrome DevTools -> PDF with page numbers).
 #
 # Env:
-#   CARVE_RENDERER      php | js | auto (default auto: php if available, else js)
+#   CARVE_RENDERER      php | js | auto (default auto: php if it resolves an engine, else js)
 #   CARVE_PHP_AUTOLOAD  composer autoloader providing MarkupCarve\Carve (php backend)
 #   CARVE_JS            carve-js checkout or dist/index.js (js backend)
 #   CARVE_KATEX         KaTeX dist/ dir for math typesetting (default: autodetect)
@@ -87,11 +87,37 @@ elif [ ${#POS[@]} -gt 1 ]; then
 fi
 
 # --- pick a renderer backend ------------------------------------------------
+# `auto` asks each backend whether it can actually resolve its Carve engine,
+# rather than trusting that an interpreter on PATH means a working backend. A
+# machine with php installed but no MarkupCarve\Carve autoloader used to be sent
+# to the php backend and fail there, even with a working node engine present.
+# An explicit CARVE_RENDERER is honored as given, so asking for a backend
+# reports that backend's own error instead of quietly using the other one.
 RENDERER="${CARVE_RENDERER:-auto}"
 if [ "$RENDERER" = "auto" ]; then
-  if command -v php >/dev/null 2>&1; then RENDERER="php"
-  elif command -v node >/dev/null 2>&1; then RENDERER="js"
-  else echo "crv2pdf: no renderer available (need php or node)" >&2; exit 1; fi
+  if command -v php >/dev/null 2>&1 && php "$LIB/render.php" --probe >/dev/null 2>&1; then
+    RENDERER="php"
+  elif command -v node >/dev/null 2>&1 && node "$LIB/render.mjs" --probe >/dev/null 2>&1; then
+    RENDERER="js"
+  else
+    {
+      echo "crv2pdf: no usable Carve renderer backend."
+      if command -v php >/dev/null 2>&1; then
+        echo "  php:  on PATH, but no autoloader provides MarkupCarve\\Carve"
+      else
+        echo "  php:  not on PATH"
+      fi
+      if command -v node >/dev/null 2>&1; then
+        echo "  node: on PATH, but the @markup-carve/carve package was not found"
+      else
+        echo "  node: not on PATH"
+      fi
+      echo "Install one engine here, or anywhere the matching variable can point:"
+      echo "  composer require markup-carve/carve-php   # CARVE_PHP_AUTOLOAD=.../vendor/autoload.php"
+      echo "  npm install @markup-carve/carve           # CARVE_JS=.../dist/index.js"
+    } >&2
+    exit 1
+  fi
 fi
 
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/crv2pdf.XXXXXX")"
