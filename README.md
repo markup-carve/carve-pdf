@@ -181,6 +181,8 @@ make uninstall          # remove the symlink
 
 Or symlink by hand: `ln -s "$PWD/crv2pdf.sh" ~/.local/bin/crv2pdf`.
 
+Check which version is on PATH with `crv2pdf --version`.
+
 ## Known limitations
 
 - **Math** is typeset with KaTeX when available (see above); otherwise it degrades to

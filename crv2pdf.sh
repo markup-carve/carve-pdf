@@ -5,6 +5,7 @@
 #   crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt]   single file
 #   crv2pdf a.crv b.crv ...        [--out-dir DIR] [--fmt]     batch
 #   crv2pdf --watch <input.crv> [output] [--fmt]               rebuild on change
+#   crv2pdf --version                                          print the version
 #
 # Includes ({{ path }} directives) expand against the input's directory:
 #   --include-root DIR   containment root to use instead, relative to the cwd
@@ -31,6 +32,12 @@
 #   CHROME_BIN          Chrome/Chromium binary (default: autodetect)
 set -euo pipefail
 
+# The one place carve-pdf's version is written. `crv2pdf.sh` is the only file
+# `make install` puts on PATH, and the repo has no manifest to hold it instead.
+# tests/test.sh asserts this against the newest released CHANGELOG heading, so
+# a tag cut from the changelog cannot disagree with what --version prints.
+CRV2PDF_VERSION="0.1.0"
+
 # Resolve through symlinks so a `~/.local/bin/crv2pdf` symlink still finds lib/ + themes/.
 SELF="${BASH_SOURCE[0]}"
 if command -v readlink >/dev/null 2>&1; then
@@ -49,6 +56,7 @@ INC_ARGS=()
 POS=()
 while [ $# -gt 0 ]; do
   case "$1" in
+    --version|-V) echo "crv2pdf $CRV2PDF_VERSION"; exit 0 ;;
     --pdf|--html|--md|--txt) FORMAT="${1#--}" ;;
     --format=*) FORMAT="${1#--format=}" ;;
     --watch|-w) WATCH=1 ;;
@@ -62,7 +70,7 @@ while [ $# -gt 0 ]; do
   shift
 done
 
-usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes]" >&2; exit 2; }
+usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes] [--version]" >&2; exit 2; }
 [ ${#POS[@]} -ge 1 ] || usage
 
 # Batch mode iff --out-dir is set, or several positionals that ALL end in .crv

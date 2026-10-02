@@ -4,9 +4,16 @@
 byte-for-byte from `@markup-carve/carve-css`.
 
 Pinned at commit `4a5d692` on `markup-carve/carve-css` main, synced 2026-10-01.
-That is version 0.1.1 plus one unreleased fix, PR 15, which made a tab set and a
-code group show a panel in every render mode. No release carries the commit yet,
-which is why the pin is a commit rather than a tag.
+That is version 0.1.1 plus four stylesheet fixes - a block image rendering as a
+block, a caption sitting against its image, a gallery tile spaced by the grid,
+and a tab set and code group showing a panel in every render mode. The pin is a
+commit rather than a tag because no release carried it when the sync happened.
+
+Version 0.1.2 has since shipped and it does contain `4a5d692`, plus two further
+stylesheet fixes the vendored copy does not have: a tab set pairing its radio
+and panel without `:has()`, and an inline inside a highlight drawing on the
+highlight's wash. So the vendored layers sit between 0.1.1 and 0.1.2, and the
+next refresh should move to the 0.1.2 tag.
 
 There is no local delta. All four files are byte-identical to the pin; verify it
 against a carve-css checkout with
