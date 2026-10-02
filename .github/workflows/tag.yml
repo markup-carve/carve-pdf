@@ -20,10 +20,13 @@ on:
         description: The tag name to check this ref against (e.g. 0.1.0)
         required: true
 
+# Each job declares timeout-minutes so a hung step fails fast
+# instead of inheriting the 360-minute GitHub default.
 jobs:
   gate:
     name: version and suite
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout carve-pdf
         uses: actions/checkout@v4
