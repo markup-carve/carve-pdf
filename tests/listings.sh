@@ -53,6 +53,10 @@ for i, l in enumerate(listings, 1):
     v(l["leadIn"] is not None, f"{at}: has a lead-in paragraph")
     v(l["leadInBreakAfter"] == "avoid",
       f"{at}: lead-in {l['leadIn']!r} keeps with the listing (break-after {l['leadInBreakAfter']})")
+    # Keeping the lead-in with its block must not push the break INTO a
+    # two-line lead-in instead.
+    v(l["leadInBreakInside"] == "avoid",
+      f"{at}: lead-in is not split across pages (break-inside {l['leadInBreakInside']})")
 print("\n".join(out))
 PY
     while IFS=$'\t' read -r verdict name; do

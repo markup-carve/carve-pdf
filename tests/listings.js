@@ -15,6 +15,7 @@
         codeAlign: getComputedStyle(code).textAlign,
         leadIn: prev && prev.tagName === "P" ? prev.innerText.trim() : null,
         leadInBreakAfter: prev && prev.tagName === "P" ? getComputedStyle(prev).breakAfter : null,
+        leadInBreakInside: prev && prev.tagName === "P" ? getComputedStyle(prev).breakInside : null,
       };
     }),
   };

@@ -51,7 +51,7 @@ thead { display: table-header-group; }
 .carve figure pre, .carve figure pre code { text-align: start; }
 .carve pre, .carve pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
 .carve pre { overflow: visible; }
-p:has(+ pre), p:has(+ figure) { break-after: avoid; }
+p:has(+ pre), p:has(+ figure) { break-after: avoid; break-inside: avoid; }
 tr { break-inside: avoid; }
 
 /* document header (kicker) + byline footer emitted by wrap.py */
