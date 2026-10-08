@@ -1,0 +1,8 @@
+{
+  "workflow": ".github/workflows/release-lane.yml",
+  "publisher": ".github/workflows/tag.yml",
+  "publisher_environments": [],
+  "registries": {},
+  "assets": [],
+  "versions": []
+}

@@ -1,4 +1,4 @@
-name: Tag gate
+name: Release packages and assets
 
 # Nothing used to fire on a tag, so a tag could be cut from any commit on any
 # branch and the first thing to notice would be an install. 0.1.0 was cut that
@@ -10,18 +10,32 @@ name: Tag gate
 # and a release.
 
 on:
-  push:
-    tags: ['*']
-  # Rehearsal. A maintainer can run this against a branch with the tag they are
-  # about to cut, and read the answer before the ref exists.
-  workflow_dispatch:
+  workflow_call:
     inputs:
-      tag:
-        description: The tag name to check this ref against (e.g. 0.1.0)
+      publish:
         required: true
-
-# Each job declares timeout-minutes so a hung step fails fast
-# instead of inheriting the 360-minute GitHub default.
+        type: boolean
+      tag:
+        required: true
+        type: string
+      version:
+        required: true
+        type: string
+      release_tag:
+        required: true
+        type: string
+      source_sha:
+        required: true
+        type: string
+      release_id:
+        required: true
+        type: string
+      release_body:
+        required: true
+        type: string
+      notes_digest:
+        required: true
+        type: string
 jobs:
   gate:
     name: version and suite
@@ -31,11 +45,21 @@ jobs:
       - name: Checkout carve-pdf
         uses: actions/checkout@v4
 
+        with:
+          ref: ${{ inputs.source_sha }}
+          fetch-depth: 0
+      - name: Expose the candidate tag locally
+        if: ${{ !inputs.publish }}
+        shell: bash
+        env:
+          CANDIDATE_TAG: ${{ inputs.tag }}
+        run: |
+          git tag "$CANDIDATE_TAG" "${{ inputs.source_sha }}"
       - name: Resolve the tag under test
         id: tag
         run: |
-          if [ "${{ github.ref_type }}" = tag ]; then
-            echo "tag=${{ github.ref_name }}" >> "$GITHUB_OUTPUT"
+          if [ "${{ 'tag' }}" = tag ]; then
+            echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
           else
             echo "tag=${{ inputs.tag }}" >> "$GITHUB_OUTPUT"
           fi
@@ -86,3 +110,12 @@ jobs:
           CARVE_PHP_AUTOLOAD: ${{ github.workspace }}/_deps/php/vendor/autoload.php
           CARVE_JS: ${{ github.workspace }}/_deps/js/node_modules/@markup-carve/carve/dist/index.js
         run: ./tests/test.sh
+permissions:
+  contents: write
+  actions: read
+  id-token: write
+env:
+  LANE_TAG: ${{ inputs.tag }}
+  LANE_REF: ${{ format('refs/tags/{0}', inputs.tag) }}
+  LANE_REF_TYPE: tag
+  LANE_PUBLISH: ${{ inputs.publish }}
