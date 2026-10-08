@@ -45,6 +45,13 @@ abbr[title]::after {
 h1, h2, h3, h4 { break-after: avoid; }
 figure, table, pre, .admonition, details, .tabs, .code-group, blockquote { break-inside: avoid; }
 thead { display: table-header-group; }
+
+/* code listings: a caption's figure centers images, not code; paper cannot
+ * scroll, so long lines wrap; a lead-in stays on the page of its listing */
+.carve figure pre, .carve figure pre code { text-align: start; }
+.carve pre, .carve pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
+.carve pre { overflow: visible; }
+p:has(+ pre), p:has(+ figure) { break-after: avoid; break-inside: avoid; }
 tr { break-inside: avoid; }
 
 /* document header (kicker) + byline footer emitted by wrap.py */

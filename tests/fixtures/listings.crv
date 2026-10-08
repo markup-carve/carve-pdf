@@ -1,0 +1,18 @@
+---yaml
+title: Listings fixture
+---
+
+# Listings
+
+Lead-in to a captioned listing:
+
+```php
+echo 'LISTINGWIDEMARKER: a very long line that runs past the right margin of an A4 page and keeps going for a good while longer than that';
+```
+^ Listing #: A captioned listing
+
+Lead-in to a bare listing:
+
+```text
+plain code, no caption
+```
