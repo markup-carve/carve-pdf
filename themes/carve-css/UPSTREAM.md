@@ -3,21 +3,22 @@
 `tokens.css`, `core.css`, `extensions.css` and `recipes.css` are copied
 byte-for-byte from `@markup-carve/carve-css`.
 
-Pinned at commit `4a5d692` on `markup-carve/carve-css` main, synced 2026-10-01.
-That is version 0.1.1 plus four stylesheet fixes - a block image rendering as a
-block, a caption sitting against its image, a gallery tile spaced by the grid,
-and a tab set and code group showing a panel in every render mode. The pin is a
-commit rather than a tag because no release carried it when the sync happened.
+Pinned at version `0.1.4`, tag commit `98209de` on `markup-carve/carve-css`,
+synced 2026-10-08. The pin is a released tag, not a loose commit: the previous
+sync sat at `4a5d692`, between 0.1.1 and 0.1.2, because no release carried the
+fixes it needed at the time.
 
-Version 0.1.2 has since shipped and it does contain `4a5d692`, plus two further
-stylesheet fixes the vendored copy does not have: a tab set pairing its radio
-and panel without `:has()`, and an inline inside a highlight drawing on the
-highlight's wash. So the vendored layers sit between 0.1.1 and 0.1.2, and the
-next refresh should move to the 0.1.2 tag.
+What this sync brings over `4a5d692`: a tab set pairs its radio and panel
+without `:has()`, an inline inside a highlight draws on the highlight's wash,
+and quote bodies render at document text contrast with a visible border and an
+attribution aligned to the quote body (markup-carve/carve-css#32). `core.css`
+now reads `--carve-quote-ink`, `--carve-quote-border`, `--carve-quote-gap`,
+`--carve-quote-padding` and `--carve-quote-border-width`, each with a default
+resolved on the quote itself.
 
-There is no local delta. All four files are byte-identical to the pin; verify it
-against a carve-css checkout with
-`git show 4a5d692:src/<file>.css | cmp - themes/carve-css/<file>.css`.
+There is no local delta. `recipes.css` was already byte-identical to 0.1.4; the
+other three are overwritten. Verify against a carve-css checkout with
+`git show 98209de:src/<file>.css | cmp - themes/carve-css/<file>.css`.
 
 ## Why this is vendored
 
@@ -45,7 +46,14 @@ The pin also ships `carve.css`, `contrast.css` and `print.css`.
 - `print.css` upstream is a screen stylesheet's print adjustments.
   `themes/print.css` is this repo's own paged-media layer, with the page
   geometry that frontmatter drives. Adopting upstream's would need the two
-  reconciled rather than stacked.
+  reconciled rather than stacked. 0.1.4 adds two quote tokens to it,
+  `--carve-quote-ink` and `--carve-quote-border`, which only pin the defaults
+  `core.css` already resolves on the quote: ink to `--carve-ink` either way, and
+  the border to `--carve-border` instead of a 50 percent mix of ink and surface.
+  So the quote fix reaches a printed PDF through `core.css` alone, and the one
+  thing vendoring `print.css` would change is a slightly firmer quote border -
+  a visual choice for `themes/base.css` or `themes/print.css` to make here, not
+  a reason to adopt a whole upstream layer.
 
 Revisit any of the three if `crv2pdf` grows a themed-HTML output that a reader
 views on screen, where contrast preferences start to mean something.
