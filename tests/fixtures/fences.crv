@@ -1,0 +1,64 @@
+---yaml
+title: Fences fixture
+---
+
+# Fences
+
+```blade
+{{-- BLADECOMMENT --}}
+<p>{{ $title }} mail user@example.com</p>
+@carve($article->body)
+```
+
+```yml
+key: value
+```
+
+```php
+echo 'FIRSTLINEMARKER: a long first line that runs all the way to the right edge of the code block and beyond';
+```
+
+```text
+plain text, no label
+```
+
+```diff
+-removed
++added
+```
+
+```csv
+a,b
+1,2
+```
+
+{.diff}
+```js
+  let fileIcon = document.querySelector("li.file-entry > span.icon");
+- fileIcon.classList.add("icon-file-text");
++ fileIcon.classList.remove("icon-file-text");
+```
+
+{.diff}
+```php
+ <?php
+-echo 1;
++echo 2;
+```
+
+```blade
+@if($x === "(") <p>{{ $y }}</p> @endif
+```
+
+{.diff}
+```js
++
+-old();
++recent();
+```
+
+{.diff}
+```js
++const tail = 1;
++
+```

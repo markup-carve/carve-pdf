@@ -32,47 +32,159 @@ fragment = frag_path.read_text(encoding="utf-8")
 fragment = re.sub(r"<details(?![^>]*\bopen\b)", "<details open", fragment)
 
 
+# Fence names an older Pygments does not know, mapped to the nearest lexer it
+# has. Only consulted when the name itself fails, so a native lexer wins.
+LEXER_FALLBACKS = {
+    "yml": "yaml",
+    "jsonc": "json",
+    "json5": "json",
+    "tsx": "typescript",
+    "env": "bash",
+    "dotenv": "bash",
+    "svg": "xml",
+    "patch": "diff",
+    "vue": "html",
+    "svelte": "html",
+    "astro": "html",
+    "latte": "html",
+    "hbs": "handlebars",
+    "mustache": "handlebars",
+    "gql": "graphql",
+    "neon": "yaml",
+}
+
+# Fence names that say "no language"; they get no label.
+UNLABELED_FENCES = {"", "text", "txt", "plain", "plaintext", "none", "mermaid", "chart"}
+
+FENCE_BLOCK = re.compile(r"<pre(?P<pre>[^>]*)><code(?P<code>[^>]*)>(?P<body>.*?)</code></pre>", re.DOTALL)
+
+
+def fence_language(code_attrs: str) -> str:
+    classes = re.search(r'class="([^"]*)"', code_attrs)
+    if not classes:
+        return ""
+    return next((name[9:] for name in classes.group(1).split() if name.startswith("language-")), "")
+
+
+def label_fences(fragment_html: str) -> str:
+    """Carry each fence's language onto its <pre> as `data-lang` for the label."""
+
+    def replace(match):
+        pre_attrs = match.group("pre")
+        language = fence_language(match.group("code"))
+        if language.lower() in UNLABELED_FENCES or "data-lang=" in pre_attrs:
+            return match.group(0)
+        label = html.escape(language, quote=True)
+        return f'<pre{pre_attrs} data-lang="{label}"><code{match.group("code")}>{match.group("body")}</code></pre>'
+
+    return FENCE_BLOCK.sub(replace, fragment_html)
+
+
+DIFF_MARKER = re.compile(r"^[+\- ]")
+
+
+def pre_classes(pre_attrs: str) -> list:
+    found = re.search(r'class="([^"]*)"', pre_attrs)
+    return found.group(1).split() if found else []
+
+
+def with_class(attrs: str, name: str) -> str:
+    found = re.search(r'class="([^"]*)"', attrs)
+    if not found:
+        return f'{attrs} class="{name}"'
+    names = found.group(1).split()
+    if name not in names:
+        names.append(name)
+    return attrs[:found.start(1)] + " ".join(names) + attrs[found.end(1):]
+
+
+def render_diff(source: str, highlight_block) -> str:
+    """Per-line `{.diff}` presentation, the shape of carve-grammars' renderLanguageDiff.
+
+    The marker-stripped lines are highlighted as ONE block so a comment, string
+    or `<?php` opened on one line still colors the next; Pygments closes and
+    reopens its spans at every newline, so the result splits back into lines.
+    """
+    lines = source[:-1].split("\n") if source.endswith("\n") else source.split("\n")
+    markers = [line[0] if DIFF_MARKER.match(line) else "" for line in lines]
+    bodies = [line[1:] if marker else line for line, marker in zip(lines, markers)]
+    rendered = highlight_block("\n".join(bodies)).split("\n")
+    if len(rendered) != len(lines):
+        # A marker on the wrong line is worse than no color.
+        rendered = [html.escape(body) for body in bodies]
+    out = []
+    for marker, body in zip(markers, rendered):
+        line_class = {"+": "line diff add", "-": "line diff remove"}.get(marker, "line")
+        marker_span = f'<span class="diff-marker">{html.escape(marker)}</span>' if marker else ""
+        out.append(f'<span class="{line_class}">{marker_span}{body}</span>')
+    return "\n".join(out)
+
+
 def highlight_code(fragment_html: str) -> str:
-    """Highlight named fences statically so HTML and PDF need no client JS."""
+    """Highlight named fences statically so HTML and PDF need no client JS.
+
+    A `{.diff}` fence is highlighted line by line with its marker stripped, as
+    the carve-grammars diff helper does, so `- old()` tokenizes as `old()`.
+    """
     try:
         from pygments import highlight
         from pygments.formatters import HtmlFormatter
         from pygments.lexers import get_lexer_by_name
         from pygments.util import ClassNotFound
         from carve_lexer import CarveLexer
+        from blade_lexer import BladeLexer
     except ImportError:
         if re.search(r'<code[^>]*class="[^"]*language-', fragment_html):
             sys.stderr.write("wrap.py: Pygments not found; leaving code fences unhighlighted\n")
-        return fragment_html
+        highlight = None
 
-    block = re.compile(r"<pre(?P<pre>[^>]*)><code(?P<code>[^>]*)>(?P<body>.*?)</code></pre>", re.DOTALL)
+    def lexer_for(language: str):
+        name = language.lower()
+        if highlight is None or not name or name in ("mermaid", "chart"):
+            return None
+        # stripnl=False keeps leading blank lines, which a `{.diff}` pairs with markers.
+        if name in ("carve", "crv"):
+            return CarveLexer(stripnl=False)
+        if name == "blade":
+            return BladeLexer(stripnl=False)
+        try:
+            return get_lexer_by_name(name, stripnl=False)
+        except ClassNotFound:
+            try:
+                return get_lexer_by_name(LEXER_FALLBACKS[name], stripnl=False)
+            except (ClassNotFound, KeyError):
+                return None
 
     def replace(match):
         pre_attrs, code_attrs = match.group("pre"), match.group("code")
-        classes = re.search(r'class="([^"]*)"', code_attrs)
-        language = next(
-            (name[9:] for name in classes.group(1).split() if name.startswith("language-")),
-            "",
-        ) if classes else ""
-        if not language or language in ("mermaid", "chart"):
-            return match.group(0)
-        try:
-            lexer = CarveLexer() if language.lower() in ("carve", "crv") else get_lexer_by_name(language)
-        except ClassNotFound:
+        lexer = lexer_for(fence_language(code_attrs))
+        is_diff = "diff" in pre_classes(pre_attrs)
+        if lexer is None and not is_diff:
             return match.group(0)
         source = html.unescape(match.group("body"))
-        rendered = highlight(source, lexer, HtmlFormatter(nowrap=True, classprefix="tok-")).rstrip("\n")
-        if classes:
-            names = classes.group(1).split()
-            if "syntax-highlighted" not in names:
-                names.append("syntax-highlighted")
-            code_attrs = code_attrs[:classes.start(1)] + " ".join(names) + code_attrs[classes.end(1):]
+        if lexer is None:
+            highlight_block = html.escape
+        else:
+            formatter = HtmlFormatter(nowrap=True, classprefix="tok-")
+            code_attrs = with_class(code_attrs, "syntax-highlighted")
+
+            def highlight_block(text):
+                # Pygments appends a newline only when one is missing, so add it
+                # ourselves and strip exactly that one: a trailing blank line in
+                # the source keeps its place.
+                return highlight(text + "\n", lexer, formatter)[:-1]
+
+        if is_diff:
+            pre_attrs = with_class(pre_attrs, "has-diff")
+            rendered = render_diff(source, highlight_block)
+        else:
+            rendered = highlight_block(source).rstrip("\n")
         return f"<pre{pre_attrs}><code{code_attrs}>{rendered}</code></pre>"
 
-    return block.sub(replace, fragment_html)
+    return FENCE_BLOCK.sub(replace, fragment_html)
 
 
-fragment = highlight_code(fragment)
+fragment = label_fences(highlight_code(fragment))
 try:
     meta = json.loads(meta_path.read_text(encoding="utf-8") or "{}")
 except Exception:

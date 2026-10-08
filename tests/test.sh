@@ -292,6 +292,12 @@ if ! "$HERE/tests/listings.sh"; then
   fail=$((fail+1))
 fi
 
+# --- fence labels and highlighting ------------------------------------------
+echo
+if ! "$HERE/tests/fences.sh"; then
+  fail=$((fail+1))
+fi
+
 echo
 echo "passed: $pass  failed: $fail"
 [ "$fail" -eq 0 ]
