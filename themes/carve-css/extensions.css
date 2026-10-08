@@ -14,9 +14,13 @@
 
 /* --- Tab sets ------------------------------------------------------------ */
 
-/* THREE shapes reach the page, one per render mode, and all three are current.
- * Every rule below says which it serves, because a rule that fits one and
- * matches nothing in the others is invisible rather than wrong.
+/* THREE shapes reach the page and all three are current. Every rule below says
+ * which it serves, because a rule that fits one and matches nothing in the
+ * others is invisible rather than wrong.
+ *
+ * Two different options pick the shape. `tabs({ mode })` takes `css` or `aria`
+ * and rejects anything else; the static shape comes from the DOCUMENT mode,
+ * `carveToHtml(src, { mode: 'static' })`, which overrides the tab mode.
  *
  * css     <input class="tabs-radio"> elements, then their
  *         <label class="tabs-label"> partners, then one
@@ -27,7 +31,8 @@
  *         <div role="tabpanel" class="tabs-panel"> panels, the unselected ones
  *         marked `hidden` by the runtime that drives it.
  * static  <section class="tabs-panel"> per tab, each opening with an
- *         <h3 class="tabs-label">. No controls and nothing to hide.
+ *         <h3 class="tabs-label">. No controls and nothing to hide. Not a tab
+ *         mode: `tabs({ mode: 'static' })` throws.
  *
  * A fourth shape used to be styled here - <div class="tabs"> holding
  * <div class="tab"> children - and no engine emits it. `tab` is a word the
@@ -137,43 +142,57 @@
  * labels only LOOK interleaved because `order: -1` moves them in the flex row,
  * and the stylesheet was read off the rendered picture rather than the DOM.
  *
- * So panel three belongs to radio three, matched by position. The bound is
- * finite because CSS cannot count, and reveal-carve carries the same ladder for
- * the same reason - 12 here rather than its 6.
+ * That the panels follow the radios is what makes the sibling combinator the
+ * right tool: radio three and panel three are siblings, three apart in their own
+ * element counts. The `.tabs:has(.tabs-radio:nth-of-type(3):checked)` compound
+ * that stood here asked the question from the container, and `:has()` takes a
+ * DESCENDANT, so a nested tab set answered for its parent - checking inner tab
+ * two revealed outer panel two as well, measured in all three engines. The
+ * sibling form is scoped to one set by construction, and needs no `:has()`,
+ * which was this package's only use of it.
  *
- * The hiding rule is bounded identically on purpose. A tab set past the bound
- * matches no hiding rule either, so it degrades to every panel visible rather
- * than to a blank box - the same place static mode lands, and readable. The
- * same happens in a browser without `:has()`, which drops the whole list.
+ * Three rules, in order:
+ *   1. a CHECKED radio hides every panel beside it. Keyed on `:checked` rather
+ *      than on the radio's presence so that markup with no radio checked shows
+ *      everything instead of nothing.
+ *   2. radio N reveals panel N, to a finite bound because CSS cannot count -
+ *      12 here, where reveal-carve carries 6 for the same reason.
+ *   3. a radio PAST the bound reveals every panel. Without it a tab set of 13
+ *      hides all of them once the reader leaves tab 12, which loses the content
+ *      rather than degrading it. This is where static mode lands, and readable.
  */
-.carve .tabs:has(.tabs-radio:nth-of-type(-n + 12):checked) > .tabs-panel,
-.carve .code-group:has(.code-group-radio:nth-of-type(-n + 12):checked) > .code-group-panel {
+.carve .tabs > .tabs-radio:checked ~ .tabs-panel,
+.carve .code-group > .code-group-radio:checked ~ .code-group-panel {
   display: none;
 }
-.carve .tabs:has(.tabs-radio:nth-of-type(1):checked) > .tabs-panel:nth-of-type(1),
-.carve .tabs:has(.tabs-radio:nth-of-type(2):checked) > .tabs-panel:nth-of-type(2),
-.carve .tabs:has(.tabs-radio:nth-of-type(3):checked) > .tabs-panel:nth-of-type(3),
-.carve .tabs:has(.tabs-radio:nth-of-type(4):checked) > .tabs-panel:nth-of-type(4),
-.carve .tabs:has(.tabs-radio:nth-of-type(5):checked) > .tabs-panel:nth-of-type(5),
-.carve .tabs:has(.tabs-radio:nth-of-type(6):checked) > .tabs-panel:nth-of-type(6),
-.carve .tabs:has(.tabs-radio:nth-of-type(7):checked) > .tabs-panel:nth-of-type(7),
-.carve .tabs:has(.tabs-radio:nth-of-type(8):checked) > .tabs-panel:nth-of-type(8),
-.carve .tabs:has(.tabs-radio:nth-of-type(9):checked) > .tabs-panel:nth-of-type(9),
-.carve .tabs:has(.tabs-radio:nth-of-type(10):checked) > .tabs-panel:nth-of-type(10),
-.carve .tabs:has(.tabs-radio:nth-of-type(11):checked) > .tabs-panel:nth-of-type(11),
-.carve .tabs:has(.tabs-radio:nth-of-type(12):checked) > .tabs-panel:nth-of-type(12),
-.carve .code-group:has(.code-group-radio:nth-of-type(1):checked) > .code-group-panel:nth-of-type(1),
-.carve .code-group:has(.code-group-radio:nth-of-type(2):checked) > .code-group-panel:nth-of-type(2),
-.carve .code-group:has(.code-group-radio:nth-of-type(3):checked) > .code-group-panel:nth-of-type(3),
-.carve .code-group:has(.code-group-radio:nth-of-type(4):checked) > .code-group-panel:nth-of-type(4),
-.carve .code-group:has(.code-group-radio:nth-of-type(5):checked) > .code-group-panel:nth-of-type(5),
-.carve .code-group:has(.code-group-radio:nth-of-type(6):checked) > .code-group-panel:nth-of-type(6),
-.carve .code-group:has(.code-group-radio:nth-of-type(7):checked) > .code-group-panel:nth-of-type(7),
-.carve .code-group:has(.code-group-radio:nth-of-type(8):checked) > .code-group-panel:nth-of-type(8),
-.carve .code-group:has(.code-group-radio:nth-of-type(9):checked) > .code-group-panel:nth-of-type(9),
-.carve .code-group:has(.code-group-radio:nth-of-type(10):checked) > .code-group-panel:nth-of-type(10),
-.carve .code-group:has(.code-group-radio:nth-of-type(11):checked) > .code-group-panel:nth-of-type(11),
-.carve .code-group:has(.code-group-radio:nth-of-type(12):checked) > .code-group-panel:nth-of-type(12) {
+.carve .tabs > .tabs-radio:nth-of-type(1):checked ~ .tabs-panel:nth-of-type(1),
+.carve .tabs > .tabs-radio:nth-of-type(2):checked ~ .tabs-panel:nth-of-type(2),
+.carve .tabs > .tabs-radio:nth-of-type(3):checked ~ .tabs-panel:nth-of-type(3),
+.carve .tabs > .tabs-radio:nth-of-type(4):checked ~ .tabs-panel:nth-of-type(4),
+.carve .tabs > .tabs-radio:nth-of-type(5):checked ~ .tabs-panel:nth-of-type(5),
+.carve .tabs > .tabs-radio:nth-of-type(6):checked ~ .tabs-panel:nth-of-type(6),
+.carve .tabs > .tabs-radio:nth-of-type(7):checked ~ .tabs-panel:nth-of-type(7),
+.carve .tabs > .tabs-radio:nth-of-type(8):checked ~ .tabs-panel:nth-of-type(8),
+.carve .tabs > .tabs-radio:nth-of-type(9):checked ~ .tabs-panel:nth-of-type(9),
+.carve .tabs > .tabs-radio:nth-of-type(10):checked ~ .tabs-panel:nth-of-type(10),
+.carve .tabs > .tabs-radio:nth-of-type(11):checked ~ .tabs-panel:nth-of-type(11),
+.carve .tabs > .tabs-radio:nth-of-type(12):checked ~ .tabs-panel:nth-of-type(12),
+.carve .code-group > .code-group-radio:nth-of-type(1):checked ~ .code-group-panel:nth-of-type(1),
+.carve .code-group > .code-group-radio:nth-of-type(2):checked ~ .code-group-panel:nth-of-type(2),
+.carve .code-group > .code-group-radio:nth-of-type(3):checked ~ .code-group-panel:nth-of-type(3),
+.carve .code-group > .code-group-radio:nth-of-type(4):checked ~ .code-group-panel:nth-of-type(4),
+.carve .code-group > .code-group-radio:nth-of-type(5):checked ~ .code-group-panel:nth-of-type(5),
+.carve .code-group > .code-group-radio:nth-of-type(6):checked ~ .code-group-panel:nth-of-type(6),
+.carve .code-group > .code-group-radio:nth-of-type(7):checked ~ .code-group-panel:nth-of-type(7),
+.carve .code-group > .code-group-radio:nth-of-type(8):checked ~ .code-group-panel:nth-of-type(8),
+.carve .code-group > .code-group-radio:nth-of-type(9):checked ~ .code-group-panel:nth-of-type(9),
+.carve .code-group > .code-group-radio:nth-of-type(10):checked ~ .code-group-panel:nth-of-type(10),
+.carve .code-group > .code-group-radio:nth-of-type(11):checked ~ .code-group-panel:nth-of-type(11),
+.carve .code-group > .code-group-radio:nth-of-type(12):checked ~ .code-group-panel:nth-of-type(12) {
+  display: block;
+}
+.carve .tabs > .tabs-radio:nth-of-type(n + 13):checked ~ .tabs-panel,
+.carve .code-group > .code-group-radio:nth-of-type(n + 13):checked ~ .code-group-panel {
   display: block;
 }
 /* aria mode: `hidden` is the runtime's own state, and the default above would
@@ -276,15 +295,25 @@
 
 /* --- Spoiler ------------------------------------------------------------- */
 
-/* <details class="spoiler"><summary>. A real disclosure element, so the UA
- * already handles the toggling and the keyboard. */
-.carve .spoiler {
+/* One class, two shapes. The INLINE spoiler is a `<span class="spoiler">` in a
+ * paragraph and the BLOCK one a panel: `<details>` interactive, `<section>`
+ * static, `<div>` when the extension is off. Only the panel wants a box, so the
+ * selector names the element rather than the class alone. Keyed on the class,
+ * the panel's border, fill and padding landed on a blurred word in running text
+ * and shifted the line it sat in (#25).
+ *
+ * `:where()` deliberately, so this stays at the specificity the class-only rule
+ * had. A consumer that already reset the box under its own `.carve span.spoiler`
+ * must keep winning, and raising this layer would silently take that away. */
+.carve :where(details, section, div).spoiler {
   border: var(--carve-border-width) solid var(--carve-rule);
   border-radius: var(--carve-radius);
   padding: var(--carve-space-2) var(--carve-space-3);
   margin-block-end: var(--carve-space-4);
   background: var(--carve-sunk);
 }
+/* A real disclosure element, so the UA already handles the toggling and the
+ * keyboard. */
 .carve .spoiler > summary {
   cursor: pointer;
   font-weight: 600;
@@ -293,7 +322,7 @@
 .carve .spoiler[open] > summary {
   margin-block-end: var(--carve-space-2);
 }
-.carve .spoiler > :last-child {
+.carve :where(details, section, div).spoiler > :last-child {
   margin-block-end: 0;
 }
 /* The static shape is `<section class="spoiler spoiler-revealed">` with an
@@ -307,6 +336,34 @@
 }
 .carve .spoiler-title {
   font-weight: 600;
+}
+
+/* The inline spoiler obscures its text with a blur, which is the whole point of
+ * the construct and shipped missing (#27). A filter is the CSS-only way to do
+ * it, it is what the reference implementations use, and where `filter` is
+ * unsupported the text stays visible - which is the behavior that already
+ * shipped rather than something worse.
+ *
+ * NOT a privacy or security control. The text is in the DOM, selectable and
+ * copyable, and a reader who drags across it gets it. This hides a spoiler from
+ * someone reading the page, and from nobody who is looking for it.
+ *
+ * Keyed on the element, like the panel box above, because the panel must not be
+ * blurred: its content is hidden by the disclosure instead. `:where()` keeps
+ * this at the specificity a class-only rule has, so a consumer's own
+ * `.carve .spoiler` rule still wins on order.
+ *
+ * Reveal is `:hover` and `:focus-within`. The focus half only works where the
+ * host makes the span focusable - a `<span class="spoiler">` carries no
+ * `tabindex` and this layer cannot add one - so there is no keyboard parity
+ * here, and a host that wants it has to supply the attribute. */
+.carve :where(span).spoiler {
+  filter: blur(var(--carve-spoiler-blur));
+}
+/* The static render is `<span class="spoiler spoiler-revealed">`, verified
+ * against the engine. Revealed means revealed, in every mode. */
+.carve :where(span).spoiler:is(:hover, :focus-within, .spoiler-revealed) {
+  filter: none;
 }
 
 /* --- Code callouts ------------------------------------------------------- */

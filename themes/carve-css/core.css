@@ -128,6 +128,36 @@
   border-radius: var(--carve-radius);
   padding: 0.1em 0.2em;
 }
+/* An inline inside the highlight keeps its own ink, which puts the insertion
+ * green or the link accent on the highlight wash neither was paired with. The
+ * highlight is the enclosing surface, so its ink is the one that reads. */
+.carve mark a,
+.carve mark del,
+.carve mark ins {
+  color: inherit;
+}
+/* And its own fill, which paints a rectangle inside the wash and breaks the one
+ * thing a highlight does. A highlight claims a region of content; the wash is
+ * that region's surface, so a nested inline draws on it rather than over it.
+ *
+ * An editorial comment is the exception below, and an insertion or deletion
+ * HOSTING a fill keeps it: there the outer element claims the content changed,
+ * and the content's own rendering is what shows what changed. */
+.carve mark :is(code, del, ins) {
+  background: none;
+}
+/* The fill was the insertion's only remaining signal once its ink was given up
+ * above, so without this an insertion inside a highlight is indistinguishable
+ * from plain highlighted text - measured, not assumed. A decoration composes
+ * with a fill instead of competing with it, and it pairs with the deletion's
+ * line-through, which the base rule never removed. */
+.carve mark ins {
+  text-decoration: underline;
+}
+/* An editorial comment keeps its fill inside a highlight, and its own ink with
+ * it. It is a note ABOUT the highlighted text rather than part of it, so
+ * reading as a separate object is the thing it has to do; interrupting the wash
+ * is correct there in a way it is not for an insertion. */
 /* An editorial comment in critic markup is a note to a human, not content. */
 .carve .critic-comment {
   background: var(--carve-warn-wash);
@@ -151,10 +181,22 @@
 }
 
 .carve blockquote {
-  border-inline-start: var(--carve-accent-width) solid var(--carve-border);
-  padding-inline-start: var(--carve-space-4);
+  border-inline-start: var(--carve-quote-border-width, var(--carve-accent-width)) solid var(--carve-quote-border, color-mix(in srgb, var(--carve-ink) 50%, var(--carve-surface)));
+  padding-inline-start: var(--carve-quote-padding, var(--carve-space-4));
+  padding-block: var(--carve-space-1);
   margin-inline: 0;
-  color: var(--carve-ink-soft);
+  color: var(--carve-quote-ink, var(--carve-ink));
+  text-align: start;
+}
+.carve blockquote > p {
+  margin-block: 0 var(--carve-quote-gap, var(--carve-space-3));
+}
+.carve blockquote > :first-child { margin-block-start: 0; }
+.carve blockquote > :last-child:not(img):not(video) { margin-block-end: 0; }
+.carve figure > blockquote { margin-block-end: 0; }
+.carve figure > blockquote + figcaption {
+  text-align: start;
+  padding-inline-start: calc(var(--carve-quote-padding, var(--carve-space-4)) + var(--carve-quote-border-width, var(--carve-accent-width)));
 }
 
 .carve pre {
@@ -210,6 +252,32 @@
    * "a rendered state". The list is a document, not a form. */
   opacity: 1;
   accent-color: var(--carve-accent);
+}
+
+/* The four extended states. `[-]`, `[_]`, `[>]` and `[?]` all render the same
+ * unchecked box, so without a rule here they are indistinguishable from an open
+ * task and from each other; the engine names the authored character on the item
+ * so a stylesheet can tell them apart (spec PART 19, HTML serialization). The
+ * signal is on the box rather than on injected text, which keeps the item's
+ * accessible name as the engine wrote it. */
+.carve li[data-task-state] > input[type="checkbox"] {
+  outline-offset: 2px;
+}
+.carve li[data-task-state="-"] > input[type="checkbox"] {
+  opacity: 0.55;
+}
+.carve li[data-task-state="-"] {
+  color: var(--carve-ink-soft);
+  text-decoration: line-through;
+}
+.carve li[data-task-state="_"] > input[type="checkbox"] {
+  outline: var(--carve-border-width) dashed var(--carve-neutral);
+}
+.carve li[data-task-state=">"] > input[type="checkbox"] {
+  outline: var(--carve-border-width) solid var(--carve-accent);
+}
+.carve li[data-task-state="?"] > input[type="checkbox"] {
+  outline: var(--carve-border-width) dotted var(--carve-ink-soft);
 }
 
 .carve dt {

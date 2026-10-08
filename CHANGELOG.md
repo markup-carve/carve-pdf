@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- A quote renders at document text contrast with a visible border, keeps the
+  gap between its paragraphs and aligns its attribution with the quote body.
+  The vendored carve-css layers move from a loose commit between 0.1.1 and
+  0.1.2 to the published 0.1.4 (markup-carve/carve-css#32).
+
 ## [0.1.1] - 2026-10-02
 
 ### Fixed
