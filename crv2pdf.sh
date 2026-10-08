@@ -36,7 +36,7 @@ set -euo pipefail
 # `make install` puts on PATH, and the repo has no manifest to hold it instead.
 # tests/test.sh asserts this against the newest released CHANGELOG heading, so
 # a tag cut from the changelog cannot disagree with what --version prints.
-CRV2PDF_VERSION="0.1.1"
+CRV2PDF_VERSION="0.1.2"
 
 # Resolve through symlinks so a `~/.local/bin/crv2pdf` symlink still finds lib/ + themes/.
 SELF="${BASH_SOURCE[0]}"

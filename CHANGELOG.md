@@ -6,12 +6,14 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.2] - 2026-10-09
+
 ### Fixed
 
 - A quote renders at document text contrast with a visible border, keeps the
   gap between its paragraphs and aligns its attribution with the quote body.
   The vendored carve-css layers move from a loose commit between 0.1.1 and
-  0.1.2 to the published 0.1.4 (markup-carve/carve-css#32).
+  0.1.2 to the published 0.1.4 (#22, markup-carve/carve-css#32).
 - A captioned code listing is left-aligned instead of centered, long code
   lines wrap instead of being cut off at the page margin, and a paragraph
   introducing a listing stays on the same page as it (#23).
