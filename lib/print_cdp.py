@@ -85,20 +85,95 @@ def free_port() -> int:
         return s.getsockname()[1]
 
 
-def page_ws(port: int, deadline: float) -> str:
-    """Bounded retry (not a background loop) to find the page target ws URL."""
-    while time.time() < deadline:
+# Chrome has to start, open the file: URL and register a page target before the
+# DevTools list names it. The old budget was 15s, which is roughly a cold start
+# on an idle machine and nothing more: run 37864364196 exceeded it on a loaded
+# runner and failed a gate that had nothing to say about the artifact. 90s is
+# chosen against the job bound rather than against a measurement, so a slow
+# runner waits instead of failing: every CI job here sets timeout-minutes, so
+# the job still ends on its own schedule, and a wait this long only happens on
+# a machine that would have failed the old budget anyway.
+TARGET_WAIT_SECONDS = 90
+
+TRACE = bool(os.environ.get("CARVE_CDP_TRACE"))
+
+
+def _trace(msg: str) -> None:
+    if TRACE:
+        print(f"cdp: {msg}", file=sys.stderr, flush=True)
+
+
+class ChromeGone(RuntimeError):
+    """Chrome is not running, so waiting longer cannot help."""
+
+
+def page_ws(port: int, proc: subprocess.Popen, deadline: float) -> str:
+    """Poll the DevTools target list for the page target's websocket URL.
+
+    Bounded retry, not a background loop. The two failure modes are reported
+    apart: a Chrome that died cannot list a target however long we wait, while
+    a Chrome that is merely slow is given the whole deadline. The old code
+    raised one message for both, so a failure never said which had happened.
+    """
+    started = time.time()
+    attempts = 0
+    last_seen: list = []
+    while True:
+        attempts += 1
+        rc = proc.poll()
+        if rc is not None:
+            raise ChromeGone(
+                f"Chrome exited with status {rc} after "
+                f"{time.time() - started:.1f}s, before listing a page target "
+                f"(DevTools port {port}, {attempts} attempt(s)). It is not "
+                f"running, so this is not a timeout - check the browser "
+                f"binary, its flags and the profile directory."
+            )
         try:
             with urllib.request.urlopen(
                 f"http://127.0.0.1:{port}/json", timeout=2
             ) as resp:
-                for t in json.load(resp):
-                    if t.get("type") == "page" and t.get("url", "").startswith("file:"):
-                        return t["webSocketDebuggerUrl"]
-        except Exception:
-            pass
+                targets = json.load(resp)
+            last_seen = sorted({t.get("type", "?") for t in targets})
+            for t in targets:
+                if t.get("type") == "page" and t.get("url", "").startswith("file:"):
+                    _trace(
+                        f"page target listed after {time.time() - started:.2f}s "
+                        f"({attempts} attempt(s))"
+                    )
+                    return t["webSocketDebuggerUrl"]
+            _trace(
+                f"attempt {attempts} at {time.time() - started:.2f}s: "
+                f"Chrome is up, no file: page target yet (types: "
+                f"{','.join(last_seen) or 'none'})"
+            )
+        except Exception as exc:
+            _trace(
+                f"attempt {attempts} at {time.time() - started:.2f}s: "
+                f"DevTools port not answering yet ({type(exc).__name__})"
+            )
+        if time.time() >= deadline:
+            break
         time.sleep(0.15)
-    raise RuntimeError("Chrome DevTools page target not found within timeout")
+    waited = time.time() - started
+    raise RuntimeError(
+        f"Chrome is running (pid {proc.pid}) but listed no file: page target "
+        f"within {waited:.1f}s over {attempts} attempt(s) on DevTools port "
+        f"{port}. Target types last seen: "
+        f"{','.join(last_seen) or 'none (port never answered)'}. Chrome did "
+        f"not exit, so it started slowly or is wedged rather than crashed; raise "
+        f"TARGET_WAIT_SECONDS if a runner needs longer."
+    )
+
+
+def wait_for_page_ws(port: int, proc: subprocess.Popen, tool: str) -> str:
+    """page_ws with the standard deadline, reporting failures without a traceback."""
+    try:
+        return page_ws(port, proc, time.time() + TARGET_WAIT_SECONDS)
+    except ChromeGone as exc:
+        sys.exit(f"{tool}: Chrome did not stay up: {exc}")
+    except RuntimeError as exc:
+        sys.exit(f"{tool}: Chrome started but no page target appeared: {exc}")
 
 
 port = free_port()
@@ -115,7 +190,7 @@ chrome = subprocess.Popen(
 ws = None
 try:
     ws = websocket.create_connection(
-        page_ws(port, time.time() + 15), max_size=None, timeout=30
+        wait_for_page_ws(port, chrome, "print_cdp.py"), max_size=None, timeout=30
     )
     ws.settimeout(30)
     mid = 0
