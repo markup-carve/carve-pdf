@@ -147,27 +147,10 @@ source. The `::: pagebreak` marker works in every mode.
 Pygments, labeled with their language, and can be marked as diffs. Supported
 languages, fallbacks and the diff markup are in [docs/code-blocks.md](docs/code-blocks.md).
 
-**Math.** `$`...`$` inline and `$$`...`$$` block math are typeset with KaTeX (bundled,
-offline) when a KaTeX install is found; point `CARVE_KATEX` at its `dist/` dir, or it
-probes common locations. Without KaTeX, math degrades to readable raw TeX.
-
-**Diagrams.** ` ```mermaid ` blocks are rendered to SVG at print time with Mermaid when
-a `mermaid.min.js` is found; point `CARVE_MERMAID` at it, or it probes common locations.
-Without Mermaid, the diagram source stays visible in a code block.
-
-**Charts.** ` ```chart ` blocks (a Chart.js config as JSON) are drawn to a `<canvas>`
-with Chart.js when `chart.umd.js` is found (`CARVE_CHART` or autodetect). Without it,
-the JSON stays visible.
-
-KaTeX, Mermaid, and Chart.js all render in Chrome under one `window.__carveReady`
-promise that print_cdp awaits, so every renderer finishes before the PDF is captured.
-
-All three are optional and resolve like the engines: `CARVE_KATEX` / `CARVE_MERMAID` /
-`CARVE_CHART` first, then `node_modules/katex`, `node_modules/mermaid` and
-`node_modules/chart.js` beside `crv2pdf.sh`, then `_deps/js`, then a sibling checkout.
-Install them with `npm install katex mermaid chart.js`. When a document uses one and
-it cannot be found, the renderer says so on stderr and names the variable rather than
-dropping the math, diagram or chart in silence. `make check` lists which are present.
+**Math, diagrams and charts.** KaTeX math, ` ```mermaid ` diagrams and ` ```chart `
+blocks render when their library is installed (`npm install katex mermaid chart.js`);
+without it the source stays visible. The full extension set and how each library is
+found are in [docs/rendering.md](docs/rendering.md).
 
 ## Environment
 
@@ -212,8 +195,6 @@ Check which version is on PATH with `crv2pdf --version`.
 
 ## Known limitations
 
-- **Math** is typeset with KaTeX when available (see above); otherwise it degrades to
-  raw TeX in `\(..\)` / `\[..\]`.
 - **Tabs** are auto-labeled `Tab N` in static output; use `code-group` for labeled tabs.
 - **Images** must use relative or `https:` URLs - `data:` and `file:` URIs are neutralized
   by safe mode (an XSS defense inherited from carve-php). Relative paths resolve against
