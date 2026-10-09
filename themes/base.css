@@ -87,6 +87,16 @@ pre {
 }
 pre code { background: none; padding: 0; font-size: 12px; line-height: 1.5; }
 
+/* the fence's language, carried onto <pre data-lang> by wrap.py; the extra top
+ * padding keeps a long first line from running under it */
+.carve pre[data-lang] { position: relative; padding-top: 2.1em; }
+.carve pre[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute; top: 0.6em; right: 1em;
+  font-family: var(--font-mono); font-size: 9.5px; line-height: 1;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint);
+}
+
 /* Pygments token colors: restrained, high-contrast, and safe on white paper. */
 .syntax-highlighted .tok-c, .syntax-highlighted .tok-c1, .syntax-highlighted .tok-cm,
 .syntax-highlighted .tok-cp, .syntax-highlighted .tok-cs { color: #667085; font-style: italic; }
@@ -107,6 +117,25 @@ pre code { background: none; padding: 0; font-size: 12px; line-height: 1.5; }
 .syntax-highlighted .tok-na, .syntax-highlighted .tok-nv, .syntax-highlighted .tok-vc,
 .syntax-highlighted .tok-vg, .syntax-highlighted .tok-vi, .syntax-highlighted .tok-vm { color: #075985; }
 .syntax-highlighted .tok-nt { color: #b42318; }
+.syntax-highlighted .tok-nb, .syntax-highlighted .tok-bp { color: #005cc5; }
+.syntax-highlighted .tok-gi { color: #16794b; }
+.syntax-highlighted .tok-gd { color: #b42318; }
+.syntax-highlighted .tok-gp { color: #667085; font-weight: 600; }
+
+/* `{.diff}` on a language fence: wrap.py splits it into per-line spans, the
+ * shape of carve-grammars' diff/carve-diff.css, so these rules mirror it */
+pre.has-diff code { display: block; }
+/* rows run edge to edge: the block's side padding moves onto each line */
+.carve pre.has-diff { padding-inline: 0; }
+pre.has-diff .line {
+  display: inline-block; width: 100%; box-sizing: border-box;
+  padding-inline: var(--carve-space-3, 12px);
+}
+pre.has-diff .line.diff.add { background: #e6f4ea; }
+pre.has-diff .line.diff.remove { background: #fdecea; }
+pre.has-diff .diff-marker { display: inline-block; width: 1ch; font-weight: 700; }
+pre.has-diff .line.diff.add .diff-marker { color: #1a7f37; }
+pre.has-diff .line.diff.remove .diff-marker { color: #cf222e; }
 .syntax-highlighted .tok-o, .syntax-highlighted .tok-ow { color: #9f1239; }
 .syntax-highlighted .tok-gh, .syntax-highlighted .tok-gu { color: #7c3aed; font-weight: 700; }
 .syntax-highlighted .tok-gs { font-weight: 700; }
