@@ -65,5 +65,13 @@
       .map((t) => parseFloat(cs(t).fontSize)),
     bodySize: parseFloat(body.fontSize),
     bylineBreak: one('.doc-byline') ? cs(one('.doc-byline')).breakBefore : null,
+    tocLinks: document.querySelectorAll('nav.toc a').length,
+    taskGlyphs: Object.fromEntries([...document.querySelectorAll('li > input[type="checkbox"]')]
+      .map((box) => [box.getAttribute('aria-label') ?? (box.checked ? 'done' : 'open'), cs(box.parentElement, '::before').content])),
+    calloutBadges: [...document.querySelectorAll('ol.callouts > li')].map((li) => cs(li, '::before').content),
+    codeCallouts: [...document.querySelectorAll('pre b.callout')].map((b) => b.textContent),
+    mathFenceInPre: !!one('pre.math'),
+    mathFence: [...document.querySelectorAll('div.math.display')].some((m) => m.textContent.includes('\\sum')),
+    attributedMathFence: one('#eq-attributed')?.tagName ?? null,
   };
 })()

@@ -69,6 +69,13 @@ if python3 -c 'import pygments' 2>/dev/null; then
   has   "json5 bare key is a name"        "$html" '<span class="tok-nx">json5key</span>'
   has   "jsonl is highlighted as JSON"    "$html" '<span class="tok-nt">&quot;jsonlkey&quot;</span>'
   has   "vb is highlighted as VB.NET"     "$html" '<span class="tok-k">Dim</span>'
+  # Callout markers are taken out before highlighting and put back on their line.
+  has   "a callout survives highlighting"  "$html" '<span class="tok-p">):</span>  <b class="callout" data-callout="1">1</b>'
+  has   "a last-line callout survives"     "$html" '<b class="callout" data-callout="2">2</b></code></pre>'
+  has   "a {.diff} callout stays in its row" "$html" '<b class="callout" data-callout="3">3</b></span></code></pre>'
+  # A marker alone on the last line must not cost the fence its other markers.
+  has   "a marker-only last line keeps the earlier callout" "$html" '<span class="tok-w">  </span><b class="callout" data-callout="4">4</b>'
+  has   "a marker-only last line keeps its own callout" "$html" '<b class="callout" data-callout="5">5</b></code></pre>'
   # A quoted `(` in directive arguments must not leave the lexer inside them.
   has   "blade quoted paren closes its directive" "$html" '<span class="tok-k">@endif</span>'
 else
@@ -89,11 +96,11 @@ d = json.load(open(sys.argv[1], encoding='utf-8'))
 out = []
 def v(ok, name): out.append(("ok" if ok else "FAIL") + "\t" + name)
 
-v(len(d["fences"]) == 16, f"16 fences in the DOM (saw {len(d['fences'])})")
+v(len(d["fences"]) == 19, f"19 fences in the DOM (saw {len(d['fences'])})")
 for r in d["diffRows"]:
     v(r["background"] not in ("rgba(0, 0, 0, 0)", "transparent"), f"diff {r['kind']} row is tinted ({r['background']})")
     v(abs(r["width"] - r["preWidth"]) <= 2, f"diff {r['kind']} row spans the block ({r['width']:.0f} of {r['preWidth']:.0f}px)")
-v(len(d["diffRows"]) == 9, f"9 tinted diff rows (saw {len(d['diffRows'])})")
+v(len(d["diffRows"]) == 10, f"10 tinted diff rows (saw {len(d['diffRows'])})")
 for p in d["fences"]:
     if p["lang"] is None:
         v(p["content"] in ("none", "normal"), f"unlabeled fence draws no label (content {p['content']})")

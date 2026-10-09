@@ -184,6 +184,15 @@ li:has(> input[type="checkbox"])::before {
   color: #b0b0b0; font-weight: 700;
 }
 li:has(> input[type="checkbox"]:checked)::before { content: "\2713"; color: var(--tip); }
+/* The hidden checkbox carries carve-css's per-state outline, so each state needs its own glyph. */
+li:has(> input[type="checkbox"])[data-task-state="-"]::before { content: "\2715"; color: #b0b0b0; }
+li:has(> input[type="checkbox"])[data-task-state="_"]::before { content: "\2013"; color: #b0b0b0; }
+li:has(> input[type="checkbox"])[data-task-state=">"]::before { content: "\2192"; color: var(--note); }
+li:has(> input[type="checkbox"])[data-task-state="?"]::before { content: "?"; color: var(--warning); }
+
+/* carve-css numbers the badge with counter(list-item), which a display:flex <li>
+ * never increments; the engine's value attribute is the number itself. */
+ol.callouts > li[value]::before { content: attr(value); }
 
 /* ---- definition lists ---- */
 dl { margin: 0 0 12px; }

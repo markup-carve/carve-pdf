@@ -32,6 +32,7 @@ declare(strict_types=1);
 use MarkupCarve\Carve\CarveConverter;
 use MarkupCarve\Carve\Extension\AdmonitionExtension;
 use MarkupCarve\Carve\Extension\AutolinkExtension;
+use MarkupCarve\Carve\Extension\CodeCalloutsExtension;
 use MarkupCarve\Carve\Extension\CodeGroupExtension;
 use MarkupCarve\Carve\Extension\DetailsExtension;
 use MarkupCarve\Carve\Extension\ExternalLinksExtension;
@@ -43,6 +44,7 @@ use MarkupCarve\Carve\Extension\SmartQuotesExtension;
 use MarkupCarve\Carve\Extension\SpoilerExtension;
 use MarkupCarve\Carve\Extension\TableOfContentsExtension;
 use MarkupCarve\Carve\Extension\TabsExtension;
+use MarkupCarve\Carve\Extension\TocPlacementExtension;
 use MarkupCarve\Carve\Node\Document;
 use MarkupCarve\Carve\Renderer\RenderMode;
 use MarkupCarve\Carve\Transform\FilesystemIncludeResolver;
@@ -283,6 +285,8 @@ $converter->addExtensions([
     new AutolinkExtension(),
     new ExternalLinksExtension(rel: 'nofollow noopener', target: '_blank'),
     new TableOfContentsExtension(),
+    new TocPlacementExtension(),
+    new CodeCalloutsExtension(),
     new MathBlockExtension(),
     FencedRenderExtension::mermaid(),
     FencedRenderExtension::chart(),
