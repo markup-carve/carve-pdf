@@ -66,3 +66,20 @@ a,b
 ```php
 $converter = new CarveConverter();
 ```
+
+```tsx
+export const Hello = ({ name }: { name: string }) => <p>Hello {name}</p>
+```
+
+```json5
+{json5key: 1, b: 'two', trailing: true,}
+```
+
+```jsonl
+{"jsonlkey": 1}
+{"jsonlkey": 2}
+```
+
+```vb
+Dim vbname As String = "carve"
+```
