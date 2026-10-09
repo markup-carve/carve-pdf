@@ -17,6 +17,17 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A captioned code listing is left-aligned instead of centered, long code
   lines wrap instead of being cut off at the page margin, and a paragraph
   introducing a listing stays on the same page as it (#23).
+- A `{.diff}` fence is highlighted per line with its marker stripped, instead
+  of as plain code reading `-` and `+` as operators, and its added and removed
+  rows print tinted across the full block (#26).
+
+### Added
+
+- Every named code fence prints its language as a label in the top-right
+  corner; `text`, `plain` and `none` fences and drawn mermaid and chart blocks
+  stay unlabeled. Blade templates are highlighted, and fence names such as
+  `yml`, `tsx`, `vue` and `patch` fall back to the nearest available lexer
+  (#26).
 
 ## [0.1.1] - 2026-10-02
 
