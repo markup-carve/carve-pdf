@@ -1,0 +1,256 @@
+name: Release
+
+# THE TAG IS CREATED HERE, AFTER THE GATES PASS AND AFTER A HUMAN APPROVES.
+#
+# carve-pdf has no registry. A release is a git tag, the GitHub release page,
+# and the Homebrew formula in markup-carve/homebrew-carve that names the tag and
+# its revision - so the tag is the first and only irreversible act, and every
+# check has to come before it.
+#
+# tag.yml already runs the right checks, and it keeps running on a tag pushed by
+# hand. It cannot cover a release cut here, though: a ref created with
+# `github.token` does not trigger other workflows, so the tag this workflow
+# pushes will NOT start tag.yml. That is why the gates are spelled out below
+# rather than delegated - and why they call the SAME scripts, so there is one
+# definition of what a correct version is.
+#
+# Every job declares timeout-minutes, so a hung step fails in minutes instead of
+# inheriting GitHub's 360-minute default.
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version to release, without a leading v (e.g. 0.1.3)'
+        required: true
+        type: string
+
+concurrency:
+  group: release-${{ inputs.version }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  guard:
+    name: The version surfaces agree and the tag is free
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    defaults:
+      run:
+        shell: bash
+    steps:
+      # fetch-depth: 0 for the tags: the check below asks whether a ref exists,
+      # and a shallow clone carries none of them.
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: The tag does not exist yet
+        env:
+          VER: ${{ inputs.version }}
+        run: |
+          case "$VER" in
+            ""|v*|*[!0-9A-Za-z.+-]*)
+              echo "::error::[$VER] is not a bare version. This repository tags bare, so pass 0.1.3."
+              exit 1
+              ;;
+          esac
+          if git rev-parse -q --verify "refs/tags/${VER}" >/dev/null; then
+            echo "::error::Tag ${VER} already exists. The Homebrew formula pins a tag and a"
+            echo "::error::revision, so a moved tag changes what an installed version is."
+            exit 1
+          fi
+          echo "${VER} is free"
+
+      # The repository's own gate, called rather than reimplemented. It covers
+      # all three places this repository states a version: CRV2PDF_VERSION in
+      # crv2pdf.sh, what `crv2pdf --version` actually prints, and the newest
+      # released CHANGELOG.md heading. It reports every disagreement rather than
+      # the first, so one run says which of the three to move.
+      - name: The version agrees with crv2pdf.sh and CHANGELOG.md
+        env:
+          VER: ${{ inputs.version }}
+        run: ./tests/version-gate.sh "$VER"
+
+  release-notes:
+    name: A release draft for this version exists and has notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      # `write`, not `read`: a DRAFT release is invisible to a caller without
+      # push access, so under `contents: read` the listing comes back empty and
+      # this gate reports "no release" for a draft sitting right there with
+      # notes in it. See markup-carve/carve-wasm#80.
+      contents: write
+    steps:
+      # Found by LISTING rather than by `gh release view <tag>`: a draft's tag is
+      # not a git ref, so addressing one by tag can match nothing, change nothing
+      # and still exit 0.
+      - name: The draft exists and has notes
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ inputs.version }}
+        run: |
+          set -uo pipefail
+          release="$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq "[.[] | select(.tag_name == \"${VER}\")] | first")"
+          if [ -z "$release" ]; then
+            echo "::error::no release for ${VER}. Write the notes first:" \
+                 "gh release create ${VER} --draft --notes-file notes.md"
+            echo "::error::if a draft DOES exist, this job could not see it -" \
+                 "check that it still declares contents: write"
+            exit 1
+          fi
+          body="$(printf '%s' "$release" | jq -r '.body // ""')"
+          printf '%s' "$release" | jq -r '"draft=\(.draft) tag=\(.tag_name)"'
+          # A draft with an empty body is the state `gh release create` leaves
+          # behind when the notes were never written, and it reads as ready.
+          if [ "${#body}" -lt 40 ]; then
+            echo "::error::the release for ${VER} carries ${#body} characters of notes." \
+                 "That is not a description of a release."
+            exit 1
+          fi
+          echo "notes: ${#body} characters"
+
+  suite:
+    name: The suite passes against both released engines
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up PHP
+        uses: shivammathur/setup-php@v2
+        with:
+          php-version: '8.3'
+      - name: Install carve-php from Packagist
+        run: |
+          mkdir -p _deps/php
+          composer require --working-dir=_deps/php \
+            markup-carve/carve-php --no-interaction --no-progress
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Install the carve package from npm
+        run: |
+          mkdir -p _deps/js
+          cd _deps/js
+          npm init -y > /dev/null
+          npm install "@markup-carve/carve" --no-audit --no-fund
+
+      - name: Report the resolved engine versions
+        run: |
+          composer show --working-dir=_deps/php markup-carve/carve-php | grep -E '^(name|versions)'
+          node -p "require('./_deps/js/node_modules/@markup-carve/carve/package.json').version"
+
+      # The panel gate SKIPS without a browser and pdftotext, and a skipped gate
+      # reports success over the surface it never rendered.
+      - name: Install the panel gate's dependencies
+        run: |
+          python3 -m pip install --quiet websocket-client \
+            || python3 -m pip install --quiet --break-system-packages websocket-client
+          sudo apt-get update -qq
+          sudo apt-get install -y -qq poppler-utils
+          google-chrome --version
+
+      # KNOWN FLAKY, DELIBERATELY STILL A GATE. tests/panels.sh drives headless
+      # Chrome over CDP and times out intermittently: three runs failed and
+      # passed on rerun on 2026-10-08. It is wired in here anyway because of
+      # WHERE it sits - before the tag, where a false red costs a rerun of this
+      # job and nothing else. Nothing has been published, no version number is
+      # spent, and the approval has not been asked for yet. Re-run this job; do
+      # not reach for a skip, and do not move this suite after the tag, where a
+      # flake would be indistinguishable from a broken release.
+      - name: Run tests
+        env:
+          CARVE_PHP_AUTOLOAD: ${{ github.workspace }}/_deps/php/vendor/autoload.php
+          CARVE_JS: ${{ github.workspace }}/_deps/js/node_modules/@markup-carve/carve/dist/index.js
+        run: ./tests/test.sh
+
+  tag:
+    name: Create the tag
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [guard, release-notes, suite]
+    # THE APPROVAL GATE, and the ONLY job that carries an environment. GitHub
+    # prompts once per gated JOB, so a second one would ask twice for one
+    # decision, and the second prompt would arrive after the tag already existed
+    # and so could withhold nothing.
+    environment: release-approval
+    permissions:
+      # Without this the push 403s AFTER the approval has been spent.
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Push the tag
+        env:
+          VER: ${{ inputs.version }}
+        run: |
+          # Re-checked under the approval: `main` can move while a run waits for
+          # a reviewer, and the gates measured the commit that was current then.
+          ./tests/version-gate.sh "$VER"
+          if git rev-parse -q --verify "refs/tags/${VER}" >/dev/null; then
+            echo "::error::Tag ${VER} appeared while this run waited for approval. Stopping."
+            exit 1
+          fi
+          git tag "$VER" "$GITHUB_SHA"
+          git push origin "refs/tags/${VER}"
+          echo "tagged ${VER} at $GITHUB_SHA"
+
+  publish:
+    name: Publish the release notes
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    needs: [tag]
+    # NO `environment:` here - see the comment on `tag`. `needs: [tag]` already
+    # makes this unreachable without the approval.
+    permissions:
+      contents: write
+    steps:
+      # There is no registry step, and that is not an omission: carve-pdf ships
+      # bash and Python from a git tag. What is left is the release page, which
+      # a reader needs in order to have notes for the version they installed.
+      - name: Un-draft the release for this version
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VER: ${{ inputs.version }}
+        run: |
+          set -uo pipefail
+          id="$(gh api "repos/$GITHUB_REPOSITORY/releases" --paginate \
+            --jq "[.[] | select(.tag_name == \"${VER}\" and .draft)] | first | .id // empty")"
+          if [ -z "$id" ]; then
+            echo "No draft release for ${VER}; nothing to publish."
+            exit 0
+          fi
+          # `tag_name` goes with every PATCH of a release. Omit it on a DRAFT and
+          # GitHub replaces the tag with a generated `untagged-*` placeholder,
+          # because a draft's tag is a string on the object rather than a git
+          # ref. `-F` (not `-f`) for draft, so it is sent as a boolean: the
+          # string "false" is truthy and would publish anyway.
+          gh api "repos/$GITHUB_REPOSITORY/releases/$id" -X PATCH \
+            -f tag_name="$VER" -F draft=false --jq '"published \(.tag_name)"'
+          # Read it back: an exit status does not tell you whether the tag survived.
+          gh api "repos/$GITHUB_REPOSITORY/releases/$id" \
+            --jq '"draft=\(.draft) tag=\(.tag_name)"'
+
+      # A tag here is only half of what an installing user gets. crv2pdf.rb in
+      # markup-carve/homebrew-carve is hand-maintained and names the tag and its
+      # revision, so `brew install crv2pdf` keeps serving the previous version
+      # until somebody edits that file.
+      - name: Say what is still owed
+        env:
+          VER: ${{ inputs.version }}
+        run: |
+          echo "::notice::${VER} is tagged and its release is published."
+          echo "::notice::Homebrew still serves the previous version: update the tag and revision"
+          echo "::notice::in Formula/crv2pdf.rb in markup-carve/homebrew-carve."
