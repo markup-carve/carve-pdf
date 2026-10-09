@@ -143,27 +143,9 @@ pageBreaks: h2                      # h2 (each ## a new page) | none | manual
 lets content flow; `manual` breaks only at an explicit `::: pagebreak` block in the
 source. The `::: pagebreak` marker works in every mode.
 
-**Code.** Named fences such as ` ```php `, ` ```bash `, and ` ```carve ` are
-highlighted statically with Pygments before HTML/PDF output. The bundled Carve lexer
-understands Carve's own block and inline syntax; no browser script or network request
-is needed. Without Pygments, fences remain readable but monochrome.
-
-Blade (` ```blade `) uses a bundled lexer as well, since Pygments has none. A few
-names that older Pygments releases lack fall back to the closest lexer: `yml` and
-`neon` to YAML, `tsx` to TypeScript, `jsonc`/`json5` to JSON, `vue`, `svelte`, `astro`
-and `latte` to HTML, `env` to Bash, `svg` to XML, `patch` to diff, `hbs`/`mustache` to
-Handlebars, `gql` to GraphQL. A language Pygments does not know at all (`csv`, `typst`)
-prints unhighlighted.
-
-Every named fence shows its language as a small label in the top-right corner, in HTML
-and PDF alike. `text`, `txt`, `plain` and `none` fences, and the drawn `mermaid` and
-`chart` blocks, get no label.
-A fence's `"Header"` (` ```php "src/App.php" `) prints in the top-left corner.
-
-`{.diff}` above a language fence marks it as a diff: each line's leading `+`, `-` or
-space is the marker, added and removed lines print on green and red rows, and the
-rest of the line is highlighted in the fence's language. The markup matches the
-`diff/carve-diff.css` contract in carve-grammars.
+**Code.** Named fences such as ` ```php ` and ` ```carve ` are highlighted with
+Pygments, labeled with their language, and can be marked as diffs. Supported
+languages, fallbacks and the diff markup are in [docs/code-blocks.md](docs/code-blocks.md).
 
 **Math.** `$`...`$` inline and `$$`...`$$` block math are typeset with KaTeX (bundled,
 offline) when a KaTeX install is found; point `CARVE_KATEX` at its `dist/` dir, or it
