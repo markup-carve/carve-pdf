@@ -207,7 +207,7 @@ footer (and page numbers) entirely.
 
 ## Themes
 
-Styling is the released `carve-css` 0.1.0 construct vocabulary followed by two
+Styling is the released `carve-css` 0.1.5 construct vocabulary followed by two
 PDF-specific layers in `themes/`:
 
 - `carve-css/{tokens,core,extensions,recipes}.css` - byte-for-byte vendored from the

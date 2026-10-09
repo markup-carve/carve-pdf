@@ -3,22 +3,17 @@
 `tokens.css`, `core.css`, `extensions.css` and `recipes.css` are copied
 byte-for-byte from `@markup-carve/carve-css`.
 
-Pinned at version `0.1.4`, tag commit `98209de` on `markup-carve/carve-css`,
-synced 2026-10-08. The pin is a released tag, not a loose commit: the previous
-sync sat at `4a5d692`, between 0.1.1 and 0.1.2, because no release carried the
-fixes it needed at the time.
+Pinned at version `0.1.5`, tag commit `818245f` on `markup-carve/carve-css`,
+synced 2026-10-09. The pin is a released tag, not a loose commit.
 
-What this sync brings over `4a5d692`: a tab set pairs its radio and panel
-without `:has()`, an inline inside a highlight draws on the highlight's wash,
-and quote bodies render at document text contrast with a visible border and an
-attribution aligned to the quote body (markup-carve/carve-css#32). `core.css`
-now reads `--carve-quote-ink`, `--carve-quote-border`, `--carve-quote-gap`,
-`--carve-quote-padding` and `--carve-quote-border-width`, each with a default
-resolved on the quote itself.
+What this sync brings over 0.1.4 (`98209de`): static tab, code-group and
+spoiler panels no longer take core's heading-section gap above them
+(markup-carve/carve-css#37). `themes/base.css` carried a local `margin: 0` on
+the panels for that until now; it is gone again.
 
-There is no local delta. `recipes.css` was already byte-identical to 0.1.4; the
-other three are overwritten. Verify against a carve-css checkout with
-`git show 98209de:src/<file>.css | cmp - themes/carve-css/<file>.css`.
+There is no local delta. Only `extensions.css` changed; the other three were
+already byte-identical. Verify against a carve-css checkout with
+`git show 818245f:src/<file>.css | cmp - themes/carve-css/<file>.css`.
 
 ## Why this is vendored
 
