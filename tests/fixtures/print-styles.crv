@@ -81,4 +81,32 @@ sequenceDiagram
   Author->>Carve: write
 ```
 
+## Generated and stateful
+
+::: toc
+
+:::
+
+- [ ] open task
+- [x] done task
+- [-] cancelled task
+- [_] skipped task
+- [>] deferred task
+- [?] question task
+
+```python
+value = 1  <1>
+```
+
+<1> Sets the value.
+
+```math
+\sum_{k=1}^{n} k
+```
+
+{#eq-attributed .wide}
+```math
+\prod_{k=1}^{n} k
+```
+
 [^n]: The note.

@@ -6,8 +6,20 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Added
+
+- Code callouts: `<1>` markers in a fence print as numbered badges that match
+  the explanation list below the fence.
+- A `::: toc` marker prints a table of contents at that spot.
+
 ### Fixed
 
+- A `::: toc` marker no longer prints as an empty box.
+- A ` ```math ` fence is typeset with KaTeX under the PHP backend instead of
+  printing its TeX source.
+- Skipped, deferred and question tasks (`[_]`, `[>]`, `[?]`) each print their
+  own marker instead of the open-task circle.
+- `tsx`, `json5`, `jsonl` and `vb` fences are highlighted.
 - A PHP fence without a `<?php` opening tag is highlighted as PHP instead of
   printing as plain text.
 - Mermaid diagrams use the body text size and font instead of Mermaid's 16px

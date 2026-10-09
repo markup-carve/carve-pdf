@@ -83,3 +83,22 @@ export const Hello = ({ name }: { name: string }) => <p>Hello {name}</p>
 ```vb
 Dim vbname As String = "carve"
 ```
+
+```python
+def greet(name):  <1>
+    return name  <2>
+```
+
+<1> Takes one argument.
+<2> Returns it.
+
+{.diff}
+```js
+ const a = 1
++const b = 2  <3>
+```
+
+```js
+const last = 1  <4>
+<5>
+```

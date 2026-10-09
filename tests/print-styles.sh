@@ -78,6 +78,13 @@ if d["diagramText"]:
 else:
     out.append("SKIP\tno Mermaid - diagram text size is UNMEASURED")
 v(d["bylineBreak"] == "avoid", f"the byline keeps with the content above it ({d['bylineBreak']})")
+v(d["tocLinks"] > 0, f"a ::: toc marker is filled with links ({d['tocLinks']})")
+g = d["taskGlyphs"]
+v(len(set(g.values())) == len(g) == 6, f"each task state has its own glyph ({g})")
+v(d["calloutBadges"] == ['"1"'], f"a callout list badge shows its number ({d['calloutBadges']})")
+v(d["codeCallouts"] == ["1"], f"the callout marker stays in highlighted code ({d['codeCallouts']})")
+v(not d["mathFenceInPre"] and d["mathFence"], "a math fence is display math, not a code block")
+v(d["attributedMathFence"] == "DIV", f"a math fence with attributes keeps them and is display math ({d['attributedMathFence']})")
 print("\n".join(out))
 PY
     while IFS=$'\t' read -r verdict name; do

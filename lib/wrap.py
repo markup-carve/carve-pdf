@@ -122,6 +122,37 @@ def render_diff(source: str, highlight_block) -> str:
     return "\n".join(out)
 
 
+# A code callout is the engine's only markup inside a fence body, always last on its line.
+CALLOUT = re.compile(r'<b class="callout" data-callout="\d+">\d+</b>[ \t]*$')
+
+
+def split_callouts(body: str):
+    """Fence body without its callout markers, and the marker for each line."""
+    lines = body.split("\n")
+    markers = [m.group(0).rstrip() if (m := CALLOUT.search(line)) else "" for line in lines]
+    plain = [CALLOUT.sub("", line) if marker else line for line, marker in zip(lines, markers)]
+    return "\n".join(plain), markers
+
+
+def restore_callouts(rendered: str, markers: list, is_diff: bool) -> str:
+    lines = rendered.split("\n")
+    while len(markers) > len(lines) and not markers[-1]:
+        markers = markers[:-1]
+    # Highlighting drops trailing empty lines, and a marker-only line is one once
+    # its marker is out; nothing else can be missing, so the slots come back empty.
+    lines += [""] * (len(markers) - len(lines))
+    if len(lines) != len(markers):
+        return rendered
+    out = []
+    for line, marker in zip(lines, markers):
+        if marker and is_diff and line.endswith("</span>"):
+            line = line[:-len("</span>")] + marker + "</span>"
+        elif marker:
+            line += marker
+        out.append(line)
+    return "\n".join(out)
+
+
 def highlight_code(fragment_html: str) -> str:
     """Highlight named fences statically so HTML and PDF need no client JS.
 
@@ -162,7 +193,8 @@ def highlight_code(fragment_html: str) -> str:
 
     def replace(match):
         pre_attrs, code_attrs = match.group("pre"), match.group("code")
-        source = html.unescape(match.group("body"))
+        body, callouts = split_callouts(match.group("body"))
+        source = html.unescape(body)
         lexer = lexer_for(fence_language(code_attrs), source)
         is_diff = "diff" in pre_classes(pre_attrs)
         if lexer is None and not is_diff:
@@ -184,11 +216,20 @@ def highlight_code(fragment_html: str) -> str:
             rendered = render_diff(source, highlight_block)
         else:
             rendered = highlight_block(source).rstrip("\n")
+        if any(callouts):
+            rendered = restore_callouts(rendered, callouts, is_diff)
         return f"<pre{pre_attrs}><code{code_attrs}>{rendered}</code></pre>"
 
     return FENCE_BLOCK.sub(replace, fragment_html)
 
 
+# carve-php emits a ```math fence as bare TeX in a <pre>; KaTeX's auto-render
+# skips <pre> and needs the display delimiters, both of which carve-js writes.
+MATH_FENCE = re.compile(
+    r'<pre(?P<attrs>[^>]*\bclass="(?=[^"]*\bmath\b)(?=[^"]*\bdisplay\b)[^"]*"[^>]*)>(?!\s*\\\[)(?P<tex>.*?)</pre>',
+    re.DOTALL,
+)
+fragment = MATH_FENCE.sub(lambda m: f'<div{m.group("attrs")}>\\[{m.group("tex")}\\]</div>', fragment)
 fragment = label_fences(highlight_code(fragment))
 try:
     meta = json.loads(meta_path.read_text(encoding="utf-8") or "{}")

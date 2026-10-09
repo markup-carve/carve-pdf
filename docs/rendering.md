@@ -19,11 +19,13 @@ Both backends enable these:
 | Autolink | bare URLs become links |
 | External links | off-site links get `rel="nofollow noopener"` and `target="_blank"` |
 | Smart quotes | typographic quotes; `CARVE_SMART_LOCALE` picks the locale (PHP backend) |
-| Math | `$`...`$` inline and `$$`...`$$` block math |
+| Math | `$`...`$` inline and `$$`...`$$` block math, and ` ```math ` fences |
+| Table of contents | a `::: toc` marker prints the document's headings as links |
+| Code callouts | `<1>` markers in a fence become numbered badges, bound to a `<1> text` list below it |
 | Mermaid | ` ```mermaid ` diagrams |
 | Chart | ` ```chart ` blocks |
 
-Only the PHP backend also enables inline footnotes and the table of contents. Under
+Only the PHP backend also enables inline footnotes. Under
 the JS backend, inline `[...]{.fn}` footnotes stay inline instead of becoming
 numbered endnotes. Regular `[^1]` footnotes work the same in both.
 
