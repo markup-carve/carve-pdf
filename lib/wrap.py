@@ -37,8 +37,10 @@ fragment = re.sub(r"<details(?![^>]*\bopen\b)", "<details open", fragment)
 LEXER_FALLBACKS = {
     "yml": "yaml",
     "jsonc": "json",
-    "json5": "json",
-    "tsx": "typescript",
+    "json5": "javascript",
+    "jsonl": "json",
+    "tsx": "jsx",
+    "vb": "vbnet",
     "env": "bash",
     "dotenv": "bash",
     "svg": "xml",
