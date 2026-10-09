@@ -138,7 +138,7 @@ def highlight_code(fragment_html: str) -> str:
             sys.stderr.write("wrap.py: Pygments not found; leaving code fences unhighlighted\n")
         highlight = None
 
-    def lexer_for(language: str):
+    def lexer_for(language: str, source: str):
         name = language.lower()
         if highlight is None or not name or name in ("mermaid", "chart"):
             return None
@@ -147,8 +147,11 @@ def highlight_code(fragment_html: str) -> str:
             return CarveLexer(stripnl=False)
         if name == "blade":
             return BladeLexer(stripnl=False)
+        # Pygments reads PHP only after an opening tag; a snippet without one
+        # would come out as unhighlighted HTML text.
+        options = {"startinline": True} if name == "php" and "<?" not in source else {}
         try:
-            return get_lexer_by_name(name, stripnl=False)
+            return get_lexer_by_name(name, stripnl=False, **options)
         except ClassNotFound:
             try:
                 return get_lexer_by_name(LEXER_FALLBACKS[name], stripnl=False)
@@ -157,11 +160,11 @@ def highlight_code(fragment_html: str) -> str:
 
     def replace(match):
         pre_attrs, code_attrs = match.group("pre"), match.group("code")
-        lexer = lexer_for(fence_language(code_attrs))
+        source = html.unescape(match.group("body"))
+        lexer = lexer_for(fence_language(code_attrs), source)
         is_diff = "diff" in pre_classes(pre_attrs)
         if lexer is None and not is_diff:
             return match.group(0)
-        source = html.unescape(match.group("body"))
         if lexer is None:
             highlight_block = html.escape
         else:

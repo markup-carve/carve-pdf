@@ -8,6 +8,8 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ### Fixed
 
+- A PHP fence without a `<?php` opening tag is highlighted as PHP instead of
+  printing as plain text.
 - Mermaid diagrams use the body text size and font instead of Mermaid's 16px
   default, and sequence diagrams scale their boxes and gaps to match.
 - Thematic breaks inside a section and the rule above the footnotes print
