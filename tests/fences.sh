@@ -60,6 +60,10 @@ if python3 -c 'import pygments' 2>/dev/null; then
   has   "{.diff} leading marker-only line keeps alignment" "$html" '<span class="line diff remove"><span class="diff-marker">-</span><span class="tok-nx">old</span>'
   # Nor may a marker-only LAST line cost the block its highlighting.
   has   "{.diff} trailing marker-only line keeps highlighting" "$html" '<span class="diff-marker">+</span><span class="tok-kd">const</span>'
+  # A PHP snippet with no opening tag is PHP, not HTML text.
+  has   "php snippet without <?php is highlighted" "$html" '<span class="tok-nv">$converter</span>'
+  # One that opens with the tag keeps it as one delimiter.
+  has   "php with an opening tag keeps it whole" "$html" '<span class="tok-cp">&lt;?php</span>'
   # A quoted `(` in directive arguments must not leave the lexer inside them.
   has   "blade quoted paren closes its directive" "$html" '<span class="tok-k">@endif</span>'
 else
@@ -80,7 +84,7 @@ d = json.load(open(sys.argv[1], encoding='utf-8'))
 out = []
 def v(ok, name): out.append(("ok" if ok else "FAIL") + "\t" + name)
 
-v(len(d["fences"]) == 11, f"11 fences in the DOM (saw {len(d['fences'])})")
+v(len(d["fences"]) == 12, f"12 fences in the DOM (saw {len(d['fences'])})")
 for r in d["diffRows"]:
     v(r["background"] not in ("rgba(0, 0, 0, 0)", "transparent"), f"diff {r['kind']} row is tinted ({r['background']})")
     v(abs(r["width"] - r["preWidth"]) <= 2, f"diff {r['kind']} row spans the block ({r['width']:.0f} of {r['preWidth']:.0f}px)")
