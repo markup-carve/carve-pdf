@@ -1,0 +1,79 @@
+---yaml
+title: Print styles fixture
+author: Fixture
+date: 2026-10-09
+---
+
+# Print styles
+
+Inserted {+INSERTMARKER+}, struck ~STRIKEMARKER~ and an [HTML]{abbr="HyperText Markup Language"} abbreviation.
+A note[^n] and inline math $`a^2`.
+
+$$`e^{i\pi} + 1 = 0`
+
+- outer
+  - inner
+- after the nested list
+
+Before the break.
+
+---
+
+After the break.
+
+|= Item |= Qty |
+| Apple | 12 |
+
+![Roast](../../examples/roast.svg)
+^ Figure #: A single figure
+
+::: figure
+![one](../../examples/roast.svg)
+^ (a) One
+
+![two](../../examples/roast.svg)
+^ (b) Two
+:::
+^ Figure #: The pair
+
+> A quote with code:
+>
+> ```js
+> console.log('QUOTEDCODE')
+> ```
+
+```php "src/Header.php"
+echo 'header';
+```
+
+::: tabs
+:::: tab [First]
+First body.
+::::
+
+:::: tab [Second]
+Second body.
+::::
+:::
+
+::: code-group
+```bash [one]
+echo one
+```
+
+```bash [two]
+echo two
+```
+:::
+
+## Section A
+
+A section that ends in a break.
+
+---
+
+## Section B
+
+The next section starts a new page, so the break above it is dropped.
+
+[^n]: The note.

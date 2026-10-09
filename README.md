@@ -158,6 +158,7 @@ prints unhighlighted.
 Every named fence shows its language as a small label in the top-right corner, in HTML
 and PDF alike. `text`, `txt`, `plain` and `none` fences, and the drawn `mermaid` and
 `chart` blocks, get no label.
+A fence's `"Header"` (` ```php "src/App.php" `) prints in the top-left corner.
 
 `{.diff}` above a language fence marks it as a diff: each line's leading `+`, `-` or
 space is the marker, added and removed lines print on green and red rows, and the

@@ -52,9 +52,9 @@ a[href^="http"]::after { content: ""; } /* external-link hook, no glyph by defau
 strong { font-weight: 700; }
 em { font-style: italic; }
 u { text-decoration: none; border-bottom: 1px solid currentColor; }
-s, del { color: var(--danger); }
-del { text-decoration: line-through; }
-ins { text-decoration: none; background: var(--tip-bg); box-shadow: inset 0 -2px var(--tip); }
+del { color: var(--danger); text-decoration: line-through; }
+/* An inset box-shadow prints as edge slivers on an inline box; a real underline does not. */
+.carve ins { background: var(--tip-bg); text-decoration: underline 2px var(--tip); text-underline-offset: 2px; }
 mark { background: #fff2a8; padding: 0 2px; border-radius: 2px; }
 sup, sub { font-size: 0.72em; line-height: 0; }
 abbr[title] { text-decoration: underline dotted; cursor: help; }
@@ -86,6 +86,14 @@ pre {
   break-inside: avoid;
 }
 pre code { background: none; padding: 0; font-size: 12px; line-height: 1.5; }
+
+/* a fence's "Header" reaches <pre title>; print it top-left, opposite the language label */
+.carve pre[title] { position: relative; padding-top: 2.1em; }
+.carve pre[title]::after {
+  content: attr(title);
+  position: absolute; top: 0.6em; left: var(--carve-space-3, 12px);
+  font-family: var(--font-mono); font-size: 9.5px; line-height: 1; color: var(--muted);
+}
 
 /* the fence's language, carried onto <pre data-lang> by wrap.py; the extra top
  * padding keeps a long first line from running under it */
@@ -159,10 +167,12 @@ blockquote {
   font-style: italic;
 }
 blockquote blockquote { margin: 8px 0; }
+blockquote :is(pre, code) { font-style: normal; }
 
 /* ---- lists ---- */
 ul, ol { margin: 0 0 10px; padding-left: 22px; }
 li { margin: 3px 0; }
+.carve li > :is(ul, ol) { margin-block-end: 0; }
 li > p { margin: 0 0 6px; }
 ul ul, ul ol, ol ul, ol ol { margin: 3px 0; }
 
@@ -192,6 +202,8 @@ th, td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vert
 thead th { background: #f0f0f2; }
 caption { caption-side: top; text-align: left; font-weight: 700; margin-bottom: 6px; }
 tbody tr:nth-child(even) { background: #fafafa; }
+/* carve-css drops the last row's rule for its open table; this one draws a full grid. */
+.carve tbody tr:last-child :is(th, td) { border-block-end: 1px solid var(--line); }
 
 /* list-table fallback (bare carve without ListTableExtension emits nested <ul>) */
 .list-table { margin: 0 0 14px; break-inside: avoid; }
@@ -208,6 +220,10 @@ tbody tr:nth-child(even) { background: #fafafa; }
 img { max-width: 100%; height: auto; }
 figure { margin: 0 0 14px; break-inside: avoid; text-align: center; }
 figcaption { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+/* The caption is centred, so the image above it is too. */
+.carve figure > img { margin-inline: auto; }
+/* The group is a flex row; its caption takes a line of its own. */
+.carve .carve-figure-group > figcaption { flex-basis: 100%; text-align: center; }
 
 /* ---- admonitions (aside.admonition.<type>) ---- */
 .admonition {
@@ -267,8 +283,14 @@ details.spoiler { border-style: dashed; }
   margin: 0; padding: 6px 12px; font-weight: 700; font-size: 12px;
   background: #f0f0f2; border-bottom: 1px solid var(--line);
 }
-.carve .tabs-panel, .carve .code-group-panel { border-block-start-color: var(--line); }
-.tabs-panel > :not(.tabs-label), .code-group-panel > :not(.code-group-label) { margin: 10px 14px; }
+/* The label is a full-width band, so the panel carries no padding of its own
+ * and every body block gets the same inset, the last one included. */
+.carve .tabs-panel, .carve .code-group-panel { border-block-start-color: var(--line); padding: 0; margin: 0; }
+.carve .tabs-panel > .tabs-label, .carve .code-group-panel > .code-group-label {
+  margin: 0; padding: 6px 12px; text-transform: none; letter-spacing: normal;
+  border-block-end: 1px solid var(--line);
+}
+.carve .tabs-panel > :not(.tabs-label), .carve .code-group-panel > :not(.code-group-label, pre) { margin: 10px 14px; }
 .code-group-panel pre { border: none; border-radius: 0; margin: 0; }
 
 /* ---- math (static mode renders TeX source in \(..\) / \[..\] delimiters) ---- */
@@ -279,6 +301,8 @@ details.spoiler { border-style: dashed; }
   border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 0 0 14px;
   break-inside: avoid;
 }
+/* Typeset by KaTeX, the math is no longer TeX source and drops the code look. */
+.math:has(.katex) { font-family: inherit; font-size: inherit; background: none; border: 0; padding: 0; }
 
 /* ---- line block (verse / addresses) ---- */
 .line-block { margin: 0 0 12px; }
