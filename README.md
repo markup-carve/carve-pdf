@@ -143,49 +143,14 @@ pageBreaks: h2                      # h2 (each ## a new page) | none | manual
 lets content flow; `manual` breaks only at an explicit `::: pagebreak` block in the
 source. The `::: pagebreak` marker works in every mode.
 
-**Code.** Named fences such as ` ```php `, ` ```bash `, and ` ```carve ` are
-highlighted statically with Pygments before HTML/PDF output. The bundled Carve lexer
-understands Carve's own block and inline syntax; no browser script or network request
-is needed. Without Pygments, fences remain readable but monochrome.
+**Code.** Named fences such as ` ```php ` and ` ```carve ` are highlighted with
+Pygments, labeled with their language, and can be marked as diffs. Supported
+languages, fallbacks and the diff markup are in [docs/code-blocks.md](docs/code-blocks.md).
 
-Blade (` ```blade `) uses a bundled lexer as well, since Pygments has none. A few
-names that older Pygments releases lack fall back to the closest lexer: `yml` and
-`neon` to YAML, `tsx` to TypeScript, `jsonc`/`json5` to JSON, `vue`, `svelte`, `astro`
-and `latte` to HTML, `env` to Bash, `svg` to XML, `patch` to diff, `hbs`/`mustache` to
-Handlebars, `gql` to GraphQL. A language Pygments does not know at all (`csv`, `typst`)
-prints unhighlighted.
-
-Every named fence shows its language as a small label in the top-right corner, in HTML
-and PDF alike. `text`, `txt`, `plain` and `none` fences, and the drawn `mermaid` and
-`chart` blocks, get no label.
-A fence's `"Header"` (` ```php "src/App.php" `) prints in the top-left corner.
-
-`{.diff}` above a language fence marks it as a diff: each line's leading `+`, `-` or
-space is the marker, added and removed lines print on green and red rows, and the
-rest of the line is highlighted in the fence's language. The markup matches the
-`diff/carve-diff.css` contract in carve-grammars.
-
-**Math.** `$`...`$` inline and `$$`...`$$` block math are typeset with KaTeX (bundled,
-offline) when a KaTeX install is found; point `CARVE_KATEX` at its `dist/` dir, or it
-probes common locations. Without KaTeX, math degrades to readable raw TeX.
-
-**Diagrams.** ` ```mermaid ` blocks are rendered to SVG at print time with Mermaid when
-a `mermaid.min.js` is found; point `CARVE_MERMAID` at it, or it probes common locations.
-Without Mermaid, the diagram source stays visible in a code block.
-
-**Charts.** ` ```chart ` blocks (a Chart.js config as JSON) are drawn to a `<canvas>`
-with Chart.js when `chart.umd.js` is found (`CARVE_CHART` or autodetect). Without it,
-the JSON stays visible.
-
-KaTeX, Mermaid, and Chart.js all render in Chrome under one `window.__carveReady`
-promise that print_cdp awaits, so every renderer finishes before the PDF is captured.
-
-All three are optional and resolve like the engines: `CARVE_KATEX` / `CARVE_MERMAID` /
-`CARVE_CHART` first, then `node_modules/katex`, `node_modules/mermaid` and
-`node_modules/chart.js` beside `crv2pdf.sh`, then `_deps/js`, then a sibling checkout.
-Install them with `npm install katex mermaid chart.js`. When a document uses one and
-it cannot be found, the renderer says so on stderr and names the variable rather than
-dropping the math, diagram or chart in silence. `make check` lists which are present.
+**Math, diagrams and charts.** KaTeX math, ` ```mermaid ` diagrams and ` ```chart `
+blocks render when their library is installed (`npm install katex mermaid chart.js`);
+without it the source stays visible. The full extension set and how each library is
+found are in [docs/rendering.md](docs/rendering.md).
 
 ## Environment
 
@@ -230,8 +195,6 @@ Check which version is on PATH with `crv2pdf --version`.
 
 ## Known limitations
 
-- **Math** is typeset with KaTeX when available (see above); otherwise it degrades to
-  raw TeX in `\(..\)` / `\[..\]`.
 - **Tabs** are auto-labeled `Tab N` in static output; use `code-group` for labeled tabs.
 - **Images** must use relative or `https:` URLs - `data:` and `file:` URIs are neutralized
   by safe mode (an XSS defense inherited from carve-php). Relative paths resolve against
