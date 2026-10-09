@@ -72,6 +72,11 @@ if typeset:
           f"typeset math drops the TeX-source box ({m})")
 else:
     out.append("SKIP\tno KaTeX - typeset math styling is UNMEASURED")
+if d["diagramText"]:
+    v(max(d["diagramText"]) <= d["bodySize"] + 1,
+      f"diagram text stays at body size ({max(d['diagramText'])}px vs {d['bodySize']}px)")
+else:
+    out.append("SKIP\tno Mermaid - diagram text size is UNMEASURED")
 v(d["bylineBreak"] == "avoid", f"the byline keeps with the content above it ({d['bylineBreak']})")
 print("\n".join(out))
 PY

@@ -287,7 +287,13 @@ def client_assets():
             lib_scripts.append(f"<script>{src.read_text(encoding='utf-8')}</script>")
             init_steps.append(
                 "document.querySelectorAll('pre.mermaid').forEach(function(el){el.textContent=el.textContent;});"
-                "if(window.mermaid){mermaid.initialize({startOnLoad:false});"
+                # Mermaid draws at 16px in its own font; a diagram reads as part of the
+                # page at the body's size and family, and layout follows the font.
+                "if(window.mermaid){var bf=getComputedStyle(document.body).fontFamily;"
+                "mermaid.initialize({startOnLoad:false,fontFamily:bf,fontSize:13,"
+                "themeVariables:{fontSize:'13px',fontFamily:bf},"
+                # Sequence boxes and gaps are sized for 16px text; scale them with it.
+                "sequence:{width:120,height:46,actorMargin:40,messageMargin:32,boxMargin:8}});"
                 "await mermaid.run({querySelector:'pre.mermaid'});}"
             )
 

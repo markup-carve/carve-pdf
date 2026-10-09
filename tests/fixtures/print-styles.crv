@@ -76,4 +76,9 @@ A section that ends in a break.
 
 The next section starts a new page, so the break above it is dropped.
 
+```mermaid
+sequenceDiagram
+  Author->>Carve: write
+```
+
 [^n]: The note.

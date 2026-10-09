@@ -61,6 +61,9 @@
       background: cs(m).backgroundColor,
       border: cs(m).borderTopWidth,
     })),
+    diagramText: [...document.querySelectorAll('.mermaid svg text, .mermaid svg foreignObject div')]
+      .map((t) => parseFloat(cs(t).fontSize)),
+    bodySize: parseFloat(body.fontSize),
     bylineBreak: one('.doc-byline') ? cs(one('.doc-byline')).breakBefore : null,
   };
 })()
