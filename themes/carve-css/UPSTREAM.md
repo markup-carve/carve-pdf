@@ -3,8 +3,9 @@
 `tokens.css`, `core.css`, `extensions.css` and `recipes.css` are copied
 byte-for-byte from `@markup-carve/carve-css`.
 
-Pinned at version `0.1.5`, tag commit `818245f` on `markup-carve/carve-css`,
-synced 2026-10-09. The pin is a released tag, not a loose commit.
+Vendored from markup-carve/carve-css version 0.1.5, commit 818245f (the tag
+commit), synced 2026-10-09. The pin is a released tag, not a loose commit. The
+org dependency map reads this line, so keep its shape when re-syncing.
 
 What this sync brings over 0.1.4 (`98209de`): static tab, code-group and
 spoiler panels no longer take core's heading-section gap above them
