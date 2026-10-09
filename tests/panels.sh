@@ -39,9 +39,14 @@ else
   html="$WORK/panels.html"
   if ! "$HERE/crv2pdf.sh" "$FIX" "$html" --html >/dev/null 2>&1; then
     bad "could not render the fixture to HTML"
-  elif ! python3 "$LIB/probe_cdp.py" "$html" "$HERE/tests/panels.js" > "$WORK/probe.json" 2>"$WORK/probe.err"; then
-    bad "probe_cdp.py failed: $(tr -d '\n' < "$WORK/probe.err" | cut -c1-200)"
+  # The probe's wait for Chrome's page target is the one part of this gate that
+  # has failed for reasons outside the artifact, so it traces here even on a
+  # green run: the next flake arrives with its own timeline attached.
+  elif ! CARVE_CDP_TRACE=1 python3 "$LIB/probe_cdp.py" "$html" "$HERE/tests/panels.js" > "$WORK/probe.json" 2>"$WORK/probe.err"; then
+    bad "probe_cdp.py failed: $(tr -d '\n' < "$WORK/probe.err" | cut -c1-400)"
+    sed 's/^/    /' "$WORK/probe.err"
   else
+    grep '^cdp: page target listed' "$WORK/probe.err" | sed 's/^/  note - /'
     # One python pass over the probe record; prints a tab-separated verdict line
     # per assertion so the shell stays the place that counts.
     python3 - "$WORK/probe.json" > "$WORK/verdicts" <<'PY'
