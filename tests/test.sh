@@ -227,6 +227,11 @@ printf '{"paper":"A4; } body { background: red } @page {"}' > "$WORK/evil.json"
 python3 "$LIB/wrap.py" "$WORK/frag.html" "$WORK/evil.json" "$FIX" "$WORK/evil.html" "$HERE/themes/carve-css/tokens.css" "$HERE/themes/carve-css/core.css" "$HERE/themes/carve-css/extensions.css" "$HERE/themes/carve-css/recipes.css" "$HERE/themes/base.css" "$HERE/themes/print.css" 2>/dev/null
 hasnt "css injection rejected" "$WORK/evil.html" "background: red"
 
+# pageBreaks none/manual: a break before a section no longer starts a page, so it prints
+echo '{"pageBreaks":"none"}' > "$WORK/flow.json"
+python3 "$LIB/wrap.py" "$WORK/frag.html" "$WORK/flow.json" "$FIX" "$WORK/flow.html" "$HERE/themes/base.css" "$HERE/themes/print.css" 2>/dev/null
+has  "pageBreaks none restores breaks before sections" "$WORK/flow.html" "section:has(+ section > h2:first-child) > hr:last-child { display: block; }"
+
 # --- make check: the preflight must name every optional dependency ----------
 # A preflight that omits a dependency reports ready and then degrades, which is
 # how Pygments went missing from it. These assertions are what stops the next
@@ -295,6 +300,12 @@ fi
 # --- fence labels and highlighting ------------------------------------------
 echo
 if ! "$HERE/tests/fences.sh"; then
+  fail=$((fail+1))
+fi
+
+# --- print styles found by the visual audit ---------------------------------
+echo
+if ! "$HERE/tests/print-styles.sh"; then
   fail=$((fail+1))
 fi
 

@@ -231,6 +231,10 @@ if paper or margin:
 page_breaks = str(meta.get("pageBreaks", "h2"))
 if page_breaks in ("none", "manual"):
     overrides.append("h2 { break-before: auto; }")
+    overrides.append(
+        "hr:has(+ section > h2:first-child),"
+        " section:has(+ section > h2:first-child) > hr:last-child { display: block; }"
+    )
 if overrides:
     css += "\n/* frontmatter overrides */\n" + "\n".join(overrides) + "\n"
 
@@ -298,7 +302,7 @@ def client_assets():
                 "cfg.options=Object.assign({},cfg.options||{});"
                 "cfg.options.responsive=false;cfg.options.animation=false;"
                 "var cv=document.createElement('canvas');cv.width=680;cv.height=360;"
-                "cv.style.cssText='display:block;margin:0 auto;max-width:100%';"
+                "cv.style.cssText='display:block;margin:0 auto 14px;max-width:100%';"
                 "el.replaceWith(cv);if(window.Chart)new Chart(cv.getContext('2d'),cfg);});"
                 "await new Promise(function(r){requestAnimationFrame(function(){requestAnimationFrame(r);});});"
             )

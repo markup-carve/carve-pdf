@@ -6,6 +6,23 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Thematic breaks inside a section and the rule above the footnotes print
+  again; only a break directly before a section that starts a new page is
+  dropped.
+- Inserted text is underlined without the edge slivers an inset shadow left in
+  print, plain strikethrough keeps the body color, and an abbreviation's
+  printed expansion is no longer underlined with it.
+- Math typeset by KaTeX drops the code-style chip and box meant for raw TeX.
+- Tables close their last row, nested lists add no gap inside their item, a
+  figure's image is centered over its caption, and a figure group's caption
+  spans the group.
+- Code inside a quote is not italic, and a fence's `"Header"` prints in the top
+  left corner of the listing.
+- Tab and code-group panels print with even spacing and full-width labels, the
+  byline stays with the content above it, and a chart keeps its margin.
+
 ## [0.1.2] - 2026-10-09
 
 ### Fixed
