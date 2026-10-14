@@ -62,26 +62,37 @@ INC_ARGS=()
 PRINT_ARGS=()
 WRAP_ARGS=()
 POS=()
+usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes] [--allow-remote] [--link-base URL] [--version]" >&2; exit 2; }
+need_value() {  # need_value <flag> <remaining args...>
+  [ $# -ge 2 ] || { echo "crv2pdf: $1 needs a value" >&2; usage; }
+}
 while [ $# -gt 0 ]; do
   case "$1" in
     --version|-V) echo "crv2pdf $CRV2PDF_VERSION"; exit 0 ;;
     --pdf|--html|--md|--txt) FORMAT="${1#--}" ;;
     --format=*) FORMAT="${1#--format=}" ;;
+    --format) need_value "$@"; FORMAT="$2"; shift ;;
     --watch|-w) WATCH=1 ;;
-    --out-dir) OUT_DIR="${2:-}"; shift ;;
+    --out-dir) need_value "$@"; OUT_DIR="$2"; shift ;;
     --out-dir=*) OUT_DIR="${1#--out-dir=}" ;;
-    --include-root) INCLUDE_ROOT="${2:-}"; INC_ARGS+=(--include-root "${2:-}"); shift ;;
+    --include-root) need_value "$@"; INCLUDE_ROOT="$2"; INC_ARGS+=(--include-root "$2"); shift ;;
     --include-root=*) INCLUDE_ROOT="${1#--include-root=}"; INC_ARGS+=(--include-root "$INCLUDE_ROOT") ;;
     --no-includes) INC_ARGS+=(--no-includes) ;;
     --allow-remote) PRINT_ARGS+=(--allow-remote) ;;
-    --link-base) WRAP_ARGS+=(--link-base "${2:-}"); shift ;;
+    --link-base) need_value "$@"; WRAP_ARGS+=(--link-base "$2"); shift ;;
     --link-base=*) WRAP_ARGS+=(--link-base "${1#--link-base=}") ;;
+    --) shift; POS+=("$@"); break ;;
+    # An unknown flag used to become the output path (`--bogus` wrote a PDF named --bogus).
+    -?*) echo "crv2pdf: unknown option: $1" >&2; usage ;;
     *) POS+=("$1") ;;
   esac
   shift
 done
 
-usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes] [--allow-remote] [--link-base URL] [--version]" >&2; exit 2; }
+case "$FORMAT" in
+  pdf|html|md|txt) ;;
+  *) echo "crv2pdf: unknown format: $FORMAT (want pdf, html, md or txt)" >&2; usage ;;
+esac
 [ ${#POS[@]} -ge 1 ] || usage
 
 # Fail before rendering, with the fix named, rather than mid-pipeline.
@@ -146,6 +157,13 @@ fi
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/crv2pdf.XXXXXX")"
 trap 'rm -rf "$WORK"' EXIT
 
+render_meta() {  # render_meta <in> -> the engine's frontmatter block on stdout
+  case "$RENDERER" in
+    php) php "$LIB/render.php" --meta "$1" ;;
+    js)  node "$LIB/render.mjs" --meta "$1" ;;
+  esac
+}
+
 render() {  # render() <in> <format> -> writes $WORK/frag and $WORK/deps
   case "$RENDERER" in
     php) php "$LIB/render.php" --format "$2" --deps "$WORK/deps" ${INC_ARGS[@]+"${INC_ARGS[@]}"} "$1" > "$WORK/frag" ;;
@@ -157,26 +175,31 @@ render() {  # render() <in> <format> -> writes $WORK/frag and $WORK/deps
 build_one() {  # build_one <input.crv> <output>
   local in="$1" out="$2"
   if [ ! -f "$in" ]; then echo "crv2pdf: input not found: $in" >&2; return 1; fi
+  if [ ! -r "$in" ]; then echo "crv2pdf: cannot read input: $in" >&2; return 1; fi
 
+  # Every step returns explicitly: batch mode calls this as `build_one ... || rc=1`,
+  # and a function called in an `||` list runs with `set -e` switched off.
   if [ "$FORMAT" = "md" ] || [ "$FORMAT" = "txt" ]; then
-    render "$in" "$FORMAT"
-    cp "$WORK/frag" "$out"
+    render "$in" "$FORMAT" || return 1
+    cp "$WORK/frag" "$out" || return 1
     echo "$out ($RENDERER backend, $FORMAT)"
     return 0
   fi
 
-  render "$in" html
-  python3 "$LIB/meta.py" "$in" > "$WORK/meta.json"
+  render "$in" html || return 1
+  # An engine without --meta leaves the file empty; meta.py then finds the block itself.
+  render_meta "$in" > "$WORK/fm.json" 2>/dev/null || : > "$WORK/fm.json"
+  python3 "$LIB/meta.py" "$in" "$WORK/fm.json" > "$WORK/meta.json" || return 1
   local srcdir; srcdir="$(cd "$(dirname "$in")" && pwd)"
   local mode=(); [ "$FORMAT" = "pdf" ] && mode=(--print)
   python3 "$LIB/wrap.py" ${mode[@]+"${mode[@]}"} ${WRAP_ARGS[@]+"${WRAP_ARGS[@]}"} \
     "$WORK/frag" "$WORK/meta.json" "$srcdir" "$WORK/doc.html" \
     "$THEMES/carve-css/tokens.css" "$THEMES/carve-css/core.css" \
     "$THEMES/carve-css/extensions.css" "$THEMES/carve-css/recipes.css" \
-    "$THEMES/base.css" "$THEMES/print.css" >/dev/null
+    "$THEMES/base.css" "$THEMES/print.css" >/dev/null || return 1
 
   if [ "$FORMAT" = "html" ]; then
-    cp "$WORK/doc.html" "$out"
+    cp "$WORK/doc.html" "$out" || return 1
     echo "$out ($RENDERER backend, html)"
     return 0
   fi
@@ -185,15 +208,17 @@ build_one() {  # build_one <input.crv> <output>
   local allow=(--allow-dir "$srcdir")
   if [ -n "$INCLUDE_ROOT" ]; then allow+=(--allow-dir "$INCLUDE_ROOT"); fi
   allow+=(${PRINT_ARGS[@]+"${PRINT_ARGS[@]}"})
+  local author; author="$(python3 -c 'import json,sys; a=json.load(open(sys.argv[1])).get("author"); print(", ".join(map(str,a)) if isinstance(a,list) else (a or ""))' "$WORK/meta.json")"
+  if [ -n "$author" ]; then allow+=(--author "$author"); fi
 
   # pdf: frontmatter `footer` wins (even when explicitly empty), else print_cdp's
   # default chain ($CARVE_PDF_FOOTER, then the English default).
   local present; present="$(python3 -c 'import json,sys; print(int("footer" in json.load(open(sys.argv[1]))))' "$WORK/meta.json")"
   if [ "$present" = "1" ]; then
     local footer; footer="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["footer"])' "$WORK/meta.json")"
-    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" "${allow[@]}" >/dev/null
+    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" "${allow[@]}" >/dev/null || return 1
   else
-    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "${allow[@]}" >/dev/null
+    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "${allow[@]}" >/dev/null || return 1
   fi
   echo "PDF: $out ($RENDERER backend)"
 }

@@ -6,7 +6,7 @@ footer (page numbers), and Blink ignores CSS `@bottom-center` counters. CDP
 gives footerTemplate + printBackground (keeps admonition colors).
 
 Usage: print_cdp.py <input.html> <output.pdf> [footer-template]
-                    [--allow-dir DIR]... [--allow-remote]
+                    [--allow-dir DIR]... [--allow-remote] [--author NAME]
 
 The footer template is plain text with two placeholders, {page} and {pages}
 (e.g. "Page {page} of {pages}" or "Seite {page} von {pages}"). Precedence:
@@ -18,11 +18,15 @@ and blob: URLs, and files whose real path lies under an --allow-dir. Remote
 http(s) is refused unless --allow-remote is given; then this script fetches it
 itself, bounded by $CARVE_PDF_REMOTE_TIMEOUT seconds and
 $CARVE_PDF_REMOTE_MAX_BYTES bytes per resource.
+
+The PDF carries a heading outline (bookmarks). --author sets the PDF's Author
+entry, which Chrome has no way to take from the page.
 """
 import base64
 import html
 import json
 import os
+import re
 import shutil
 import socket
 import subprocess
@@ -39,15 +43,20 @@ try:
 except ImportError:
     sys.exit("print_cdp.py: needs the websocket-client package: pip install websocket-client")
 
-USAGE = "usage: print_cdp.py <input.html> <output.pdf> [footer-template] [--allow-dir DIR]... [--allow-remote]"
+USAGE = "usage: print_cdp.py <input.html> <output.pdf> [footer-template] [--allow-dir DIR]... [--allow-remote] [--author NAME]"
 positional = []
 ALLOW_DIRS = []
 ALLOW_REMOTE = False
+AUTHOR = ""
 _argv = sys.argv[1:]
 while _argv:
     _arg = _argv.pop(0)
     if _arg == "--allow-remote":
         ALLOW_REMOTE = True
+    elif _arg == "--author":
+        if not _argv:
+            sys.exit(USAGE)
+        AUTHOR = _argv.pop(0)
     elif _arg == "--allow-dir":
         if not _argv:
             sys.exit(USAGE)
@@ -264,6 +273,40 @@ def fetch_remote(url: str):
         return resp.status, headers, body
 
 
+def pdf_string(text: str) -> bytes:
+    """A PDF text string: UTF-16BE with a byte-order mark, hex-encoded."""
+    return b"<FEFF" + text.encode("utf-16-be").hex().upper().encode("ascii") + b">"
+
+
+def with_author(pdf: bytes, author: str) -> bytes:
+    """Append an incremental update that adds /Author to the Info dictionary.
+
+    Chrome writes a classic xref table and trailer; anything else is left alone.
+    """
+    tail = pdf[-2048:]
+    trailer = re.search(rb"trailer\s*<<(.*?)>>\s*startxref\s*(\d+)\s*%%EOF\s*$", tail, re.S)
+    if not trailer:
+        return pdf
+    dict_text, prev = trailer.group(1), trailer.group(2)
+    size = re.search(rb"/Size\s+(\d+)", dict_text)
+    root = re.search(rb"/Root\s+(\d+\s+\d+\s+R)", dict_text)
+    info = re.search(rb"/Info\s+(\d+)\s+(\d+)\s+R", dict_text)
+    if not (size and root and info):
+        return pdf
+    num, gen = info.group(1), info.group(2)
+    old = re.search(rb"(?:^|[\r\n])" + num + rb"\s+" + gen + rb"\s+obj\s*<<(.*?)>>\s*endobj", pdf, re.S)
+    entries = re.sub(rb"/Author\s*(\([^)]*\)|<[^>]*>)", b"", old.group(1)) if old else b""
+    body = pdf if pdf.endswith(b"\n") else pdf + b"\n"
+    offset = len(body)
+    obj = num + b" " + gen + b" obj\n<<" + entries + b"/Author " + pdf_string(author) + b">>\nendobj\n"
+    xref_at = offset + len(obj)
+    xref = (b"xref\n" + num + b" 1\n" + b"%010d %05d n \n" % (offset, int(gen)))
+    trailer_out = (b"trailer\n<</Size " + size.group(1) + b" /Root " + root.group(1)
+                   + b" /Info " + num + b" " + gen + b" R /Prev " + prev + b">>\n"
+                   + b"startxref\n" + str(xref_at).encode() + b"\n%%EOF\n")
+    return body + obj + xref + trailer_out
+
+
 def chrome_flags() -> list:
     flags = [
         "--headless=new", "--disable-gpu", "--no-first-run",
@@ -389,11 +432,15 @@ try:
         "displayHeaderFooter": DISPLAY_FOOTER,
         "headerTemplate": HEADER,
         "footerTemplate": FOOTER if DISPLAY_FOOTER else "<span></span>",
+        "generateDocumentOutline": True,
     })
+    pdf_bytes = base64.b64decode(result["data"])
+    if AUTHOR:
+        pdf_bytes = with_author(pdf_bytes, AUTHOR)
 
     # Atomic write: temp then replace, so a failure never leaves a partial PDF.
     tmp = PDF.with_suffix(PDF.suffix + ".tmp")
-    tmp.write_bytes(base64.b64decode(result["data"]))
+    tmp.write_bytes(pdf_bytes)
     os.replace(tmp, PDF)
     print(f"wrote {PDF}")
 finally:

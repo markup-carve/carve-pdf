@@ -309,6 +309,30 @@ if dropped_links:
     )
 
 
+OL_PAREN = re.compile(r'<ol\b(?=[^>]*\bdata-delim="\)")[^>]*>')
+PAREN_STYLES = {"a": "lower-alpha", "A": "upper-alpha", "i": "lower-roman", "I": "upper-roman"}
+
+
+def mark_paren_lists(fragment_html: str) -> str:
+    """Name the counter style of a lettered or roman `a)` list in a class.
+
+    carve-css tells `type="a"` from `type="A"` with the `s` selector flag,
+    which Chrome does not support, so print.css keys on this class instead.
+    """
+
+    def replace(match):
+        tag = match.group(0)
+        kind = re.search(r'\btype="([aAiI])"', tag)
+        if not kind:
+            return tag
+        return with_class(tag[:-1], "carve-delim-" + PAREN_STYLES[kind.group(1)]) + ">"
+
+    return OL_PAREN.sub(replace, fragment_html)
+
+
+fragment = mark_paren_lists(fragment)
+
+
 # carve-php emits a ```math fence as bare TeX in a <pre>; KaTeX's auto-render
 # skips <pre> and needs the display delimiters, both of which carve-js writes.
 MATH_FENCE = re.compile(

@@ -180,6 +180,21 @@
   margin-block: 0 var(--carve-space-4);
 }
 
+/* The engine keeps an authored `1)` delimiter as data-delim; show it instead of the UA's `1.`.
+ * Zero specificity, so a recipe that hides markers (`list-style: none`) still wins. `type`
+ * matches case-insensitively in HTML, so a/A and i/I need the `s` flag; where that is
+ * unsupported a typed list keeps the UA marker (right letter, `.` delimiter). */
+@counter-style carve-paren-decimal { system: extends decimal; suffix: ") "; }
+@counter-style carve-paren-lower-alpha { system: extends lower-alpha; suffix: ") "; }
+@counter-style carve-paren-upper-alpha { system: extends upper-alpha; suffix: ") "; }
+@counter-style carve-paren-lower-roman { system: extends lower-roman; suffix: ") "; }
+@counter-style carve-paren-upper-roman { system: extends upper-roman; suffix: ") "; }
+:where(.carve ol[data-delim=")"]:is(:not([type]), [type="1"])) { list-style-type: carve-paren-decimal; }
+:where(.carve ol[data-delim=")"][type="a" s]) { list-style-type: carve-paren-lower-alpha; }
+:where(.carve ol[data-delim=")"][type="A" s]) { list-style-type: carve-paren-upper-alpha; }
+:where(.carve ol[data-delim=")"][type="i" s]) { list-style-type: carve-paren-lower-roman; }
+:where(.carve ol[data-delim=")"][type="I" s]) { list-style-type: carve-paren-upper-roman; }
+
 .carve blockquote {
   border-inline-start: var(--carve-quote-border-width, var(--carve-accent-width)) solid var(--carve-quote-border, color-mix(in srgb, var(--carve-ink) 50%, var(--carve-surface)));
   padding-inline-start: var(--carve-quote-padding, var(--carve-space-4));
@@ -248,10 +263,65 @@
  * aria-label, inline in the item text. */
 .carve li > input[type="checkbox"] {
   margin-inline-end: var(--carve-space-2);
-  /* A disabled control is greyed by the UA, which reads as "broken" rather than
-   * "a rendered state". The list is a document, not a form. */
+  /* Drawn by hand: browsers grey a disabled box and ignore accent-color on it,
+   * so a checked and an open task looked alike. The list is a document, not a form. */
+  appearance: none;
+  inline-size: 1em;
+  block-size: 1em;
+  vertical-align: -0.125em;
+  border: max(var(--carve-border-width), 1.5px) solid var(--carve-ink-soft);
+  border-radius: 0.2em;
+  background: var(--carve-surface);
   opacity: 1;
-  accent-color: var(--carve-accent);
+}
+.carve li > input[type="checkbox"]:checked {
+  border-color: var(--carve-accent);
+  background: var(--carve-accent);
+  box-shadow: inset 0 0 0 0.15em var(--carve-surface);
+}
+/* The fill is a background, which print may drop and forced colors repaint;
+ * the native box draws a real checkmark there. */
+@media print, (forced-colors: active) {
+  .carve li > input[type="checkbox"],
+  .carve li > input[type="checkbox"]:checked {
+    appearance: auto;
+    box-shadow: none;
+  }
+}
+/* The box replaces the bullet: it floats into the marker column, the text starts
+ * where a plain list's does, and a loose item's first paragraph sits beside the
+ * box. A plain list nested in a task keeps its bullets, and an ordered list keeps
+ * its numbers. Without a logical float the bullet-then-box line stays.
+ * A task list names itself (spec PART 19); output from an engine that predates
+ * the class is reached through a gated `:has()` instead. */
+@supports (float: inline-start) {
+  .carve ul.task-list > li {
+    list-style: none;
+  }
+  .carve ul.task-list > li > input[type="checkbox"]:first-child {
+    float: inline-start;
+    /* The base rule's 1em box is in the UA's control font (13.3px in Chromium
+     * and Firefox, 16px in WebKit); the hang below needs the text's em. */
+    font-size: inherit;
+    margin-block: calc((var(--carve-line-height) - 1) * 0.5em) 0;
+    margin-inline: calc(-1em - var(--carve-space-2)) var(--carve-space-2);
+  }
+}
+@supports selector(:has(> a)) and (float: inline-start) {
+  .carve ul > li:has(> input[type="checkbox"]:first-child) {
+    list-style: none;
+  }
+  .carve ul > li > input[type="checkbox"]:first-child {
+    float: inline-start;
+    font-size: inherit;
+    margin-block: calc((var(--carve-line-height) - 1) * 0.5em) 0;
+    margin-inline: calc(-1em - var(--carve-space-2)) var(--carve-space-2);
+  }
+}
+/* A done item names itself too, so its text recedes like a dropped task's,
+ * without the strike that marks a dropped one. */
+.carve li[data-task-state="x"] {
+  color: var(--carve-ink-soft);
 }
 
 /* The four extended states. `[-]`, `[_]`, `[>]` and `[?]` all render the same

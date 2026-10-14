@@ -3,18 +3,18 @@
 `tokens.css`, `core.css`, `extensions.css` and `recipes.css` are copied
 byte-for-byte from `@markup-carve/carve-css`.
 
-Vendored from markup-carve/carve-css version 0.1.5, commit 818245f (the tag
-commit), synced 2026-10-09. The pin is a released tag, not a loose commit. The
+Vendored from markup-carve/carve-css version 0.1.7, commit f96a5e9 (the tag
+commit), synced 2026-10-14. The pin is a released tag, not a loose commit. The
 org dependency map reads this line, so keep its shape when re-syncing.
 
-What this sync brings over 0.1.4 (`98209de`): static tab, code-group and
-spoiler panels no longer take core's heading-section gap above them
-(markup-carve/carve-css#37). `themes/base.css` carried a local `margin: 0` on
-the panels for that until now; it is gone again.
+What this sync brings over 0.1.5 (`818245f`): an ordered list the engine marks
+`data-delim=")"` prints `1)` / `a)` instead of the browser's `1.` / `a.`, and
+task-list checkboxes are drawn by hand and float into the marker column (with
+the native box kept for print and forced colors).
 
-There is no local delta. Only `extensions.css` changed; the other three were
-already byte-identical. Verify against a carve-css checkout with
-`git show 818245f:src/<file>.css | cmp - themes/carve-css/<file>.css`.
+There is no local delta. `tokens.css` is unchanged; `core.css`,
+`extensions.css` and `recipes.css` changed. Verify against a carve-css checkout
+with `git show f96a5e9:src/<file>.css | cmp - themes/carve-css/<file>.css`.
 
 ## Why this is vendored
 
