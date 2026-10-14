@@ -258,6 +258,8 @@ def _is_relative(url: str) -> bool:
 
 
 IMG_SRC = re.compile(r'(<img\b[^>]*?\bsrc=")([^"]*)(")')
+IMG_SRCSET = re.compile(r'(<img\b[^>]*?\bsrcset=")([^"]*)(")')
+SRCSET_CANDIDATE = re.compile(r"[\s,]*(?P<url>[^\s,][^\s]*?)(?=,*(?:\s|$))(?P<desc>[^,]*)?")
 A_HREF = re.compile(r'<a\b(?P<attrs>[^>]*?)\bhref="(?P<url>[^"]*)"(?P<rest>[^>]*)>')
 
 
@@ -275,7 +277,22 @@ def rewrite_images(fragment_html: str) -> str:
         target = (base_dir / unquote(urlsplit(url).path)).as_uri()
         return match.group(1) + html.escape(target, quote=True) + match.group(3)
 
-    return IMG_SRC.sub(replace, fragment_html)
+    def replace_set(match):
+        value = html.unescape(match.group(2))
+        out, pos = [], 0
+        # The HTML srcset grammar: a URL is a run of non-space characters (it may
+        # hold commas, as a data: URL does), trailing commas end a bare candidate,
+        # and a descriptor runs to the next comma.
+        for m in SRCSET_CANDIDATE.finditer(value):
+            url, descriptor = m.group("url"), m.group("desc") or ""
+            if _is_relative(url) and not url.startswith("/"):
+                url = (base_dir / unquote(urlsplit(url).path)).as_uri()
+            out.append(value[pos:m.start("url")] + url + descriptor)
+            pos = m.end("desc") if m.group("desc") is not None else m.end("url")
+        out.append(value[pos:])
+        return match.group(1) + html.escape("".join(out), quote=True) + match.group(3)
+
+    return IMG_SRCSET.sub(replace_set, IMG_SRC.sub(replace, fragment_html))
 
 
 dropped_links = 0
@@ -285,6 +302,16 @@ def rewrite_links(fragment_html: str) -> str:
     def replace(match):
         global dropped_links
         url = html.unescape(match.group("url"))
+        if url.startswith("//") and (PRINT or LINK_BASE):
+            # A PDF has no scheme to inherit; the temporary page's would be file:.
+            joined = urljoin(LINK_BASE, url) if LINK_BASE else "https:" + url
+            if urlsplit(joined).scheme not in ("http", "https"):
+                joined = "https:" + url
+            target = html.escape(joined, quote=True)
+            return f'<a{match.group("attrs")}href="{target}"{match.group("rest")}>'
+        if PRINT and url == "":
+            # Safe mode empties an unsafe href; Chrome would print the temporary page's URL.
+            return f'<a{match.group("attrs")}{match.group("rest").lstrip()}>'
         if not _is_relative(url):
             return match.group(0)
         if LINK_BASE:

@@ -20,6 +20,9 @@ on:
         description: The tag name to check this ref against (e.g. 0.1.0)
         required: true
 
+permissions:
+  contents: read
+
 # Each job declares timeout-minutes so a hung step fails fast
 # instead of inheriting the 360-minute GitHub default.
 jobs:

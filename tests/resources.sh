@@ -53,6 +53,8 @@ printf '# Traversal\n\n![trav](../secret/secret.png)\n' > "$DOC/trav.crv"
 printf '# Absolute\n\n![abs](%s)\n' "$WORK/secret/secret.png" > "$DOC/abs.crv"
 printf '# Symlink\n\n![link](img/link.png)\n' > "$DOC/symlink.crv"
 printf '# Links\n\nSee [chapter two](chapter2.crv), [root](/etc/passwd) and [top](#links).\n' > "$DOC/links.crv"
+printf '# Odd links\n\n[unsafe](javascript:alert(1)) and [host](//example.com/x)\n' > "$DOC/oddlinks.crv"
+printf '# Srcset\n\n![set](missing.png){srcset="img/ok.png 1x"}\n' > "$DOC/srcset.crv"
 
 images() {  # images <pdf>: embedded 2x2 test images (Chrome's broken-image icon is not one)
   pdfimages -list "$1" 2>/dev/null | awk 'NR > 2 && $3 == "image" && $4 == 2 && $5 == 2' | grep -c . || true
@@ -68,6 +70,13 @@ has   "--link-base resolves a relative link" "$WORK/links-base.html" 'href="http
 has   "--link-base leaves a fragment alone"  "$WORK/links-base.html" 'href="#links"'
 "$HERE/crv2pdf.sh" --html "$DOC/ok.crv" "$WORK/ok.html" >/dev/null 2>&1
 has   "an image src stays relative in --html" "$WORK/ok.html" 'src="img/ok.png"'
+
+# srcset candidates are rewritten one by one; a data: URL's comma is not a separator.
+printf '<p><img src="a.png" srcset="data:image/png;base64,AA,BB= 1x, img/b.png 2x"></p>' > "$WORK/set.frag"
+echo '{}' > "$WORK/set.json"
+python3 "$HERE/lib/wrap.py" --print "$WORK/set.frag" "$WORK/set.json" "$DOC" "$WORK/set.html" >/dev/null 2>&1
+has   "a data: srcset candidate survives intact"  "$WORK/set.html" 'srcset="data:image/png;base64,AA,BB= 1x, file://'
+has   "a relative srcset candidate is rewritten" "$WORK/set.html" '/doc/img/b.png 2x"'
 
 echo "== resources: printed PDF =="
 if ! have_chrome; then
@@ -92,6 +101,22 @@ else
   "$HERE/crv2pdf.sh" "$DOC/links.crv" "$WORK/links.pdf" >/dev/null 2>&1
   if grep -aq "file:" "$WORK/links.pdf"; then bad "the PDF carries no file: link"
   else ok "the PDF carries no file: link"; fi
+
+  # A sanitized (emptied) href and a protocol-relative one both resolved against
+  # the temporary page, i.e. into file: URLs naming the build directory.
+  "$HERE/crv2pdf.sh" "$DOC/oddlinks.crv" "$WORK/oddlinks.pdf" >/dev/null 2>&1
+  if grep -aq "file:" "$WORK/oddlinks.pdf"; then bad "an emptied or protocol-relative link is no file: link"
+  else ok "an emptied or protocol-relative link is no file: link"; fi
+  if grep -aq "https://example.com/x" "$WORK/oddlinks.pdf"; then ok "a protocol-relative link prints as https"
+  else bad "a protocol-relative link prints as https"; fi
+
+  "$HERE/crv2pdf.sh" --link-base https://example.org/docs/ "$DOC/oddlinks.crv" "$WORK/oddlinks-base.pdf" >/dev/null 2>&1
+  if grep -aq "file:" "$WORK/oddlinks-base.pdf"; then bad "with --link-base, a protocol-relative link is no file: link"
+  else ok "with --link-base, a protocol-relative link is no file: link"; fi
+
+  "$HERE/crv2pdf.sh" "$DOC/srcset.crv" "$WORK/srcset.pdf" > "$WORK/srcset.out" 2>&1
+  if [ "$(images "$WORK/srcset.pdf")" = "1" ]; then ok "a relative srcset candidate loads from the document directory"
+  else bad "a relative srcset candidate loads from the document directory ($(tr '\n' ' ' < "$WORK/srcset.out"))"; fi
 
   # A local server stands in for a remote host and records what it was asked for.
   python3 - "$WORK/srv" "$DOC/img/ok.png" > "$WORK/server.log" 2>&1 <<'PY' &

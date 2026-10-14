@@ -314,6 +314,13 @@ if "$HERE/crv2pdf.sh" "$FIX/marks.crv" "$WORK/x.docx" --format=docx > "$WORK/fmt
 else ok "an unknown --format is refused"; fi
 [ -e "$WORK/x.docx" ] && bad "an unknown --format writes nothing" || ok "an unknown --format writes nothing"
 
+CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --html "$FIX/marks.crv" "$WORK/no/such/dir/x.html" > "$WORK/nodir.out" 2>&1
+has   "a missing output directory is reported" "$WORK/nodir.out" "output directory does not exist"
+hasnt "a missing output directory prints no traceback" "$WORK/nodir.out" "Traceback"
+if "$HERE/crv2pdf.sh" --md "$FIX/marks.crv" "$WORK/one.md" "$WORK/two.md" > "$WORK/extra.out" 2>&1; then bad "an extra positional argument is refused"
+else ok "an extra positional argument is refused"; fi
+[ -e "$WORK/one.md" ] && bad "an extra positional argument writes nothing" || ok "an extra positional argument writes nothing"
+
 mkdir -p "$WORK/unreadable"; cp "$FIX/marks.crv" "$WORK/unreadable/locked.crv"; chmod 000 "$WORK/unreadable/locked.crv"
 if [ "$(id -u)" = "0" ]; then
   echo "  skip - unreadable input cannot be simulated as root"
