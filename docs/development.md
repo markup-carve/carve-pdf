@@ -5,12 +5,25 @@
 `tests/test.sh` renders the fixtures under `tests/fixtures/` with every available
 backend and asserts structural invariants (bold -> `<strong>`, `list-table` -> real
 `<table>`, `mermaid`/`chart` blocks, page-geometry validation, ...). It runs whichever
-of php/js is present and fails if neither is. CI (`.github/workflows/ci.yml`) builds
-both carve-php and carve-js from their repos and runs it on every push.
+of php/js is present and fails if neither is.
 
 ```bash
 ./tests/test.sh
 ```
+
+CI (`.github/workflows/ci.yml`) runs it twice: against the released engines from
+Packagist and npm, and against both engines built from their default branches. The
+released lane records the versions it resolved in the job summary and keeps the
+lockfiles as the `released-engine-locks` artifact, so a red run can be reproduced.
+A third job renders a sample of the Carve corpus on both backends and fails when the
+output drops words the corpus HTML carries:
+
+```bash
+python3 tests/corpus-content.py ../carve/tests/corpus --sample 300
+```
+
+The shared setup (engines, `websocket-client`, `poppler-utils`) is the composite
+action in `.github/actions/setup`, which `tag.yml` and `release.yml` use as well.
 
 ## Cutting a release
 
