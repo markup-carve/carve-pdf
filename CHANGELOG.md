@@ -15,7 +15,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Canceled, skipped, deferred and question tasks (`[-]`, `[_]`, `[>]`, `[?]`)
   each print their own marker instead of the open-task circle (#38).
 - `tsx`, `json5`, `jsonl` and `vb` fences are highlighted, including TSX on
-  older Pygments installations (#35).
+  older Pygments installations (#35, #40).
 - A PHP fence without a `<?php` opening tag is highlighted as PHP instead of
   printing as plain text (#34).
 - Mermaid diagrams use the body text size and font instead of Mermaid's 16px
