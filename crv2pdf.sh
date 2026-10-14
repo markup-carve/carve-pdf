@@ -120,6 +120,11 @@ elif [ ${#POS[@]} -gt 1 ]; then
   [ $ALL_CRV -eq 1 ] && BATCH=1
 fi
 
+if [ "$BATCH" = "0" ] && [ "$WATCH" = "0" ] && [ ${#POS[@]} -gt 2 ]; then
+  echo "crv2pdf: too many arguments: one input and an optional output (several inputs must all be .crv)" >&2
+  usage
+fi
+
 # --- pick a renderer backend ------------------------------------------------
 # `auto` asks each backend whether it can actually resolve its Carve engine,
 # rather than trusting that an interpreter on PATH means a working backend. A
@@ -176,6 +181,7 @@ build_one() {  # build_one <input.crv> <output>
   local in="$1" out="$2"
   if [ ! -f "$in" ]; then echo "crv2pdf: input not found: $in" >&2; return 1; fi
   if [ ! -r "$in" ]; then echo "crv2pdf: cannot read input: $in" >&2; return 1; fi
+  if [ ! -d "$(dirname "$out")" ]; then echo "crv2pdf: output directory does not exist: $(dirname "$out")" >&2; return 1; fi
 
   # Every step returns explicitly: batch mode calls this as `build_one ... || rc=1`,
   # and a function called in an `||` list runs with `set -e` switched off.

@@ -11,36 +11,45 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - A printed PDF loads images only from the document's directory (or the
   `--include-root` directory). Paths through `../`, absolute paths and symlinks
   that lead elsewhere are blocked and reported, and so are remote images unless
-  `--allow-remote` is given, which bounds each fetch in time and size.
+  `--allow-remote` is given, which bounds each fetch in time and size (#42).
 - Headless Chrome keeps its sandbox on, except when running as root or with
-  `CARVE_CHROME_NO_SANDBOX=1`.
+  `CARVE_CHROME_NO_SANDBOX=1` (#42).
 - Relative links no longer become `file://` URLs naming the build directory:
   they stay relative in `--html` output, print as plain text in a PDF, and
   `--link-base URL` turns them into absolute links. The `--html` output carries
-  no `<base>` and embeds the KaTeX fonts instead of pointing at a local path.
+  no `<base>` and embeds the KaTeX fonts instead of pointing at a local path
+  (#42).
+- A link whose target safe mode removed, or a protocol-relative `//host` link,
+  no longer prints as a `file://` URL naming the build directory; the latter
+  prints as `https:` (#45).
 
 ### Fixed
 
 - The PHP backend renders admonitions with carve-php's core output again: a
   container label such as `::: tip "Pro Tip" [Build]` is printed, and an
-  untitled admonition no longer gets an invented "Note" heading.
+  untitled admonition no longer gets an invented "Note" heading (#43).
 - A failing render, frontmatter read, wrap or print in batch or watch mode
-  fails the run instead of writing an empty output and exiting 0.
+  fails the run instead of writing an empty output and exiting 0 (#43).
 - Wide tables and long words, URLs or code spans wrap at the page edge instead
-  of being cut off.
+  of being cut off (#43).
 - `1)`, `a)` and `A)` lists print their `)` delimiter; the vendored carve-css
-  moves to 0.1.7.
+  moves to 0.1.7 (#43).
 - Frontmatter is read as the engine parses it: `--- yaml`, a tab after `---`
   and `---json` blocks are recognized, and a trailing `# comment` is no longer
-  part of the value.
+  part of the value (#43).
 - An unknown option or `--format` value is refused instead of becoming the
   output path or a PDF with the wrong extension, and an unreadable input is
-  reported without a stack trace.
+  reported without a stack trace (#43).
+- A relative `srcset` candidate loads from the document's directory like `src`
+  does, instead of being blocked (#45).
+- A missing output directory is reported instead of ending in a Python
+  traceback, and an extra positional argument is refused instead of being
+  ignored (#45).
 
 ### Added
 
 - PDFs carry a heading outline (bookmarks), and frontmatter `author` becomes
-  the PDF's Author.
+  the PDF's Author (#43).
 
 ## [0.1.3] - 2026-10-14
 
