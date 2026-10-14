@@ -7,11 +7,13 @@ declare(strict_types=1);
  *
  * Mirrors the shopware-carve plugin's converter (same extension set) so the PDF
  * output matches the storefront/CLI rendering, plus MathBlock and SmartQuotes.
+ * Admonitions are core: registering the legacy AdmonitionExtension over them
+ * dropped the label slot and invented a "Note" heading for untitled blocks.
  * Renders in STATIC mode (interactive constructs flattened, no client JS) with
  * safe mode on (raw HTML escaped).
  *
  * Usage:  php render.php [--format html|md|txt] [include options] <input.crv>
- *         php render.php --meta <input.crv>                   # frontmatter as JSON
+ *         php render.php --meta <input.crv>   # the frontmatter block as JSON, or null
  *
  * Include options:
  *   --include-root DIR  containment root, relative to the cwd (default: the input's directory)
@@ -30,13 +32,13 @@ declare(strict_types=1);
  */
 
 use MarkupCarve\Carve\CarveConverter;
-use MarkupCarve\Carve\Extension\AdmonitionExtension;
 use MarkupCarve\Carve\Extension\AutolinkExtension;
 use MarkupCarve\Carve\Extension\CodeCalloutsExtension;
 use MarkupCarve\Carve\Extension\CodeGroupExtension;
 use MarkupCarve\Carve\Extension\DetailsExtension;
 use MarkupCarve\Carve\Extension\ExternalLinksExtension;
 use MarkupCarve\Carve\Extension\FencedRenderExtension;
+use MarkupCarve\Carve\Extension\Frontmatter;
 use MarkupCarve\Carve\Extension\InlineFootnotesExtension;
 use MarkupCarve\Carve\Extension\ListTableExtension;
 use MarkupCarve\Carve\Extension\MathBlockExtension;
@@ -150,37 +152,28 @@ $input = $rest[0] ?? null;
 if ($input === null || !is_file($input)) {
     fail('input .crv file not found: ' . ($input ?? '(none)'));
 }
+if (!is_readable($input)) {
+    fail("cannot read input: {$input}");
+}
 $source = file_get_contents($input);
 if ($source === false) {
-    fail("could not read {$input}");
+    fail("cannot read input: {$input}");
 }
 
-// --- frontmatter (leading ---<fmt> ... --- block) ---------------------------
-function parseFrontmatter(string $src): array
-{
-    if (!preg_match('/^---[a-z]*\R(.*?)\R---\s*\R/su', $src, $m)) {
-        return [];
-    }
-    $out = [];
-    foreach (preg_split('/\R/u', $m[1]) as $line) {
-        if (!preg_match('/^([A-Za-z0-9_-]+)\s*:\s*(.*)$/', $line, $kv)) {
-            continue;
-        }
-        $key = $kv[1];
-        $val = trim($kv[2]);
-        if (strlen($val) >= 2 && ($val[0] === '"' || $val[0] === "'") && $val[-1] === $val[0]) {
-            $val = substr($val, 1, -1);
-        } elseif (str_starts_with($val, '[') && str_ends_with($val, ']')) {
-            $items = array_map('trim', explode(',', substr($val, 1, -1)));
-            $val = array_values(array_filter($items, static fn ($s) => $s !== ''));
-        }
-        $out[$key] = $val;
-    }
-    return $out;
-}
-
+// --- frontmatter ------------------------------------------------------------
+// The block exactly as the engine parsed it ({format, content} or null), so the
+// opener rules are the engine's; meta.py turns it into keys.
 if ($metaOnly) {
-    echo json_encode(parseFrontmatter($source), JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
+    $block = null;
+    if (class_exists(Frontmatter::class)) {
+        foreach ((new CarveConverter())->parse($source)->getChildren() as $child) {
+            if ($child instanceof Frontmatter) {
+                $block = ['format' => $child->getFormat(), 'content' => $child->getContent()];
+            }
+            break;
+        }
+    }
+    echo json_encode($block, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     exit(0);
 }
 
@@ -275,7 +268,6 @@ $converter = new CarveConverter(
     mode: RenderMode::STATIC,
 );
 $converter->addExtensions([
-    new AdmonitionExtension(),
     new CodeGroupExtension(),
     new DetailsExtension(),
     new SpoilerExtension(),

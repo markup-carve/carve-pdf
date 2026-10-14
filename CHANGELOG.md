@@ -19,6 +19,29 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   `--link-base URL` turns them into absolute links. The `--html` output carries
   no `<base>` and embeds the KaTeX fonts instead of pointing at a local path.
 
+### Fixed
+
+- The PHP backend renders admonitions with carve-php's core output again: a
+  container label such as `::: tip "Pro Tip" [Build]` is printed, and an
+  untitled admonition no longer gets an invented "Note" heading.
+- A failing render, frontmatter read, wrap or print in batch or watch mode
+  fails the run instead of writing an empty output and exiting 0.
+- Wide tables and long words, URLs or code spans wrap at the page edge instead
+  of being cut off.
+- `1)`, `a)` and `A)` lists print their `)` delimiter; the vendored carve-css
+  moves to 0.1.7.
+- Frontmatter is read as the engine parses it: `--- yaml`, a tab after `---`
+  and `---json` blocks are recognized, and a trailing `# comment` is no longer
+  part of the value.
+- An unknown option or `--format` value is refused instead of becoming the
+  output path or a PDF with the wrong extension, and an unreadable input is
+  reported without a stack trace.
+
+### Added
+
+- PDFs carry a heading outline (bookmarks), and frontmatter `author` becomes
+  the PDF's Author.
+
 ## [0.1.3] - 2026-10-14
 
 ### Fixed

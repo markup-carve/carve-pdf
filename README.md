@@ -61,7 +61,7 @@ the source (the default) or copy the images along.
 ```
 render.php / render.mjs   Carve -> faithful HTML fragment (static, raw HTML off)
    |
-meta.py                   frontmatter -> JSON (renderer-independent)
+meta.py                   frontmatter block (as the engine parsed it) -> JSON keys
    |
 wrap.py                   + frontmatter (title/author/date/kicker) + base.css + print.css
    |
@@ -89,8 +89,8 @@ probe, so asking for a backend reports that backend's own error.
 Both register the same extension set (the shopware-carve plugin's) in static mode.
 Output is **equivalent, not byte-identical**:
 
-- carve-js emits `<aside>` / `<h3>` where carve-php emits `<div role=...>` / `<p>` -
-  `base.css` styles by class, so the rendered PDF looks the same either way.
+- Both emit admonitions as `<aside class="admonition ...">` with the title and label
+  slot from the engine core; `base.css` styles them by class.
 - Inline `[...]{.fn}` footnotes are **numbered endnotes** under PHP (via its
   `InlineFootnotesExtension`) but plain inline `<span class="fn">` under JS (carve-js
   has no such extension). Regular `[^1]` footnotes work identically in both.
@@ -153,6 +153,11 @@ pageBreaks: h2                      # h2 (each ## a new page) | none | manual
 ---
 ```
 
+The block is read as the engine parses it, so `---`, `--- yaml` and `---json` all
+work; `json` content is parsed as JSON, anything else as `key: value` lines with
+`# comments` dropped. `author` also becomes the PDF's Author, and every PDF carries a
+heading outline (bookmarks).
+
 **Page breaks.** `h2` (default) starts each top-level section on a fresh page; `none`
 lets content flow; `manual` breaks only at an explicit `::: pagebreak` block in the
 source. The `::: pagebreak` marker works in every mode.
@@ -189,7 +194,7 @@ footer (and page numbers) entirely.
 
 ## Themes
 
-Styling is the released `carve-css` 0.1.5 construct vocabulary followed by two
+Styling is the released `carve-css` 0.1.7 construct vocabulary followed by two
 PDF-specific layers in `themes/`:
 
 - `carve-css/{tokens,core,extensions,recipes}.css` - byte-for-byte vendored from the

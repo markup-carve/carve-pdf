@@ -75,6 +75,41 @@ for be in "${backends[@]}"; do
   has  "chart block"     "$c" 'class="chart"'
 done
 
+# --- admonitions: the engine's own container output --------------------------
+# carve-php's core renders the label slot and leaves an untitled admonition
+# without a generated heading; a legacy extension registered over it did neither.
+printf '::: tip "Pro Tip" [Build]\nTipBody.\n:::\n\n::: note\nUntitledBody.\n:::\n' > "$WORK/adm.crv"
+for be in "${backends[@]}"; do
+  echo "== admonitions: $be =="
+  a="$WORK/adm.$be.html"; render "$be" "$WORK/adm.crv" "$a"
+  has   "titled admonition keeps its title" "$a" '>Pro Tip</p>'
+  has   "the label slot is rendered"        "$a" 'class="div-label">Build</p>'
+  hasnt "no heading is invented for an untitled admonition" "$a" '>Note</p>'
+  has   "admonition is an aside"            "$a" '<aside class="admonition note"'
+done
+
+# --- frontmatter forms -------------------------------------------------------
+# Opener: `---`, then one space and a format, or a format right after, or only
+# trailing whitespace. Two spaces or a tab before the format is not an opener.
+fm_case() {  # fm_case <name> <expected title or -> <printf format>
+  printf -- "$3" > "$WORK/fm-$1.crv"
+}
+fm_case space   "Space Title" '--- yaml\ntitle: Space Title\n---\n\nbody\n'
+fm_case tab     "Tab Title"   '---\t\ntitle: Tab Title\n---\n\nbody\n'
+fm_case json    "JSON Title"  '---json\n{"title": "JSON Title", "author": "J"}\n---\n\nbody\n'
+fm_case comment "Real Title"  '---\ntitle: Real Title # a comment\n---\n\nbody\n'
+fm_case hash    "A # B"       '---\ntitle: "A # B" # trailing\n---\n\nbody\n'
+fm_case twosp   "-"           '---  yaml\ntitle: Not Frontmatter\n---\n\nbody\n'
+fm_case tabfmt  "-"           '---\tyaml\ntitle: Not Frontmatter\n---\n\nbody\n'
+for be in "${backends[@]}"; do
+  echo "== frontmatter: $be =="
+  for spec in "space:Space Title" "tab:Tab Title" "json:JSON Title" "comment:Real Title" "hash:A # B" "twosp:Carve document" "tabfmt:Carve document"; do
+    name="${spec%%:*}"; want="${spec#*:}"
+    CARVE_RENDERER="$be" "$HERE/crv2pdf.sh" --html "$WORK/fm-$name.crv" "$WORK/fm-$name.$be.html" >/dev/null 2>&1
+    has "frontmatter $name: title is '$want'" "$WORK/fm-$name.$be.html" "<title>$want</title>"
+  done
+done
+
 # --- includes ----------------------------------------------------------------
 INC="$WORK/inc"
 mkdir -p "$INC/doc/sub" "$INC/outside"
@@ -269,6 +304,41 @@ fi
 has   "missing websocket-client names the package" "$WORK/nows.out" "pip install websocket-client"
 hasnt "missing websocket-client prints no traceback" "$WORK/nows.out" "Traceback"
 
+# --- front end: argument validation and failure propagation ------------------
+echo "== front end: arguments and failures =="
+if "$HERE/crv2pdf.sh" "$FIX/marks.crv" --bogus > "$WORK/bogus.out" 2>&1; then bad "an unknown flag is refused"
+else ok "an unknown flag is refused"; fi
+has   "the unknown flag is named" "$WORK/bogus.out" "--bogus"
+[ -e "$HERE/--bogus" ] && { bad "an unknown flag is not used as the output path"; rm -f "$HERE/--bogus"; } || ok "an unknown flag is not used as the output path"
+if "$HERE/crv2pdf.sh" "$FIX/marks.crv" "$WORK/x.docx" --format=docx > "$WORK/fmt.out" 2>&1; then bad "an unknown --format is refused"
+else ok "an unknown --format is refused"; fi
+[ -e "$WORK/x.docx" ] && bad "an unknown --format writes nothing" || ok "an unknown --format writes nothing"
+
+mkdir -p "$WORK/unreadable"; cp "$FIX/marks.crv" "$WORK/unreadable/locked.crv"; chmod 000 "$WORK/unreadable/locked.crv"
+if [ "$(id -u)" = "0" ]; then
+  echo "  skip - unreadable input cannot be simulated as root"
+else
+  for be in "${backends[@]}"; do
+    CARVE_RENDERER="$be" "$HERE/crv2pdf.sh" --html "$WORK/unreadable/locked.crv" "$WORK/locked.html" > "$WORK/locked.$be.out" 2>&1
+    has   "$be: unreadable input is reported" "$WORK/locked.$be.out" "cannot read"
+    hasnt "$be: unreadable input prints no stack trace" "$WORK/locked.$be.out" "    at "
+  done
+fi
+chmod 600 "$WORK/unreadable/locked.crv"
+
+# A renderer that fails mid-batch must fail the batch and leave no output behind.
+printf '<?php exit(3);\n' > "$WORK/broken-autoload.php"
+cp "$FIX/marks.crv" "$WORK/batch-a.crv"; cp "$FIX/marks.crv" "$WORK/batch-b.crv"
+for fmt in html md; do
+  rm -f "$WORK/out-$fmt"/*
+  if CARVE_RENDERER=php CARVE_PHP_AUTOLOAD="$WORK/broken-autoload.php" \
+      "$HERE/crv2pdf.sh" "--$fmt" --out-dir "$WORK/out-$fmt" "$WORK/batch-a.crv" "$WORK/batch-b.crv" >/dev/null 2>&1; then
+    bad "batch --$fmt: a failing render fails the batch"
+  else ok "batch --$fmt: a failing render fails the batch"; fi
+  if ls "$WORK/out-$fmt"/batch-* >/dev/null 2>&1; then bad "batch --$fmt: a failing render writes no output"
+  else ok "batch --$fmt: a failing render writes no output"; fi
+done
+
 # --- no absolute author paths anywhere in the tree ---------------------------
 # These shipped once as resolver fallbacks: they leak the author's directory
 # layout into the release tarball, and they mask a broken default resolution by
@@ -306,6 +376,12 @@ fi
 # --- resource containment ---------------------------------------------------
 echo
 if ! "$HERE/tests/resources.sh"; then
+  fail=$((fail+1))
+fi
+
+# --- nothing lost on paper: clipping, delimiters, outline, metadata ---------
+echo
+if ! "$HERE/tests/print-content.sh"; then
   fail=$((fail+1))
 fi
 

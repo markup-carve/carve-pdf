@@ -59,6 +59,19 @@ thead { display: table-header-group; }
 p:has(+ pre), p:has(+ figure) { break-after: avoid; break-inside: avoid; }
 tr { break-inside: avoid; }
 
+/* paper cannot scroll: a long word, URL or code span wraps instead of running
+ * past the page edge, and `anywhere` (unlike `break-word`) also lowers a table
+ * cell's minimum width, so a wide table shrinks to the page */
+.carve { overflow-wrap: anywhere; }
+.carve table { max-width: 100%; }
+
+/* `a)` / `i)` lists: carve-css keys these on a selector flag Chrome lacks, so
+ * wrap.py names the style in a class (carve-css defines the counter styles) */
+.carve ol.carve-delim-lower-alpha { list-style-type: carve-paren-lower-alpha; }
+.carve ol.carve-delim-upper-alpha { list-style-type: carve-paren-upper-alpha; }
+.carve ol.carve-delim-lower-roman { list-style-type: carve-paren-lower-roman; }
+.carve ol.carve-delim-upper-roman { list-style-type: carve-paren-upper-roman; }
+
 /* document header (kicker) + byline footer emitted by wrap.py */
 .doc-header {
   margin: 0 0 6px;

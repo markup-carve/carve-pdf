@@ -408,9 +408,13 @@
   margin-block-end: var(--carve-space-2);
 }
 /* The <li value="N"> number is what binds the item to its marker, and a plain
- * list-style would show it as "N." rather than as the same badge. */
+ * list-style would show it as "N." rather than as the same badge. The number
+ * is read off the attribute, not from a counter: the item is a flex container,
+ * which is not a list item, so `counter(list-item)` never increments and every
+ * badge printed 0 (#40). The attribute is also the only right answer when the
+ * numbers are non-sequential - a counter would renumber them 1, 2, 3. */
 .carve .callouts > li::before {
-  content: counter(list-item);
+  content: attr(value);
   display: inline-flex;
   align-items: center;
   justify-content: center;
