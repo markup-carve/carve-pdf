@@ -303,6 +303,12 @@ if ! "$HERE/tests/fences.sh"; then
   fail=$((fail+1))
 fi
 
+# --- resource containment ---------------------------------------------------
+echo
+if ! "$HERE/tests/resources.sh"; then
+  fail=$((fail+1))
+fi
+
 # --- print styles found by the visual audit ---------------------------------
 echo
 if ! "$HERE/tests/print-styles.sh"; then

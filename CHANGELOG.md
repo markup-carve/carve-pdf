@@ -4,6 +4,21 @@ All notable changes to carve-pdf are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Security
+
+- A printed PDF loads images only from the document's directory (or the
+  `--include-root` directory). Paths through `../`, absolute paths and symlinks
+  that lead elsewhere are blocked and reported, and so are remote images unless
+  `--allow-remote` is given, which bounds each fetch in time and size.
+- Headless Chrome keeps its sandbox on, except when running as root or with
+  `CARVE_CHROME_NO_SANDBOX=1`.
+- Relative links no longer become `file://` URLs naming the build directory:
+  they stay relative in `--html` output, print as plain text in a PDF, and
+  `--link-base URL` turns them into absolute links. The `--html` output carries
+  no `<base>` and embeds the KaTeX fonts instead of pointing at a local path.
+
 ## [0.1.3] - 2026-10-14
 
 ### Fixed

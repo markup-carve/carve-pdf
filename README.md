@@ -42,6 +42,20 @@ naming it goes to stderr. Warnings name files relative to the root. Includes nee
 carve-php or carve-js that ships the include pass; with an older engine the directives
 stay literal and a warning says so.
 
+**Images and links.** When printing a PDF, an image loads only from the input's
+directory (or the `--include-root` directory). A path that leads elsewhere, through
+`../`, an absolute path or a symlink, is blocked, and so is any `http(s)` image; each
+block is reported on stderr and the document prints without that image.
+
+- `--allow-remote` fetches `http(s)` images. Each one is bounded to 10 seconds and
+  10 MB (`CARVE_PDF_REMOTE_TIMEOUT`, `CARVE_PDF_REMOTE_MAX_BYTES`).
+- `--link-base URL` resolves relative links such as `[next](chapter2.crv)` against a
+  URL. Without it a relative link stays relative in `--html` output and prints as
+  plain text in a PDF, where it could only point into the build machine's filesystem.
+
+In `--html` output, image paths stay relative to the HTML file, so write it next to
+the source (the default) or copy the images along.
+
 ## Pipeline
 
 ```
@@ -49,7 +63,7 @@ render.php / render.mjs   Carve -> faithful HTML fragment (static, raw HTML off)
    |
 meta.py                   frontmatter -> JSON (renderer-independent)
    |
-wrap.py                   + frontmatter (title/author/date/kicker) + <base href> + base.css + print.css
+wrap.py                   + frontmatter (title/author/date/kicker) + base.css + print.css
    |
 print_cdp.py              HTML -> PDF via Chrome DevTools (page-number footer, printBackground)
 ```
@@ -165,6 +179,9 @@ found are in [docs/rendering.md](docs/rendering.md).
 | `CARVE_MERMAID` | autodetect | `mermaid.min.js` for diagram rendering |
 | `CARVE_CHART` | autodetect | `chart.umd.js` for chart rendering |
 | `CHROME_BIN` | autodetect | Chrome/Chromium binary |
+| `CARVE_CHROME_NO_SANDBOX` | unset | `1` starts Chrome without its sandbox. Only for a host that cannot provide one; running as root does this automatically |
+| `CARVE_PDF_REMOTE_TIMEOUT` | `10` | Seconds per remote image with `--allow-remote` |
+| `CARVE_PDF_REMOTE_MAX_BYTES` | `10485760` | Size limit per remote image with `--allow-remote` |
 
 The footer template accepts `{page}` and `{pages}`. Precedence: frontmatter `footer:`
 > `CARVE_PDF_FOOTER` > the English default. Set it to an empty string to drop the
@@ -196,9 +213,12 @@ Check which version is on PATH with `crv2pdf --version`.
 ## Known limitations
 
 - **Tabs** are auto-labeled `Tab N` in static output; use `code-group` for labeled tabs.
-- **Images** must use relative or `https:` URLs - `data:` and `file:` URIs are neutralized
-  by safe mode (an XSS defense inherited from carve-php). Relative paths resolve against
-  the `.crv`'s directory via an injected `<base href>`.
+- **Images** must use relative paths inside the document's directory, or `http(s)`
+  URLs together with `--allow-remote`. `data:` and `file:` URIs are neutralized by safe
+  mode (an XSS defense inherited from carve-php).
+- **Untrusted documents.** Headless Chrome runs with its sandbox on, unless carve-pdf
+  runs as root or `CARVE_CHROME_NO_SANDBOX=1` is set; in a container, prefer a non-root
+  user. Request interception covers the printed page and its same-process frames.
 
 See `examples/demo.crv` for a document exercising the full markup spectrum, and
 [`examples/README.md`](examples/README.md) for the smaller focused examples

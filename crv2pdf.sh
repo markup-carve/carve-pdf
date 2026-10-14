@@ -12,6 +12,12 @@
 #   --no-includes        leave directives literal
 # --watch also rebuilds when an included file changes.
 #
+# Resources (PDF): images load from the input's directory (or --include-root)
+# only; anything else is blocked and reported.
+#   --allow-remote       also fetch http(s) images (size- and time-bounded)
+#   --link-base URL      resolve relative links against URL; without it they stay
+#                        relative in --html and print as plain text in a PDF
+#
 # Output format (default --pdf):
 #   --pdf   paginated PDF (render -> wrap -> Chrome print)
 #   --html  standalone styled HTML document (render -> wrap)
@@ -53,6 +59,8 @@ WATCH=0
 OUT_DIR=""
 INCLUDE_ROOT=""
 INC_ARGS=()
+PRINT_ARGS=()
+WRAP_ARGS=()
 POS=()
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -65,12 +73,15 @@ while [ $# -gt 0 ]; do
     --include-root) INCLUDE_ROOT="${2:-}"; INC_ARGS+=(--include-root "${2:-}"); shift ;;
     --include-root=*) INCLUDE_ROOT="${1#--include-root=}"; INC_ARGS+=(--include-root "$INCLUDE_ROOT") ;;
     --no-includes) INC_ARGS+=(--no-includes) ;;
+    --allow-remote) PRINT_ARGS+=(--allow-remote) ;;
+    --link-base) WRAP_ARGS+=(--link-base "${2:-}"); shift ;;
+    --link-base=*) WRAP_ARGS+=(--link-base "${1#--link-base=}") ;;
     *) POS+=("$1") ;;
   esac
   shift
 done
 
-usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes] [--version]" >&2; exit 2; }
+usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes] [--allow-remote] [--link-base URL] [--version]" >&2; exit 2; }
 [ ${#POS[@]} -ge 1 ] || usage
 
 # Fail before rendering, with the fix named, rather than mid-pipeline.
@@ -157,7 +168,9 @@ build_one() {  # build_one <input.crv> <output>
   render "$in" html
   python3 "$LIB/meta.py" "$in" > "$WORK/meta.json"
   local srcdir; srcdir="$(cd "$(dirname "$in")" && pwd)"
-  python3 "$LIB/wrap.py" "$WORK/frag" "$WORK/meta.json" "$srcdir" "$WORK/doc.html" \
+  local mode=(); [ "$FORMAT" = "pdf" ] && mode=(--print)
+  python3 "$LIB/wrap.py" ${mode[@]+"${mode[@]}"} ${WRAP_ARGS[@]+"${WRAP_ARGS[@]}"} \
+    "$WORK/frag" "$WORK/meta.json" "$srcdir" "$WORK/doc.html" \
     "$THEMES/carve-css/tokens.css" "$THEMES/carve-css/core.css" \
     "$THEMES/carve-css/extensions.css" "$THEMES/carve-css/recipes.css" \
     "$THEMES/base.css" "$THEMES/print.css" >/dev/null
@@ -168,14 +181,19 @@ build_one() {  # build_one <input.crv> <output>
     return 0
   fi
 
+  # Images may come from the input's directory, or the include root when one is set.
+  local allow=(--allow-dir "$srcdir")
+  if [ -n "$INCLUDE_ROOT" ]; then allow+=(--allow-dir "$INCLUDE_ROOT"); fi
+  allow+=(${PRINT_ARGS[@]+"${PRINT_ARGS[@]}"})
+
   # pdf: frontmatter `footer` wins (even when explicitly empty), else print_cdp's
   # default chain ($CARVE_PDF_FOOTER, then the English default).
   local present; present="$(python3 -c 'import json,sys; print(int("footer" in json.load(open(sys.argv[1]))))' "$WORK/meta.json")"
   if [ "$present" = "1" ]; then
     local footer; footer="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["footer"])' "$WORK/meta.json")"
-    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" >/dev/null
+    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" "${allow[@]}" >/dev/null
   else
-    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" >/dev/null
+    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "${allow[@]}" >/dev/null
   fi
   echo "PDF: $out ($RENDERER backend)"
 }
