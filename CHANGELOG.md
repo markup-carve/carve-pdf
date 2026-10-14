@@ -4,40 +4,44 @@ All notable changes to carve-pdf are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
-## [Unreleased]
+## [0.1.3] - 2026-10-14
+
+### Fixed
+
+- A `::: toc` marker prints a table of contents at that spot instead of an
+  empty box (#38).
+- A ` ```math ` fence is typeset with KaTeX under the PHP backend instead of
+  printing its TeX source (#38).
+- Skipped, deferred and question tasks (`[_]`, `[>]`, `[?]`) each print their
+  own marker instead of the open-task circle (#38).
+- `tsx`, `json5`, `jsonl` and `vb` fences are highlighted (#35).
+- A PHP fence without a `<?php` opening tag is highlighted as PHP instead of
+  printing as plain text (#34).
+- Mermaid diagrams use the body text size and font instead of Mermaid's 16px
+  default, and sequence diagrams scale their boxes and gaps to match (#30).
+- Thematic breaks inside a section and the rule above the footnotes print
+  again; only a break directly before a section that starts a new page is
+  dropped (#29).
+- Inserted text is underlined without the edge slivers an inset shadow left in
+  print, plain strikethrough keeps the body color, and an abbreviation's
+  printed expansion is no longer underlined with it (#29).
+- Math typeset by KaTeX drops the code-style chip and box meant for raw TeX
+  (#29).
+- Tables close their last row, nested lists add no gap inside their item, a
+  figure's image is centered over its caption, and a figure group's caption
+  spans the group (#29).
+- Code inside a quote is not italic, and a fence's `"Header"` prints in the top
+  left corner of the listing (#29).
+- Tab and code-group panels print with even spacing and full-width labels, the
+  byline stays with the content above it, and a chart keeps its margin (#29).
+- Printing on a slow machine no longer fails after a fixed 15 seconds waiting
+  for Chrome, and the error says whether Chrome exited or never listed a page
+  (#33).
 
 ### Added
 
 - Code callouts: `<1>` markers in a fence print as numbered badges that match
-  the explanation list below the fence.
-- A `::: toc` marker prints a table of contents at that spot.
-
-### Fixed
-
-- A `::: toc` marker no longer prints as an empty box.
-- A ` ```math ` fence is typeset with KaTeX under the PHP backend instead of
-  printing its TeX source.
-- Skipped, deferred and question tasks (`[_]`, `[>]`, `[?]`) each print their
-  own marker instead of the open-task circle.
-- `tsx`, `json5`, `jsonl` and `vb` fences are highlighted.
-- A PHP fence without a `<?php` opening tag is highlighted as PHP instead of
-  printing as plain text.
-- Mermaid diagrams use the body text size and font instead of Mermaid's 16px
-  default, and sequence diagrams scale their boxes and gaps to match.
-- Thematic breaks inside a section and the rule above the footnotes print
-  again; only a break directly before a section that starts a new page is
-  dropped.
-- Inserted text is underlined without the edge slivers an inset shadow left in
-  print, plain strikethrough keeps the body color, and an abbreviation's
-  printed expansion is no longer underlined with it.
-- Math typeset by KaTeX drops the code-style chip and box meant for raw TeX.
-- Tables close their last row, nested lists add no gap inside their item, a
-  figure's image is centered over its caption, and a figure group's caption
-  spans the group.
-- Code inside a quote is not italic, and a fence's `"Header"` prints in the top
-  left corner of the listing.
-- Tab and code-group panels print with even spacing and full-width labels, the
-  byline stays with the content above it, and a chart keeps its margin.
+  the explanation list below the fence (#38).
 
 ## [0.1.2] - 2026-10-09
 
