@@ -1,0 +1,162 @@
+name: Set up carve-pdf's test dependencies
+description: >
+  Installs a Carve engine pair (the released packages, or both default branches
+  built from source) and the browser gates' dependencies, records what was
+  resolved in the job summary, and exports CARVE_PHP_AUTOLOAD and CARVE_JS for
+  the steps that follow. Shared by ci.yml, tag.yml and release.yml so the three
+  cannot drift apart.
+
+inputs:
+  engines:
+    description: "`released` (Packagist + npm) or `main` (both default branches, built)"
+    default: released
+  browser-gates:
+    description: Install what the browser gates need (websocket-client, poppler-utils)
+    default: 'true'
+
+runs:
+  using: composite
+  steps:
+    - name: Set up PHP
+      uses: shivammathur/setup-php@v2
+      with:
+        php-version: '8.3'
+
+    - name: Cache Composer downloads
+      uses: actions/cache@v4
+      with:
+        path: ~/.cache/composer
+        key: composer-${{ inputs.engines }}-${{ runner.os }}-${{ github.run_id }}
+        restore-keys: composer-${{ inputs.engines }}-${{ runner.os }}-
+
+    # --- released engines -----------------------------------------------------
+    - name: Install carve-php from Packagist
+      if: inputs.engines == 'released'
+      shell: bash
+      run: |
+        mkdir -p _deps/php
+        composer require --working-dir=_deps/php \
+          markup-carve/carve-php --no-interaction --no-progress
+        echo "CARVE_PHP_AUTOLOAD=$GITHUB_WORKSPACE/_deps/php/vendor/autoload.php" >> "$GITHUB_ENV"
+
+    - name: Set up Node
+      if: inputs.engines == 'released'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+    # There is no lockfile for setup-node's own cache to key on, so the download
+    # cache is restored by prefix; the resolution itself stays fresh.
+    - name: Cache npm downloads
+      if: inputs.engines == 'released'
+      uses: actions/cache@v4
+      with:
+        path: ~/.npm
+        key: npm-released-${{ runner.os }}-${{ github.run_id }}
+        restore-keys: npm-released-${{ runner.os }}-
+    - name: Install the carve package from npm
+      if: inputs.engines == 'released'
+      shell: bash
+      run: |
+        mkdir -p _deps/js
+        cd _deps/js
+        npm init -y > /dev/null
+        npm install "@markup-carve/carve" --no-audit --no-fund
+        echo "CARVE_JS=$GITHUB_WORKSPACE/_deps/js/node_modules/@markup-carve/carve/dist/index.js" >> "$GITHUB_ENV"
+
+    # The released lane resolves the newest packages on every run; that is its
+    # job. What it resolved is recorded, so a red run can be reproduced exactly.
+    - name: Record the resolved engines
+      if: inputs.engines == 'released'
+      shell: bash
+      run: |
+        php_info="$(composer show --working-dir=_deps/php --format=json markup-carve/carve-php)"
+        js_lock=_deps/js/package-lock.json
+        js_key='node_modules/@markup-carve/carve'
+        {
+          echo "### Released engines under test"
+          echo
+          echo "| package | version | source |"
+          echo "|---|---|---|"
+          printf '| markup-carve/carve-php | %s | %s |\n' \
+            "$(jq -r '.versions[0]' <<< "$php_info")" "$(jq -r '.source.reference // "-"' <<< "$php_info")"
+          printf '| @markup-carve/carve | %s | %s |\n' \
+            "$(jq -r --arg k "$js_key" '.packages[$k].version' "$js_lock")" \
+            "$(jq -r --arg k "$js_key" '.packages[$k].integrity' "$js_lock")"
+          echo
+          echo 'The exact trees are in the `released-engine-locks` artifact (composer.lock, package-lock.json).'
+        } | tee -a "$GITHUB_STEP_SUMMARY"
+    - name: Keep the lockfiles
+      if: inputs.engines == 'released'
+      uses: actions/upload-artifact@v4
+      with:
+        name: released-engine-locks-${{ github.job }}
+        path: |
+          _deps/php/composer.lock
+          _deps/js/package-lock.json
+        retention-days: 30
+
+    # --- engines from main ----------------------------------------------------
+    - name: Checkout carve-php
+      if: inputs.engines == 'main'
+      uses: actions/checkout@v4
+      with:
+        repository: markup-carve/carve-php
+        ref: main
+        path: _deps/carve-php
+    - name: Checkout carve-js
+      if: inputs.engines == 'main'
+      uses: actions/checkout@v4
+      with:
+        repository: markup-carve/carve-js
+        ref: main
+        path: _deps/carve-js
+    - name: Build carve-php autoloader
+      if: inputs.engines == 'main'
+      shell: bash
+      working-directory: _deps/carve-php
+      run: |
+        composer install --no-interaction --no-progress
+        echo "CARVE_PHP_AUTOLOAD=$GITHUB_WORKSPACE/_deps/carve-php/vendor/autoload.php" >> "$GITHUB_ENV"
+    - name: Set up Node with the carve-js npm cache
+      if: inputs.engines == 'main'
+      uses: actions/setup-node@v4
+      with:
+        node-version: '20'
+        cache: npm
+        cache-dependency-path: _deps/carve-js/package-lock.json
+    - name: Build carve-js
+      if: inputs.engines == 'main'
+      shell: bash
+      working-directory: _deps/carve-js
+      run: |
+        npm ci --no-audit --no-fund
+        npm run build
+        echo "CARVE_JS=$GITHUB_WORKSPACE/_deps/carve-js/dist/index.js" >> "$GITHUB_ENV"
+    - name: Record the engine commits
+      if: inputs.engines == 'main'
+      shell: bash
+      run: |
+        {
+          echo "### Engines from main under test"
+          echo
+          git -C _deps/carve-php log -1 --format='- carve-php `%h` %s'
+          git -C _deps/carve-js log -1 --format='- carve-js `%h` %s'
+        } | tee -a "$GITHUB_STEP_SUMMARY"
+
+    # --- browser gate dependencies --------------------------------------------
+    # The browser gates SKIP without websocket-client and poppler, and a skipped
+    # gate reports success over a surface it never rendered. The runner's apt
+    # lists are normally fresh enough, so `apt-get update` only runs when the
+    # install needs it.
+    - name: Install the browser gates' dependencies
+      if: inputs.browser-gates == 'true'
+      shell: bash
+      run: |
+        python3 -m pip install --quiet websocket-client \
+          || python3 -m pip install --quiet --break-system-packages websocket-client
+        if ! command -v pdftotext >/dev/null 2>&1; then
+          sudo apt-get install -y -qq --no-install-recommends poppler-utils \
+            || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends poppler-utils; }
+        fi
+        pdftotext -v 2>&1 | head -1
+        google-chrome --version

@@ -5,6 +5,12 @@ on:
     branches: [main]
   pull_request:
 
+# A new push to a PR supersedes the run still going for it. Pushes to main each
+# keep their own run (the run id is unique), so main's history stays complete.
+concurrency:
+  group: ci-${{ github.event.pull_request.number && format('pr-{0}', github.event.pull_request.number) || github.run_id }}
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
+
 # Each job declares timeout-minutes so a hung step fails fast
 # instead of inheriting the 360-minute GitHub default.
 jobs:
@@ -16,48 +22,12 @@ jobs:
       - name: Checkout carve-pdf
         uses: actions/checkout@v4
 
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
+      - name: Set up the released engines and gate dependencies
+        uses: ./.github/actions/setup
         with:
-          php-version: '8.3'
-      - name: Install carve-php from Packagist
-        run: |
-          mkdir -p _deps/php
-          composer require --working-dir=_deps/php \
-            markup-carve/carve-php --no-interaction --no-progress
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Install the carve package from npm
-        run: |
-          mkdir -p _deps/js
-          cd _deps/js
-          npm init -y > /dev/null
-          npm install "@markup-carve/carve" --no-audit --no-fund
-
-      - name: Report the resolved engine versions
-        run: |
-          composer show --working-dir=_deps/php markup-carve/carve-php | grep -E '^(name|versions)'
-          node -p "require('./_deps/js/node_modules/@markup-carve/carve/package.json').version"
-
-      # The panel gate needs a browser and pdftotext, and it SKIPS without
-      # them. A skipped gate reports success over the surface it never
-      # rendered, which is the failure the gate itself exists to prevent, so
-      # these are installed rather than left to the runner image.
-      - name: Install the panel gate's dependencies
-        run: |
-          python3 -m pip install --quiet websocket-client \
-            || python3 -m pip install --quiet --break-system-packages websocket-client
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq poppler-utils
-          google-chrome --version
+          engines: released
 
       - name: Run tests
-        env:
-          CARVE_PHP_AUTOLOAD: ${{ github.workspace }}/_deps/php/vendor/autoload.php
-          CARVE_JS: ${{ github.workspace }}/_deps/js/node_modules/@markup-carve/carve/dist/index.js
         run: ./tests/test.sh
 
   engines-main:
@@ -71,56 +41,44 @@ jobs:
       - name: Checkout carve-pdf
         uses: actions/checkout@v4
 
-      - name: Checkout carve-php
-        uses: actions/checkout@v4
+      - name: Set up the engines from main and gate dependencies
+        uses: ./.github/actions/setup
         with:
-          repository: markup-carve/carve-php
-          ref: main
-          path: _deps/carve-php
-      - name: Checkout carve-js
-        uses: actions/checkout@v4
-        with:
-          repository: markup-carve/carve-js
-          ref: main
-          path: _deps/carve-js
-
-      - name: Set up PHP
-        uses: shivammathur/setup-php@v2
-        with:
-          php-version: '8.3'
-      - name: Build carve-php autoloader
-        working-directory: _deps/carve-php
-        run: composer install --no-interaction --no-progress
-
-      - name: Set up Node
-        uses: actions/setup-node@v4
-        with:
-          node-version: '20'
-      - name: Build carve-js
-        working-directory: _deps/carve-js
-        run: |
-          npm ci
-          npm run build
-
-      - name: Report the engine commits under test
-        run: |
-          git -C _deps/carve-php log -1 --format='carve-php %h %s'
-          git -C _deps/carve-js log -1 --format='carve-js %h %s'
-
-      # The panel gate needs a browser and pdftotext, and it SKIPS without
-      # them. A skipped gate reports success over the surface it never
-      # rendered, which is the failure the gate itself exists to prevent, so
-      # these are installed rather than left to the runner image.
-      - name: Install the panel gate's dependencies
-        run: |
-          python3 -m pip install --quiet websocket-client \
-            || python3 -m pip install --quiet --break-system-packages websocket-client
-          sudo apt-get update -qq
-          sudo apt-get install -y -qq poppler-utils
-          google-chrome --version
+          engines: main
 
       - name: Run tests
-        env:
-          CARVE_PHP_AUTOLOAD: ${{ github.workspace }}/_deps/carve-php/vendor/autoload.php
-          CARVE_JS: ${{ github.workspace }}/_deps/carve-js/dist/index.js
         run: ./tests/test.sh
+
+  corpus-content:
+    # carve-pdf configures its own extension set over the engines. A wrong
+    # registration there dropped container labels in seven corpus cases with
+    # every structural assertion still green, so this compares the words of a
+    # corpus sample against the corpus HTML on both backends. It runs against
+    # the engines from main because the corpus on main describes them; a
+    # released engine can lag it.
+    name: corpus content
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout carve-pdf
+        uses: actions/checkout@v4
+
+      - name: Checkout the Carve corpus
+        uses: actions/checkout@v4
+        with:
+          repository: markup-carve/carve
+          ref: main
+          path: _deps/carve
+          sparse-checkout: tests/corpus
+          sparse-checkout-cone-mode: true
+
+      - name: Set up the engines from main
+        uses: ./.github/actions/setup
+        with:
+          engines: main
+          browser-gates: 'false'
+
+      - name: Corpus sample keeps its text
+        run: |
+          git -C _deps/carve log -1 --format='corpus: carve %h %s'
+          python3 tests/corpus-content.py _deps/carve/tests/corpus --sample 300
