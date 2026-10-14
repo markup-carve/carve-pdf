@@ -12,7 +12,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
   empty box (#38).
 - A ` ```math ` fence is typeset with KaTeX under the PHP backend instead of
   printing its TeX source (#38).
-- Cancelled, skipped, deferred and question tasks (`[-]`, `[_]`, `[>]`, `[?]`)
+- Canceled, skipped, deferred and question tasks (`[-]`, `[_]`, `[>]`, `[?]`)
   each print their own marker instead of the open-task circle (#38).
 - `tsx`, `json5`, `jsonl` and `vb` fences are highlighted, including TSX on
   older Pygments installations (#35).
