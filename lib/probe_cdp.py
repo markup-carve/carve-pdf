@@ -147,11 +147,15 @@ def wait_for_page_ws(port: int, proc: subprocess.Popen, tool: str) -> str:
         sys.exit(f"{tool}: Chrome started but no page target appeared: {exc}")
 
 
+# Same rule as print_cdp.py: the sandbox stays on unless running as root.
+SANDBOX = ["--no-sandbox"] if (hasattr(os, "geteuid") and os.geteuid() == 0) \
+    or os.environ.get("CARVE_CHROME_NO_SANDBOX") == "1" else []
+
 port = free_port()
 profile = tempfile.mkdtemp(prefix="carve-pdf-probe-")
 chrome = subprocess.Popen(
     [
-        find_chrome(), "--headless=new", "--disable-gpu", "--no-sandbox",
+        find_chrome(), "--headless=new", "--disable-gpu", *SANDBOX,
         f"--remote-debugging-port={port}", "--remote-allow-origins=*",
         "--window-size=1200,2400",
         f"--user-data-dir={profile}", HTML.as_uri(),

@@ -1,30 +1,52 @@
 #!/usr/bin/env python3
 """Assemble a print-ready HTML document from a Carve HTML fragment + metadata.
 
-Usage: wrap.py <fragment.html> <meta.json> <base_dir> <out.html> <css...>
+Usage: wrap.py [--print] [--link-base URL] <fragment.html> <meta.json> <base_dir> <out.html> <css...>
 
-<meta.json> is the frontmatter as JSON (produced by `render.php --meta`).
-<base_dir> is the source .crv's directory; emitted as <base href> so relative
-image/link URLs in the document resolve against it.
+<meta.json> is the frontmatter as JSON (produced by meta.py).
+<base_dir> is the source .crv's directory. The document gets no <base>: with
+--print (the intermediate Chrome prints) relative image paths are resolved
+against <base_dir> and print_cdp.py decides what may load; without it (the
+--html output) they stay relative to where the HTML is written.
+--link-base resolves relative links against a URL. Without it they stay as
+written in HTML and print as plain text in a PDF, where they could only point
+into the build machine's filesystem.
 Recognized keys: title, description, author, date, kicker, tags, lang.
 Any CSS files given are inlined into a single <style> block.
 """
+import base64
 import html
 import json
 import re
 import sys
 from pathlib import Path
+from urllib.parse import unquote, urljoin, urlsplit
 
 # assets.py owns where the optional client libraries live, so `make check`
 # reports on the same paths the renderer reads rather than its own copy of them.
 import assets
 
-if len(sys.argv) < 5:
-    sys.exit("usage: wrap.py <fragment.html> <meta.json> <base_dir> <out.html> <css...>")
+USAGE = "usage: wrap.py [--print] [--link-base URL] <fragment.html> <meta.json> <base_dir> <out.html> <css...>"
+PRINT = False
+LINK_BASE = None
+positional = []
+argv = sys.argv[1:]
+while argv:
+    arg = argv.pop(0)
+    if arg == "--print":
+        PRINT = True
+    elif arg == "--link-base":
+        LINK_BASE = argv.pop(0) if argv else sys.exit(USAGE)
+    elif arg.startswith("--link-base="):
+        LINK_BASE = arg[len("--link-base="):]
+    else:
+        positional.append(arg)
+if len(positional) < 4:
+    sys.exit(USAGE)
 
-frag_path, meta_path, base_dir, out_path = map(Path, sys.argv[1:5])
-css_paths = [Path(p) for p in sys.argv[5:]]
-base_href = base_dir.resolve().as_uri().rstrip("/") + "/"
+frag_path, meta_path, base_dir, out_path = map(Path, positional[:4])
+css_paths = [Path(p) for p in positional[4:]]
+base_dir = base_dir.resolve()
 
 fragment = frag_path.read_text(encoding="utf-8")
 # Reveal all disclosure widgets (details + spoilers) in print - there is no
@@ -228,6 +250,65 @@ def highlight_code(fragment_html: str) -> str:
     return FENCE_BLOCK.sub(replace, fragment_html)
 
 
+def _is_relative(url: str) -> bool:
+    """A path reference: no scheme, not protocol-relative, not a fragment."""
+    if url == "" or url.startswith(("#", "//")):
+        return False
+    return urlsplit(url).scheme == ""
+
+
+IMG_SRC = re.compile(r'(<img\b[^>]*?\bsrc=")([^"]*)(")')
+A_HREF = re.compile(r'<a\b(?P<attrs>[^>]*?)\bhref="(?P<url>[^"]*)"(?P<rest>[^>]*)>')
+
+
+def rewrite_images(fragment_html: str) -> str:
+    """For printing, point relative images at the source directory.
+
+    A path-absolute src stays a filesystem path; print_cdp.py refuses whatever
+    lands outside the allowed directories either way.
+    """
+
+    def replace(match):
+        url = html.unescape(match.group(2))
+        if not _is_relative(url) or url.startswith("/"):
+            return match.group(0)
+        target = (base_dir / unquote(urlsplit(url).path)).as_uri()
+        return match.group(1) + html.escape(target, quote=True) + match.group(3)
+
+    return IMG_SRC.sub(replace, fragment_html)
+
+
+dropped_links = 0
+
+
+def rewrite_links(fragment_html: str) -> str:
+    def replace(match):
+        global dropped_links
+        url = html.unescape(match.group("url"))
+        if not _is_relative(url):
+            return match.group(0)
+        if LINK_BASE:
+            target = html.escape(urljoin(LINK_BASE, url), quote=True)
+            return f'<a{match.group("attrs")}href="{target}"{match.group("rest")}>'
+        if not PRINT:
+            return match.group(0)
+        # A PDF resolves it into the build machine's filesystem; keep the text.
+        dropped_links += 1
+        return f'<a{match.group("attrs")}data-href="{match.group("url")}"{match.group("rest")}>'
+
+    return A_HREF.sub(replace, fragment_html)
+
+
+fragment = rewrite_links(fragment)
+if PRINT:
+    fragment = rewrite_images(fragment)
+if dropped_links:
+    sys.stderr.write(
+        f"wrap.py: {dropped_links} relative link(s) print as plain text; "
+        "pass --link-base URL to keep them as links\n"
+    )
+
+
 # carve-php emits a ```math fence as bare TeX in a <pre>; KaTeX's auto-render
 # skips <pre> and needs the display delimiters, both of which carve-js writes.
 MATH_FENCE = re.compile(
@@ -311,6 +392,26 @@ def _library(env_name, feature, package, kind):
     return found
 
 
+KATEX_FONT_SRC = re.compile(r"src:\s*url\(fonts/(?P<name>[^)]+?\.woff2)\)[^;}]*")
+
+
+def inline_katex_fonts(root: Path, kcss: str) -> str:
+    """Embed KaTeX's woff2 fonts as data: URIs.
+
+    The page then needs no file: access to node_modules, and the --html output
+    names no path on the build machine.
+    """
+
+    def replace(match):
+        font = root / "fonts" / match.group("name")
+        if not font.is_file():
+            return match.group(0)
+        data = base64.b64encode(font.read_bytes()).decode("ascii")
+        return f'src:url(data:font/woff2;base64,{data}) format("woff2")'
+
+    return KATEX_FONT_SRC.sub(replace, kcss)
+
+
 def client_assets():
     head_parts, lib_scripts, init_steps = [], [], []
 
@@ -318,10 +419,7 @@ def client_assets():
     if 'class="math' in fragment:
         root = _library("CARVE_KATEX", "math", "katex", "dir")
         if root:
-            fonts_uri = (root / "fonts").resolve().as_uri()
-            kcss = (root / "katex.min.css").read_text(encoding="utf-8").replace(
-                "url(fonts/", f"url({fonts_uri}/"
-            )
+            kcss = inline_katex_fonts(root, (root / "katex.min.css").read_text(encoding="utf-8"))
             head_parts.append(f"<style>{kcss}</style>")
             lib_scripts.append(f"<script>{(root / 'katex.min.js').read_text(encoding='utf-8')}</script>")
             lib_scripts.append(f"<script>{(root / 'contrib' / 'auto-render.min.js').read_text(encoding='utf-8')}</script>")
@@ -406,7 +504,6 @@ if byline_bits:
 
 doc = f"""<!doctype html>
 <html lang="{esc(meta.get('lang', 'en'))}"><head><meta charset="utf-8">
-<base href="{esc(base_href)}">
 <title>{esc(title)}</title>
 <style>
 {css}
