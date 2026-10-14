@@ -186,10 +186,15 @@ def highlight_code(fragment_html: str) -> str:
         try:
             return get_lexer_by_name(name, stripnl=False, **options)
         except ClassNotFound:
-            try:
-                return get_lexer_by_name(LEXER_FALLBACKS[name], stripnl=False)
-            except (ClassNotFound, KeyError):
-                return None
+            fallbacks = [LEXER_FALLBACKS[name]] if name in LEXER_FALLBACKS else []
+            if name == "tsx":
+                fallbacks.append("typescript")
+            for fallback in fallbacks:
+                try:
+                    return get_lexer_by_name(fallback, stripnl=False)
+                except ClassNotFound:
+                    continue
+            return None
 
     def replace(match):
         pre_attrs, code_attrs = match.group("pre"), match.group("code")

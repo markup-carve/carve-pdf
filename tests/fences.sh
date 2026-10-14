@@ -66,6 +66,27 @@ if python3 -c 'import pygments' 2>/dev/null; then
   has   "php with an opening tag keeps it whole" "$html" '<span class="tok-cp">&lt;?php</span>'
   # Fence names Pygments has no alias for borrow the lexer that reads them cleanly.
   has   "tsx closes its JSX tag"          "$html" '<span class="tok-p">}&lt;/</span><span class="tok-nt">p</span>'
+  mkdir -p "$WORK/old-pygments"
+  cat > "$WORK/old-pygments/sitecustomize.py" <<'PYGMENTS_SHIM'
+from pygments import lexers
+from pygments.util import ClassNotFound
+
+original = lexers.get_lexer_by_name
+
+def without_jsx(name, *args, **kwargs):
+    if name in ("tsx", "jsx"):
+        raise ClassNotFound("older Pygments has no JSX lexer")
+    return original(name, *args, **kwargs)
+
+lexers.get_lexer_by_name = without_jsx
+PYGMENTS_SHIM
+  if PYTHONPATH="$WORK/old-pygments${PYTHONPATH:+:$PYTHONPATH}" \
+    "$HERE/crv2pdf.sh" "$FIX" "$WORK/old-pygments.html" --html >/dev/null 2>&1; then
+    has "tsx highlights with older Pygments" "$WORK/old-pygments.html" \
+      'language-tsx syntax-highlighted'
+  else
+    bad "tsx render with older Pygments failed"
+  fi
   has   "json5 bare key is a name"        "$html" '<span class="tok-nx">json5key</span>'
   has   "jsonl is highlighted as JSON"    "$html" '<span class="tok-nt">&quot;jsonlkey&quot;</span>'
   has   "vb is highlighted as VB.NET"     "$html" '<span class="tok-k">Dim</span>'
