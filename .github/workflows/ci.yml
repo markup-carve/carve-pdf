@@ -24,7 +24,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout carve-pdf
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up the released engines and gate dependencies
         uses: ./.github/actions/setup
@@ -43,7 +43,7 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout carve-pdf
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Set up the engines from main and gate dependencies
         uses: ./.github/actions/setup
@@ -65,10 +65,10 @@ jobs:
     timeout-minutes: 20
     steps:
       - name: Checkout carve-pdf
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
 
       - name: Checkout the Carve corpus
-        uses: actions/checkout@v4
+        uses: actions/checkout@v7
         with:
           repository: markup-carve/carve
           ref: main

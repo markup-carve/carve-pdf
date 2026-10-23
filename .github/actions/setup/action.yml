@@ -23,7 +23,7 @@ runs:
         php-version: '8.3'
 
     - name: Cache Composer downloads
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.cache/composer
         key: composer-${{ inputs.engines }}-${{ runner.os }}-${{ github.run_id }}
@@ -41,14 +41,14 @@ runs:
 
     - name: Set up Node
       if: inputs.engines == 'released'
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
     # There is no lockfile for setup-node's own cache to key on, so the download
     # cache is restored by prefix; the resolution itself stays fresh.
     - name: Cache npm downloads
       if: inputs.engines == 'released'
-      uses: actions/cache@v4
+      uses: actions/cache@v6
       with:
         path: ~/.npm
         key: npm-released-${{ runner.os }}-${{ github.run_id }}
@@ -87,7 +87,7 @@ runs:
         } | tee -a "$GITHUB_STEP_SUMMARY"
     - name: Keep the lockfiles
       if: inputs.engines == 'released'
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v7
       with:
         name: released-engine-locks-${{ github.job }}
         path: |
@@ -98,14 +98,14 @@ runs:
     # --- engines from main ----------------------------------------------------
     - name: Checkout carve-php
       if: inputs.engines == 'main'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: markup-carve/carve-php
         ref: main
         path: _deps/carve-php
     - name: Checkout carve-js
       if: inputs.engines == 'main'
-      uses: actions/checkout@v4
+      uses: actions/checkout@v7
       with:
         repository: markup-carve/carve-js
         ref: main
@@ -119,7 +119,7 @@ runs:
         echo "CARVE_PHP_AUTOLOAD=$GITHUB_WORKSPACE/_deps/carve-php/vendor/autoload.php" >> "$GITHUB_ENV"
     - name: Set up Node with the carve-js npm cache
       if: inputs.engines == 'main'
-      uses: actions/setup-node@v4
+      uses: actions/setup-node@v7
       with:
         node-version: '20'
         cache: npm
