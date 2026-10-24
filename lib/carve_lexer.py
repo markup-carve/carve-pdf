@@ -1,6 +1,6 @@
 """Pygments lexer for the Carve markup language.
 
-Vendored from markup-carve/pygments-carve main (MIT) for offline PDF rendering.
+Vendored from markup-carve/pygments-carve commit 090f4b93f1c4bb6333099ad5bb1ad90ea0e033ac (MIT) for offline PDF rendering.
 
 Carve is a lightweight markup language for documents and the web. Its inline
 delimiters
