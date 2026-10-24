@@ -43,7 +43,7 @@ if python3 -c 'import pygments' 2>/dev/null; then
   has   "blade comment is a comment"      "$html" '<span class="tok-cm">{{-- BLADECOMMENT --}}</span>'
   hasnt "an e-mail address is no directive" "$html" '<span class="tok-k">@example</span>'
   has   "yml falls back to the YAML lexer" "$html" 'language-yml syntax-highlighted'
-  hasnt "an unknown language stays unhighlighted" "$html" 'language-csv syntax-highlighted'
+  has   "csv separator is highlighted"     "$html" '<span class="tok-ow">,</span>'
   # Classes a lexer emits that the theme left unstyled print as plain ink.
   for cls in tok-gi tok-gd tok-gp tok-nb; do
     has "$cls is styled" "$WORK/fences.html" ".syntax-highlighted .$cls"
