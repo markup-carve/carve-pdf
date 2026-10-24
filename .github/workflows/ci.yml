@@ -34,6 +34,9 @@ jobs:
       - name: Run tests
         run: ./tests/test.sh
 
+      - name: Check delimited fence highlighting
+        run: python3 tests/delimited.py
+
   engines-main:
     # Early warning for a breaking engine change. This one tracks the default
     # branches on purpose, so a red run here and a green `released` run mean the
@@ -52,6 +55,9 @@ jobs:
 
       - name: Run tests
         run: ./tests/test.sh
+
+      - name: Check delimited fence highlighting
+        run: python3 tests/delimited.py
 
   corpus-content:
     # carve-pdf configures its own extension set over the engines. A wrong
