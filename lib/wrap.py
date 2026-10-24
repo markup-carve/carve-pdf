@@ -186,7 +186,7 @@ def highlight_code(fragment_html: str) -> str:
         from pygments.formatters import HtmlFormatter
         from pygments.lexers import get_lexer_by_name
         from pygments.util import ClassNotFound
-        from carve_lexer import CarveLexer
+        from carve_lexer import CarveLexer, CsvLexer, TsvLexer
         from blade_lexer import BladeLexer
     except ImportError:
         if re.search(r'<code[^>]*class="[^"]*language-', fragment_html):
@@ -202,6 +202,10 @@ def highlight_code(fragment_html: str) -> str:
             return CarveLexer(stripnl=False)
         if name == "blade":
             return BladeLexer(stripnl=False)
+        if name == "csv":
+            return CsvLexer(stripnl=False)
+        if name == "tsv":
+            return TsvLexer(stripnl=False)
         # Pygments reads PHP only after an opening tag; a snippet without one
         # would come out as unhighlighted HTML text.
         options = {"startinline": True} if name == "php" and "<?" not in source else {}
