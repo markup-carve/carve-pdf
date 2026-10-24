@@ -4,6 +4,16 @@ All notable changes to carve-pdf are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [0.1.5] - 2026-10-24
+
+PDF output now highlights CSV and TSV fence bodies with the current Carve lexer.
+
+### Improvements
+
+- CSV and TSV fence fields and separators receive distinct highlighting (#48, #49).
+
+**Full Changelog**: https://github.com/markup-carve/carve-pdf/compare/0.1.4...0.1.5
+
 ## [0.1.4] - 2026-10-14
 
 ### Security
