@@ -204,7 +204,8 @@ if [ -n "${CARVE_PHP_AUTOLOAD:-}" ] && [[ " ${backends[*]} " == *" php "* ]]; th
 $loader = require getenv('REAL_AUTOLOAD');
 $loader->unregister();
 spl_autoload_register(static function (string $c) use ($loader): void {
-    if (!str_contains($c, '\\Transform\\Include') && !str_ends_with($c, 'FilesystemIncludeResolver')) {
+    // Hide only what render.php probes: newer parsers load other Include* classes themselves.
+    if (!str_ends_with($c, '\\IncludeExpander') && !str_ends_with($c, '\\FilesystemIncludeResolver')) {
         $loader->loadClass($c);
     }
 });
