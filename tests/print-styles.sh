@@ -62,6 +62,7 @@ for name, (color, weight, style) in palette.items():
     got = d["carveTokens"].get(name)
     v(got is not None and (got["color"], got["weight"], got["style"]) == (color, weight, style),
       f"carve fence {name} follows the syntax palette ({got})")
+v(d["diffMarkerIndent"] == "0px", f"a diff marker stays inside its line ({d['diffMarkerIndent']})")
 note_hrs = [h for h in d["hrs"] if h["inEndnotes"]]
 page_hrs = [h for h in d["hrs"] if h["beforePageBreak"]]
 v(page_hrs and all(h["display"] == "none" for h in page_hrs), f"a break ending a section before a new page is dropped ({page_hrs})")
