@@ -42,6 +42,12 @@ out = []
 def v(ok, name): out.append(("ok" if ok else "FAIL") + "\t" + name)
 
 body_hrs = [h for h in d["hrs"] if not h["inEndnotes"] and not h["beforePageBreak"]]
+fonts = d["fonts"]
+for kind in ("body", "paragraph", "heading"):
+    v(fonts[kind] == fonts["expected"] and "Times" not in fonts[kind],
+      f"{kind} uses the body font stack ({fonts[kind]})")
+v(fonts["inline"] == fonts["block"], f"inline and block code use one mono stack ({fonts['inline']} vs {fonts['block']})")
+v(d["longBreak"] == "auto" and d["shortBreak"] == "avoid", "long code splits while short code stays together")
 note_hrs = [h for h in d["hrs"] if h["inEndnotes"]]
 page_hrs = [h for h in d["hrs"] if h["beforePageBreak"]]
 v(page_hrs and all(h["display"] == "none" for h in page_hrs), f"a break ending a section before a new page is dropped ({page_hrs})")

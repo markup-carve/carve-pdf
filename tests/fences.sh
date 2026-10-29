@@ -37,6 +37,7 @@ has   "blade fence is labeled"            "$html" 'data-lang="blade"'
 has   "php fence is labeled"              "$html" 'data-lang="php"'
 has   "unknown language is still labeled" "$html" 'data-lang="csv"'
 hasnt "a text fence gets no label"        "$html" 'data-lang="text"'
+has "each indented code line carries its indent" "$html" 'style="--indent:4"'
 if python3 -c 'import pygments' 2>/dev/null; then
   has   "blade is highlighted"            "$html" 'language-blade syntax-highlighted'
   has   "blade directive is a keyword"    "$html" '<span class="tok-k">@carve</span>'
@@ -50,14 +51,14 @@ if python3 -c 'import pygments' 2>/dev/null; then
   done
   has   "diff marks its added line"       "$html" '<span class="tok-gi">+added</span>'
   has   "{.diff} block is presented"      "$html" '<pre class="diff has-diff" data-lang="js">'
-  has   "{.diff} removed line is marked"  "$html" '<span class="line diff remove"><span class="diff-marker">-</span>'
-  has   "{.diff} added line is marked"    "$html" '<span class="line diff add"><span class="diff-marker">+</span>'
+  has   "{.diff} removed line is marked"  "$html" '<span class="line diff remove" style="--indent:2"><span class="diff-marker">-</span>'
+  has   "{.diff} added line is marked"    "$html" '<span class="line diff add" style="--indent:2"><span class="diff-marker">+</span>'
   # The marker is stripped before highlighting, so `+ x.remove(` lexes as JS.
   has   "{.diff} line body is highlighted" "$html" '<span class="diff-marker">+</span><span class="tok-w"> </span><span class="tok-nx">fileIcon</span>'
   # The diff body lexes as one block, so `<?php` on line 1 still makes line 3 PHP.
   has   "{.diff} keeps lexer state across lines" "$html" '<span class="diff-marker">+</span><span class="tok-k">echo</span>'
   # A marker-only first line must not shift the markers onto the wrong code.
-  has   "{.diff} leading marker-only line keeps alignment" "$html" '<span class="line diff remove"><span class="diff-marker">-</span><span class="tok-nx">old</span>'
+  has   "{.diff} leading marker-only line keeps alignment" "$html" '<span class="line diff remove" style="--indent:1"><span class="diff-marker">-</span><span class="tok-nx">old</span>'
   # Nor may a marker-only LAST line cost the block its highlighting.
   has   "{.diff} trailing marker-only line keeps highlighting" "$html" '<span class="diff-marker">+</span><span class="tok-kd">const</span>'
   # A PHP snippet with no opening tag is PHP, not HTML text.
@@ -92,11 +93,11 @@ PYGMENTS_SHIM
   has   "vb is highlighted as VB.NET"     "$html" '<span class="tok-k">Dim</span>'
   # Callout markers are taken out before highlighting and put back on their line.
   has   "a callout survives highlighting"  "$html" '<span class="tok-p">):</span>  <b class="callout" data-callout="1">1</b>'
-  has   "a last-line callout survives"     "$html" '<b class="callout" data-callout="2">2</b></code></pre>'
-  has   "a {.diff} callout stays in its row" "$html" '<b class="callout" data-callout="3">3</b></span></code></pre>'
+  has   "a last-line callout survives"     "$html" '<b class="callout" data-callout="2">2</b></span></code></pre>'
+  has   "a {.diff} callout stays in its row" "$html" '<b class="callout" data-callout="3">3</b></span>'
   # A marker alone on the last line must not cost the fence its other markers.
   has   "a marker-only last line keeps the earlier callout" "$html" '<span class="tok-w">  </span><b class="callout" data-callout="4">4</b>'
-  has   "a marker-only last line keeps its own callout" "$html" '<b class="callout" data-callout="5">5</b></code></pre>'
+  has   "a marker-only last line keeps its own callout" "$html" '<b class="callout" data-callout="5">5</b></span></code></pre>'
   # A quoted `(` in directive arguments must not leave the lexer inside them.
   has   "blade quoted paren closes its directive" "$html" '<span class="tok-k">@endif</span>'
 else

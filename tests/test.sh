@@ -89,6 +89,35 @@ for be in "${backends[@]}"; do
 done
 
 # --- frontmatter forms -------------------------------------------------------
+cat > "$WORK/locale-de.crv" <<'EOF'
+---yaml
+lang: DE-at
+author: Ada
+date: 2026-10-29
+---
+
+body
+EOF
+"$HERE/crv2pdf.sh" "$WORK/locale-de.crv" "$WORK/locale-de.html" --html >/dev/null 2>&1
+has "German byline and ISO date" "$WORK/locale-de.html" 'Von Ada · 29.10.2026'
+cat > "$WORK/locale-en.crv" <<'EOF'
+---yaml
+lang: en
+author: Ada
+date: October 29, 2026
+---
+
+body
+EOF
+"$HERE/crv2pdf.sh" "$WORK/locale-en.crv" "$WORK/locale-en.html" --html >/dev/null 2>&1
+has "English byline and non-ISO date stay unchanged" "$WORK/locale-en.html" 'By Ada · October 29, 2026'
+printf '{"lang":"es-MX"}\n' > "$WORK/locale.json"
+if [ "$(python3 "$LIB/locale_labels.py" "$WORK/locale.json")" = 'Página {page} de {pages}' ]; then
+  ok "Spanish footer default keeps its accent"
+else
+  bad "Spanish footer default keeps its accent"
+fi
+
 # Opener: `---`, then one space and a format, or a format right after, or only
 # trailing whitespace. Two spaces or a tab before the format is not an opener.
 fm_case() {  # fm_case <name> <expected title or -> <printf format>

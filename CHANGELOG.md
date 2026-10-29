@@ -4,6 +4,19 @@ All notable changes to carve-pdf are documented in this file.
 
 The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
+## [Unreleased]
+
+### Fixes
+
+- Use the document's body font in print instead of the browser serif default.
+- Use one monospace stack for inline code and code blocks.
+- Indent wrapped code lines relative to their source indentation.
+
+### Improvements
+
+- Localize bylines and default page footers from frontmatter `lang`.
+- Allow code listings longer than 15 lines to split across pages.
+
 ## [0.1.5] - 2026-10-24
 
 PDF output now highlights CSV and TSV fence bodies with the current Carve lexer.

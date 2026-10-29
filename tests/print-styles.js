@@ -39,6 +39,16 @@
   }));
 
   return {
+    fonts: {
+      expected: cs(document.documentElement).getPropertyValue('--font-body').trim(),
+      body: body.fontFamily,
+      paragraph: cs(one('p')).fontFamily,
+      heading: cs(one('h2')).fontFamily,
+      inline: cs(one('p code')).fontFamily,
+      block: cs(one('pre code')).fontFamily,
+    },
+    longBreak: cs(one('pre.carve-long')).breakInside,
+    shortBreak: cs(one('pre:not(.carve-long)')).breakInside,
     hrs,
     ins: { boxShadow: cs(ins).boxShadow, line: cs(ins).textDecorationLine },
     strikeColor: cs(s).color,
