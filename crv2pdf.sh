@@ -33,8 +33,8 @@
 #   CARVE_JS            carve-js checkout or dist/index.js (js backend)
 #   CARVE_KATEX         KaTeX dist/ dir for math typesetting (default: autodetect)
 #   CARVE_SMART_LOCALE  smart-quotes locale (default: en)
-#   CARVE_PDF_FOOTER    footer template with {page}/{pages} (default: Page {page} of {pages});
-#                       frontmatter `footer:` wins over this; empty string disables the footer
+#   CARVE_PDF_FOOTER    footer template with {page}/{pages}; frontmatter `footer:` wins,
+#                       then this value, then the lang default. Empty disables the footer
 #   CHROME_BIN          Chrome/Chromium binary (default: autodetect)
 set -euo pipefail
 
@@ -217,14 +217,16 @@ build_one() {  # build_one <input.crv> <output>
   local author; author="$(python3 -c 'import json,sys; a=json.load(open(sys.argv[1])).get("author"); print(", ".join(map(str,a)) if isinstance(a,list) else (a or ""))' "$WORK/meta.json")"
   if [ -n "$author" ]; then allow+=(--author "$author"); fi
 
-  # pdf: frontmatter `footer` wins (even when explicitly empty), else print_cdp's
-  # default chain ($CARVE_PDF_FOOTER, then the English default).
+  # Explicit empty values disable the footer.
   local present; present="$(python3 -c 'import json,sys; print(int("footer" in json.load(open(sys.argv[1]))))' "$WORK/meta.json")"
   if [ "$present" = "1" ]; then
     local footer; footer="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["footer"])' "$WORK/meta.json")"
     python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" "${allow[@]}" >/dev/null || return 1
-  else
+  elif [ "${CARVE_PDF_FOOTER+x}" = x ]; then
     python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "${allow[@]}" >/dev/null || return 1
+  else
+    local footer; footer="$(python3 "$LIB/locale_labels.py" "$WORK/meta.json")"
+    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" "${allow[@]}" >/dev/null || return 1
   fi
   echo "PDF: $out ($RENDERER backend)"
 }

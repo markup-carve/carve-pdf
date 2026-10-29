@@ -179,7 +179,7 @@ found are in [docs/rendering.md](../docs/rendering.md).
 | `CARVE_PHP_AUTOLOAD` | autodetect | Composer autoloader providing `MarkupCarve\Carve` (php) |
 | `CARVE_JS` | autodetect | carve-js dist dir or `dist/index.js`, e.g. under `node_modules` (js) |
 | `CARVE_SMART_LOCALE` | `en` | Smart-quotes locale (php backend) |
-| `CARVE_PDF_FOOTER` | `Page {page} of {pages}` | Footer template; `{page}`/`{pages}` placeholders. Frontmatter `footer:` overrides it; empty string disables the footer |
+| `CARVE_PDF_FOOTER` | Document language default | Footer template; `{page}`/`{pages}` placeholders. Frontmatter `footer:` overrides it; empty string disables the footer |
 | `CARVE_KATEX` | autodetect | KaTeX `dist/` dir for math typesetting |
 | `CARVE_MERMAID` | autodetect | `mermaid.min.js` for diagram rendering |
 | `CARVE_CHART` | autodetect | `chart.umd.js` for chart rendering |
@@ -188,9 +188,12 @@ found are in [docs/rendering.md](../docs/rendering.md).
 | `CARVE_PDF_REMOTE_TIMEOUT` | `10` | Seconds per remote image with `--allow-remote` |
 | `CARVE_PDF_REMOTE_MAX_BYTES` | `10485760` | Size limit per remote image with `--allow-remote` |
 
+The byline uses the primary subtag of `lang` for its author label and plain ISO date format. Supported languages are English, German, French, Spanish, Dutch, and Italian. Other languages use English labels. Dates in other formats stay as written.
+
 The footer template accepts `{page}` and `{pages}`. Precedence: frontmatter `footer:`
-> `CARVE_PDF_FOOTER` > the English default. Set it to an empty string to drop the
-footer (and page numbers) entirely.
+> `CARVE_PDF_FOOTER` > the language default > English. Set either override to an empty string to drop the footer (and page numbers) entirely.
+
+Code listings longer than 15 lines may split across pages. Shorter listings stay together.
 
 ## Themes
 

@@ -10,8 +10,8 @@ Usage: print_cdp.py <input.html> <output.pdf> [footer-template]
 
 The footer template is plain text with two placeholders, {page} and {pages}
 (e.g. "Page {page} of {pages}" or "Seite {page} von {pages}"). Precedence:
-argv[3], then $CARVE_PDF_FOOTER, then the English default. An empty template
-disables the footer entirely.
+argv[3], then $CARVE_PDF_FOOTER, then the English default. crv2pdf.sh passes
+the document language's default as argv[3]. An empty template disables the footer.
 
 Every request the page makes is intercepted. Allowed: the input file, data:
 and blob: URLs, and files whose real path lies under an --allow-dir. Remote

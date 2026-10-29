@@ -16,6 +16,12 @@ make install
 crv2pdf examples/demo.crv
 ```
 
+## Language and print layout
+
+Set frontmatter `lang` to `de`, `fr`, `es`, `nl`, or `it` to localize the byline and default page footer. English and unknown languages use "By" and "Page {page} of {pages}". Plain ISO dates in the byline use the document language's date format; other dates stay as written. Frontmatter `footer:` overrides `CARVE_PDF_FOOTER`, which overrides the language default. An empty footer value disables the footer.
+
+Code listings longer than 15 lines may split across pages. Short listings stay together.
+
 ## Documentation
 
 - [Carve documentation](https://markup-carve.github.io/carve/)

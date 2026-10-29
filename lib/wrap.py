@@ -25,6 +25,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 # assets.py owns where the optional client libraries live, so `make check`
 # reports on the same paths the renderer reads rather than its own copy of them.
 import assets
+import locale_labels
 
 USAGE = "usage: wrap.py [--print] [--link-base URL] <fragment.html> <meta.json> <base_dir> <out.html> <css...>"
 PRINT = False
@@ -140,8 +141,28 @@ def render_diff(source: str, highlight_block) -> str:
     for marker, body in zip(markers, rendered):
         line_class = {"+": "line diff add", "-": "line diff remove"}.get(marker, "line")
         marker_span = f'<span class="diff-marker">{html.escape(marker)}</span>' if marker else ""
-        out.append(f'<span class="{line_class}">{marker_span}{body}</span>')
+        indent = len(marker) + leading_columns(re.sub(r"<[^>]*>", "", body))
+        out.append(f'<span class="{line_class}" style="--indent:{indent}">{marker_span}{body}</span>')
     return "\n".join(out)
+
+
+def leading_columns(line: str) -> int:
+    return sum(4 if char == "\t" else 1 for char in re.match(r"[ \t]*", line).group())
+
+
+def wrap_lines(rendered: str, source: str) -> str:
+    lines = rendered.split("\n")
+    original = source.split("\n")
+    if original and original[-1] == "":
+        original.pop()
+    if lines and lines[-1] == "" and len(lines) > len(original):
+        lines.pop()
+    if len(lines) != len(original):
+        return rendered.rstrip("\n")
+    # The newline sits inside the block span: copied code keeps its lines, and no blank row renders.
+    last = len(lines) - 1
+    return "".join(f'<span class="line" style="--indent:{leading_columns(raw)}">{line}{"" if at == last else chr(10)}</span>'
+                   for at, (raw, line) in enumerate(zip(original, lines)))
 
 
 # A code callout is the engine's only markup inside a fence body, always last on its line.
@@ -226,10 +247,11 @@ def highlight_code(fragment_html: str) -> str:
         pre_attrs, code_attrs = match.group("pre"), match.group("code")
         body, callouts = split_callouts(match.group("body"))
         source = html.unescape(body)
-        lexer = lexer_for(fence_language(code_attrs), source)
-        is_diff = "diff" in pre_classes(pre_attrs)
-        if lexer is None and not is_diff:
+        language = fence_language(code_attrs)
+        if language.lower() in ("mermaid", "chart"):
             return match.group(0)
+        lexer = lexer_for(language, source)
+        is_diff = "diff" in pre_classes(pre_attrs)
         if lexer is None:
             highlight_block = html.escape
         else:
@@ -246,9 +268,15 @@ def highlight_code(fragment_html: str) -> str:
             pre_attrs = with_class(pre_attrs, "has-diff")
             rendered = render_diff(source, highlight_block)
         else:
-            rendered = highlight_block(source).rstrip("\n")
+            rendered = highlight_block(source)
         if any(callouts):
             rendered = restore_callouts(rendered, callouts, is_diff)
+        if is_diff:
+            rendered = re.sub(r'</span>\n(?=<span class="line)', '\n</span>', rendered)
+        else:
+            rendered = wrap_lines(rendered, source)
+        if len(source.splitlines()) > 15:
+            pre_attrs = with_class(pre_attrs, "carve-long")
         return f"<pre{pre_attrs}><code{code_attrs}>{rendered}</code></pre>"
 
     return FENCE_BLOCK.sub(replace, fragment_html)
@@ -372,6 +400,10 @@ MATH_FENCE = re.compile(
 )
 fragment = MATH_FENCE.sub(lambda m: f'<div{m.group("attrs")}>\\[{m.group("tex")}\\]</div>', fragment)
 fragment = label_fences(highlight_code(fragment))
+fragment = re.sub(r'<figure\b[^>]*>.*?</figure>',
+                  lambda m: re.sub(r'^<figure\b[^>]*', lambda tag: with_class(tag.group(), "carve-long-listing"), m.group())
+                  if re.search(r'<pre\b[^>]*\bcarve-long\b', m.group()) else m.group(),
+                  fragment, flags=re.DOTALL)
 try:
     meta = json.loads(meta_path.read_text(encoding="utf-8") or "{}")
 except Exception:
@@ -550,9 +582,9 @@ if kicker:
 # byline footer from author / date
 byline_bits = []
 if meta.get("author"):
-    byline_bits.append("By " + esc(meta["author"]))
+    byline_bits.append(locale_labels.labels(meta.get("lang"))[0] + " " + esc(meta["author"]))
 if meta.get("date"):
-    byline_bits.append(esc(meta["date"]))
+    byline_bits.append(esc(locale_labels.local_date(meta["date"], meta.get("lang"))))
 byline = ""
 if byline_bits:
     byline = f'<p class="doc-byline">{" · ".join(byline_bits)}</p>'

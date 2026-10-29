@@ -49,14 +49,22 @@ abbr[title]::after {
 /* keep headings attached to the content that follows */
 h1, h2, h3, h4 { break-after: avoid; }
 figure, table, pre, .admonition, details, .tabs, .code-group, blockquote { break-inside: avoid; }
+.carve pre.carve-long, .carve figure.carve-long-listing,
+.carve .code-group:has(pre.carve-long), .carve .tabs:has(pre.carve-long) { break-inside: auto; }
+.carve pre.carve-long { orphans: 4; widows: 4; }
+.carve figure.carve-long-listing figcaption { break-before: avoid; }
 thead { display: table-header-group; }
 
 /* code listings: a caption's figure centers images, not code; paper cannot
  * scroll, so long lines wrap; a lead-in stays on the page of its listing */
 .carve figure pre, .carve figure pre code { text-align: start; }
 .carve pre, .carve pre code { white-space: pre-wrap; overflow-wrap: anywhere; }
-.carve pre { overflow: visible; }
+.carve pre { overflow: visible; tab-size: 4; }
+.carve pre .line { display: block; padding-left: calc((var(--indent, 0) + 2) * 1ch); text-indent: calc((var(--indent, 0) + 2) * -1ch); }
+.carve pre .line:empty { min-height: 1lh; }
+.carve pre.has-diff .line { padding-left: calc(var(--carve-space-3, 12px) + (var(--indent, 0) + 2) * 1ch); }
 p:has(+ pre), p:has(+ figure) { break-after: avoid; break-inside: avoid; }
+p:has(+ pre.carve-long), p:has(+ figure.carve-long-listing) { break-after: auto; }
 tr { break-inside: avoid; }
 
 /* paper cannot scroll: a long word, URL or code span wraps instead of running
