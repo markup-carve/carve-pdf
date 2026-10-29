@@ -152,6 +152,16 @@ pre.has-diff .line.diff.remove .diff-marker { color: #cf222e; }
 .syntax-highlighted .tok-gs { font-weight: 700; }
 .syntax-highlighted .tok-ge { font-style: italic; }
 .syntax-highlighted .tok-err { color: #b42318; background: #fee4e2; }
+/* Carve table and caption markers: light values of the shared palette in
+ * markup-carve/carve-grammars themes/palette.json (#818, #820). */
+.syntax-highlighted .tok-o-Table-Header { color: #005cc5; font-weight: 700; }
+.syntax-highlighted .tok-o-Table-Alignment { color: #e36209; font-weight: 400; }
+.syntax-highlighted .tok-o-Table-Rowspan,
+.syntax-highlighted .tok-o-Table-Colspan { color: #6f42c1; font-weight: 700; }
+.syntax-highlighted .tok-p-Table { color: #959da5; }
+.syntax-highlighted .tok-p-Table-Continuation { color: #22863a; font-weight: 700; }
+.syntax-highlighted .tok-p-Caption { color: #bc4c00; font-weight: 700; }
+.syntax-highlighted .tok-gu-Caption { color: #57606a; font-weight: 400; font-style: italic; }
 
 /* mermaid diagrams: drop the code-block chrome, center the rendered SVG */
 pre.mermaid { background: none; border: none; padding: 0; margin: 0 0 14px; text-align: center; break-inside: avoid; }

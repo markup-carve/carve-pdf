@@ -1,6 +1,6 @@
 """Pygments lexer for the Carve markup language.
 
-Vendored from markup-carve/pygments-carve commit 090f4b93f1c4bb6333099ad5bb1ad90ea0e033ac (MIT) for offline PDF rendering.
+Vendored from markup-carve/pygments-carve commit e4776281bb0d1d775ac1309e4d1338907f070b48 (MIT) for offline PDF rendering.
 
 Carve is a lightweight markup language for documents and the web. Its inline
 delimiters
@@ -76,6 +76,9 @@ __all__ = ['CarveLexer']
 #: content, so a block opener behind one is still a block opener. Anywhere else
 #: it is content, and the line is a paragraph.
 _MARGIN = r'(?:\A\ufeff)?[ \t]*'
+
+_TABLE_ALIGN = r'(?:[<~>][\^~v]|\?[\^~v]|[<~>])'
+_HEADER_ALIGN_RUN = r'(?:[<>^v~]|\?[\^~v])*'
 
 #: One attribute block, brace to brace. Quoted values may contain a brace and
 #: an escaped quote; a single nested brace pair is allowed for a braced span
@@ -932,7 +935,7 @@ def _decisions(lexer, text):
 
 
 _BLOCK_OPENER = re.compile(
-    r'(?:(?P<item>(?:[-*](?:' + _ATTRS + r')?[ \t]+(?:\[[ xX_>?-]\][ \t]+)?'
+    r'(?:(?P<item>(?:[-*](?:' + _ATTRS + r')?[ \t]+(?:\[[ xX_>?/!-]\][ \t]+)?'
     r'|(?:' + _ORDINAL + r'[.)]|\.)(?:' + _ATTRS + r')?[ \t]+))'
     r'|(?P<quote>>(?:[ \t]|$))|(?P<holder>(?:::?|\[\^[^\]\n]+\]:)[ \t]+))')
 _BLOCK_LINE = re.compile(r'(?:`{3,}|~{3,}|:{3,}|#{1,6}(?:[ \t]|$)|\|)')
@@ -1187,7 +1190,7 @@ def _hosted_quote_plus(lexer, match):
     yield match.start(1), Text, margin
     for part in re.finditer(r'>|[^>]+', outer):
         yield match.start(2) + part.start(), Punctuation if part.group() == '>' else Text, part.group()
-    for part in re.finditer(r'(\[[ xX_>?-]\])|(' + _ORDINAL + r'[.)](?:' + _ATTRS + r')?|\.(?:' + _ATTRS + r')?)|[-*](?:' + _ATTRS + r')?| ', run):
+    for part in re.finditer(r'(\[[ xX_>?/!-]\])|(' + _ORDINAL + r'[.)](?:' + _ATTRS + r')?|\.(?:' + _ATTRS + r')?)|[-*](?:' + _ATTRS + r')?| ', run):
         kind = Name.Constant if part.group(1) else Number.Integer if part.group(2) else Text if part.group() == ' ' else Punctuation
         yield match.start(3) + part.start(), kind, part.group()
     for part in re.finditer(r'>| ', quotes):
@@ -1259,7 +1262,7 @@ def _continuation_row(lexer, match):
         is_row = _ROW_LINE.match(above) is not None
     decided[match.start()] = is_row
     yield match.start(1), Text, margin
-    yield match.start(2), Punctuation if is_row else Text, plus
+    yield match.start(2), Punctuation.Table.Continuation if is_row else Text, plus
     stack = ('root', 'tablerow') if is_row else ('root', 'paragraph')
     for index, token, value in lexer.get_tokens_unprocessed(rest, stack):
         yield match.start(3) + index, token, value
@@ -1551,7 +1554,7 @@ class CarveLexer(RegexLexer, metaclass=_ScanMeta):
                       using(this, state='infostring'))),
 
             # A caption line attaches to the block above or below it.
-            (r'^(' + _MARGIN + r')(\^)([ \t]+)', bygroups(Text, Punctuation, Text), 'caption'),
+            (r'^(' + _MARGIN + r')(\^)([ \t]+)', bygroups(Text, Punctuation.Caption, Text), 'caption'),
 
             # Headings. Carve has no setext form, so a `#` run is the only
             # spelling and a trailing `{...}` is NOT an attribute block here.
@@ -1606,7 +1609,7 @@ class CarveLexer(RegexLexer, metaclass=_ScanMeta):
              bygroups(Text, Punctuation, Text), ('deflist', 'termtail', 'heading')),
 
             # `- > +`: a list item opening a quote whose first block is a `+`.
-            (r'^(' + _MARGIN + r')((?:> )*)((?:(?:[-*](?:' + _ATTRS + r')?(?: \[[ xX_>?-]\])?|(?:'
+            (r'^(' + _MARGIN + r')((?:> )*)((?:(?:[-*](?:' + _ATTRS + r')?(?: \[[ xX_>?/!-]\])?|(?:'
              + _ORDINAL + r'[.)]|\.)(?:' + _ATTRS + r')?) )+)((?:> )+)(\+)([ \t]*)$', _hosted_quote_plus),
             # A `+` alone behind quote prefixes is read by its column. Each `>`
             # needs a space after it: `>+`, `>>+` and `>> +` are paragraph text.
@@ -1620,7 +1623,7 @@ class CarveLexer(RegexLexer, metaclass=_ScanMeta):
             # Task items before plain bullets, so the state marker is its own
             # token. Only a bullet takes one, and only the `task_state` set.
             (r'^(' + _MARGIN + r')((?:[-*] +)*[-*](?:' + _ATTRS + r')?)'
-             r'( +)(\[[ xX_>?-]\])(?= +[ \t]*[^ \t\n])'
+             r'( +)(\[[ xX_>?/!-]\])(?= +[ \t]*[^ \t\n])'
              r'(?:( +)(\+)(?=[ \t]*$))?',
              bygroups(Text, Punctuation, Text, Name.Constant, Text, Operator)),
 
@@ -1654,10 +1657,10 @@ class CarveLexer(RegexLexer, metaclass=_ScanMeta):
             (r'^(' + _MARGIN + r')(\+)(?=[^\n]*\|[ \t]*$)([^\n]*)', _continuation_row),
             # A row ends in `|`, or in `|` and a glued row attribute block:
             # `| a | b` with no closing pipe is a paragraph.
-            (r'^(' + _MARGIN + r')(\|=[<>^v~]*)(?=' + _ROW_END + r')',
-             bygroups(Text, Operator), 'tablerow'),
-            (r'^(' + _MARGIN + r')(\|)(?=' + _ROW_END + r')',
-             bygroups(Text, Punctuation), 'tablerow'),
+            (r'^(' + _MARGIN + r')(\|=)(' + _HEADER_ALIGN_RUN + r')(?=' + _ROW_END + r')',
+             bygroups(Text, Operator.Table.Header, Operator.Table.Alignment), 'tablerow'),
+            (r'^(' + _MARGIN + r')(\|)(?:(?!<[ \t]*\|)(' + _TABLE_ALIGN + r'(?=[ \t])))?(?=' + _ROW_END + r')',
+             bygroups(Text, Punctuation.Table, Operator.Table.Alignment), 'tablerow'),
 
             # A standalone attribute block, which may span lines.
             (r'^(' + _MARGIN + r')(' + _ATTRS_LINE + r')', bygroups(Text, Name.Attribute)),
@@ -1762,19 +1765,25 @@ class CarveLexer(RegexLexer, metaclass=_ScanMeta):
             (r'$', Text, '#pop'),
             include('lineverbatim'),
             include('inlinecontent'),
-            (_plain_run(), Generic.Subheading),
-            (r'[^\n]', Generic.Subheading),
+            (_plain_run(), Generic.Subheading.Caption),
+            (r'[^\n]', Generic.Subheading.Caption),
         ],
 
         'tablerow': [
             (r'$', Text, '#pop'),
             # A header cell marker, optionally carrying an alignment run. The
             # pipe is part of it, so `|=` reads as one construct.
-            (r'\|=[<>^v~]*', Operator),
+            (r'(\|=)(' + _HEADER_ALIGN_RUN + r')',
+             bygroups(Operator.Table.Header, Operator.Table.Alignment)),
             # A separator row cell, in the native and the GFM spelling.
             (r'(?<=\|)[ \t]*:?-{2,}:?[ \t]*(?=\|)', Punctuation),
-            (r'(?<=\|)[ \t]*[<>^v~]{1,2}[ \t]*(?=\|)', Operator),
-            (r'\|', Punctuation),
+            (r'(?<=\|)[ \t]*\^[ \t]*(?=\|)', Operator.Table.Rowspan),
+            (r'(?<=\|)[ \t]*<[ \t]*(?=\|)', Operator.Table.Colspan),
+            (r'(?<=\|)[ \t]*[<>^v~]{1,2}[ \t]*(?=\|)', Operator.Table.Alignment),
+            # `|< |` is a colspan cell, not an alignment run (as in the TextMate grammar).
+            (r'(\|)(?!<[ \t]*\|)(' + _TABLE_ALIGN + r')(?=[ \t])',
+             bygroups(Punctuation.Table, Operator.Table.Alignment)),
+            (r'\|', Punctuation.Table),
             include('inlinecontent'),
             # An unclosed code run in a row stops at the row's closing pipe.
             (r'(?<!`)(`+)(?!`)([^\n]*?)(?=\|(?:' + _ATTRS + r')?[ \t]*$)',

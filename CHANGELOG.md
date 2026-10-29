@@ -16,6 +16,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 - Localize bylines and default page footers from frontmatter `lang`.
 - Allow code listings longer than 15 lines to split across pages.
+- Carve table markers and captions in code fences use the shared carve-grammars syntax palette (#52).
 
 ## [0.1.5] - 2026-10-24
 

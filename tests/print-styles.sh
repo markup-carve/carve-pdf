@@ -48,6 +48,20 @@ for kind in ("body", "paragraph", "heading"):
       f"{kind} uses the body font stack ({fonts[kind]})")
 v(fonts["inline"] == fonts["block"], f"inline and block code use one mono stack ({fonts['inline']} vs {fonts['block']})")
 v(d["longBreak"] == "auto" and d["shortBreak"] == "avoid", "long code splits while short code stays together")
+palette = {
+    "o-Table-Header": ("rgb(0, 92, 197)", "700", "normal"),
+    "o-Table-Alignment": ("rgb(227, 98, 9)", "400", "normal"),
+    "o-Table-Rowspan": ("rgb(111, 66, 193)", "700", "normal"),
+    "o-Table-Colspan": ("rgb(111, 66, 193)", "700", "normal"),
+    "p-Table": ("rgb(149, 157, 165)", "400", "normal"),
+    "p-Table-Continuation": ("rgb(34, 134, 58)", "700", "normal"),
+    "p-Caption": ("rgb(188, 76, 0)", "700", "normal"),
+    "gu-Caption": ("rgb(87, 96, 106)", "400", "italic"),
+}
+for name, (color, weight, style) in palette.items():
+    got = d["carveTokens"].get(name)
+    v(got is not None and (got["color"], got["weight"], got["style"]) == (color, weight, style),
+      f"carve fence {name} follows the syntax palette ({got})")
 note_hrs = [h for h in d["hrs"] if h["inEndnotes"]]
 page_hrs = [h for h in d["hrs"] if h["beforePageBreak"]]
 v(page_hrs and all(h["display"] == "none" for h in page_hrs), f"a break ending a section before a new page is dropped ({page_hrs})")
