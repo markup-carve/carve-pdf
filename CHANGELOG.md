@@ -11,6 +11,7 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 - Use the document's body font in print instead of the browser serif default.
 - Use one monospace stack for inline code and code blocks.
 - Indent wrapped code lines relative to their source indentation.
+- A captioned `{.diff}` listing gets diff presentation, and diff markers stay inside the code box.
 
 ### Improvements
 

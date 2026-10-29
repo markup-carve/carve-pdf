@@ -399,6 +399,9 @@ MATH_FENCE = re.compile(
     re.DOTALL,
 )
 fragment = MATH_FENCE.sub(lambda m: f'<div{m.group("attrs")}>\\[{m.group("tex")}\\]</div>', fragment)
+# A captioned listing carries its attributes on the <figure>, so `{.diff}` lands there.
+DIFF_FIGURE = re.compile(r'(<figure\b[^>]*\bclass="(?:[^"]*\s)?diff(?:\s[^"]*)?"[^>]*>\s*)<pre\b([^>]*)>')
+fragment = DIFF_FIGURE.sub(lambda m: f'{m.group(1)}<pre{with_class(m.group(2), "diff")}>', fragment)
 fragment = label_fences(highlight_code(fragment))
 fragment = re.sub(r'<figure\b[^>]*>.*?</figure>',
                   lambda m: re.sub(r'^<figure\b[^>]*', lambda tag: with_class(tag.group(), "carve-long-listing"), m.group())

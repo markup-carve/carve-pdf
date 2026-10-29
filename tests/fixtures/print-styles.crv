@@ -137,4 +137,10 @@ value = 1  <1>
 ^ Tabelle #: Integrationen
 ````
 
+{.diff}
+```js
+-old
++new
+```
+
 [^n]: The note.

@@ -63,6 +63,8 @@ thead { display: table-header-group; }
 .carve pre .line { display: block; padding-left: calc((var(--indent, 0) + 2) * 1ch); text-indent: calc((var(--indent, 0) + 2) * -1ch); }
 .carve pre .line:empty { min-height: 1lh; }
 .carve pre.has-diff .line { padding-left: calc(var(--carve-space-3, 12px) + (var(--indent, 0) + 2) * 1ch); }
+/* text-indent inherits into the inline-block marker and would push its glyph out of the box */
+.carve pre.has-diff .diff-marker { text-indent: 0; }
 p:has(+ pre), p:has(+ figure) { break-after: avoid; break-inside: avoid; }
 p:has(+ pre.carve-long), p:has(+ figure.carve-long-listing) { break-after: auto; }
 tr { break-inside: avoid; }

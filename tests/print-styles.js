@@ -52,6 +52,7 @@
       const el = one(`.tok-${name}`);
       return [name, el && { color: cs(el).color, weight: cs(el).fontWeight, style: cs(el).fontStyle }];
     })),
+    diffMarkerIndent: cs(one('pre.has-diff .diff-marker')).textIndent,
     longBreak: cs(one('pre.carve-long')).breakInside,
     shortBreak: cs(one('pre:not(.carve-long)')).breakInside,
     hrs,

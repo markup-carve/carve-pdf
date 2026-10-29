@@ -59,6 +59,12 @@ if python3 -c 'import pygments' 2>/dev/null; then
   has   "{.diff} keeps lexer state across lines" "$html" '<span class="diff-marker">+</span><span class="tok-k">echo</span>'
   # A marker-only first line must not shift the markers onto the wrong code.
   has   "{.diff} leading marker-only line keeps alignment" "$html" '<span class="line diff remove" style="--indent:1"><span class="diff-marker">-</span><span class="tok-nx">old</span>'
+  printf '{#lst .diff}\n```js\n-a\n+b\n```\n^ Listing #: Captioned diff\n' > "$WORK/diff-caption.crv"
+  "$HERE/crv2pdf.sh" "$WORK/diff-caption.crv" "$WORK/diff-caption.html" --html >/dev/null 2>&1
+  has   "captioned {.diff} listing is presented" "$WORK/diff-caption.html" '<span class="line diff add"'
+  printf '{#lst .side-diff}\n```js\n-a\n+b\n```\n^ Listing #: Not a diff\n' > "$WORK/side-diff.crv"
+  "$HERE/crv2pdf.sh" "$WORK/side-diff.crv" "$WORK/side-diff.html" --html >/dev/null 2>&1
+  hasnt "a class containing diff is no diff" "$WORK/side-diff.html" 'class="line diff add"'
   # Nor may a marker-only LAST line cost the block its highlighting.
   has   "{.diff} trailing marker-only line keeps highlighting" "$html" '<span class="diff-marker">+</span><span class="tok-kd">const</span>'
   # A PHP snippet with no opening tag is PHP, not HTML text.
