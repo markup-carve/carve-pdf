@@ -47,6 +47,11 @@
       inline: cs(one('p code')).fontFamily,
       block: cs(one('pre code')).fontFamily,
     },
+    carveTokens: Object.fromEntries(['o-Table-Header', 'o-Table-Alignment', 'o-Table-Rowspan', 'o-Table-Colspan',
+      'p-Table', 'p-Table-Continuation', 'p-Caption', 'gu-Caption'].map((name) => {
+      const el = one(`.tok-${name}`);
+      return [name, el && { color: cs(el).color, weight: cs(el).fontWeight, style: cs(el).fontStyle }];
+    })),
     longBreak: cs(one('pre.carve-long')).breakInside,
     shortBreak: cs(one('pre:not(.carve-long)')).breakInside,
     hrs,

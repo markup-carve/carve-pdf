@@ -129,4 +129,12 @@ value = 1  <1>
 \prod_{k=1}^{n} k
 ```
 
+````carve
+|=< Framework |= Paket |
+| Shopware | ^ |
+| Tempest | < |
++ more |
+^ Tabelle #: Integrationen
+````
+
 [^n]: The note.
