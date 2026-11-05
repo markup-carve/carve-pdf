@@ -199,7 +199,9 @@ li:has(> input[type="checkbox"])::before {
 li:has(> input[type="checkbox"]:checked)::before { content: "\2713"; color: var(--tip); }
 /* The hidden checkbox carries carve-css's per-state outline, so each state needs its own glyph. */
 li:has(> input[type="checkbox"])[data-task-state="-"]::before { content: "\2715"; color: #b0b0b0; }
-li:has(> input[type="checkbox"])[data-task-state="_"]::before { content: "\2013"; color: #b0b0b0; }
+/* `_` is the open state spelled differently, so it keeps the open glyph. */
+li:has(> input[type="checkbox"])[data-task-state="/"]::before { content: "\25D0"; color: var(--note); }
+li:has(> input[type="checkbox"])[data-task-state="!"]::before { content: "!"; color: var(--danger); }
 li:has(> input[type="checkbox"])[data-task-state=">"]::before { content: "\2192"; color: var(--note); }
 li:has(> input[type="checkbox"])[data-task-state="?"]::before { content: "?"; color: var(--warning); }
 

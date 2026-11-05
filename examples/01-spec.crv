@@ -58,6 +58,6 @@ pub fn parse(source: &str) -> Document {
 }
 ```
 
----
+***
 
 Printed through Chrome DevTools by `crv2pdf`, from a faithful Carve HTML fragment.
