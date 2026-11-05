@@ -8,7 +8,8 @@ Usage: meta.py <input.crv> [block.json]
 `render.mjs --meta`. The engine decides what counts as frontmatter, so the
 opener rules live in one place. Without it (or when it cannot be read) the
 block is found here with the same opener rules: `---`, then one space and a
-format, a format right after the dashes, or only trailing whitespace.
+format, a format right after the dashes, or only trailing whitespace. A format
+is letters and digits; with no closing `---` the block runs to the end.
 
 `json` content is parsed as JSON. Anything else is read loosely as `key: value`
 lines (`key = value` for toml): quotes are removed, `[a, b]` and `- item`
@@ -22,7 +23,7 @@ from pathlib import Path
 if len(sys.argv) not in (2, 3):
     sys.exit("usage: meta.py <input.crv> [block.json]")
 
-OPENER = re.compile(r"\A---(?: ?(?P<fmt>[A-Za-z][\w.+-]*))?[ \t]*\r?\n")
+OPENER = re.compile(r"\A---(?: ?(?P<fmt>[A-Za-z0-9]+))?[ \t]*(?:\r?\n|\Z)")
 CLOSER = re.compile(r"^---[ \t]*$", re.MULTILINE)
 
 
@@ -31,9 +32,8 @@ def find_block(src: str):
     if not m:
         return None
     end = CLOSER.search(src, m.end())
-    if not end:
-        return None
-    return {"format": m.group("fmt") or "yaml", "content": src[m.end():end.start()].rstrip("\r\n")}
+    stop = end.start() if end else len(src)
+    return {"format": m.group("fmt") or "yaml", "content": src[m.end():stop].rstrip("\r\n")}
 
 
 def engine_block(path: str):

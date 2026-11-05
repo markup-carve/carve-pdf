@@ -139,6 +139,27 @@ for be in "${backends[@]}"; do
   done
 done
 
+# A first-line opener with no closer is frontmatter to the end (carve#5016).
+printf -- '---\ntitle: Open Title\n' > "$WORK/fm-open.crv"
+for be in "${backends[@]}"; do
+  CARVE_RENDERER="$be" "$HERE/crv2pdf.sh" --html "$WORK/fm-open.crv" "$WORK/fm-open.$be.html" >/dev/null 2>&1
+  has "frontmatter without closer: $be title is 'Open Title'" "$WORK/fm-open.$be.html" "<title>Open Title</title>"
+done
+if [ "$(python3 "$LIB/meta.py" "$WORK/fm-open.crv")" = '{"title": "Open Title"}' ]; then
+  ok "meta.py fallback reads frontmatter without closer"
+else
+  bad "meta.py fallback reads frontmatter without closer"
+fi
+
+# --- braced table alignment (carve#5091) ---------------------------------------
+for be in "${backends[@]}"; do
+  a="$WORK/alignment.$be.html"; render "$be" "$FIX/alignment.crv" "$a"
+  has "braced header alignment: $be header row" "$a" "<thead>"
+  has "braced header alignment: $be center"     "$a" '<th scope="col" style="text-align: center;">Center</th>'
+  has "braced header alignment: $be right"      "$a" '<th scope="col" style="text-align: right;">Right</th>'
+  has "braced body alignment: $be overrides column" "$a" '<td style="text-align: left;">r</td>'
+done
+
 # --- includes ----------------------------------------------------------------
 INC="$WORK/inc"
 mkdir -p "$INC/doc/sub" "$INC/outside"
