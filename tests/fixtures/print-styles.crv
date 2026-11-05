@@ -113,6 +113,8 @@ sequenceDiagram
 - [_] skipped task
 - [>] deferred task
 - [?] question task
+- [/] progress task
+- [!] blocked task
 
 ```python
 value = 1  <1>

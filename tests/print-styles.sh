@@ -101,7 +101,9 @@ else:
 v(d["bylineBreak"] == "avoid", f"the byline keeps with the content above it ({d['bylineBreak']})")
 v(d["tocLinks"] > 0, f"a ::: toc marker is filled with links ({d['tocLinks']})")
 g = d["taskGlyphs"]
-v(len(set(g.values())) == len(g) == 6, f"each task state has its own glyph ({g})")
+states = {k: v for k, v in g.items() if k != "skipped task"}
+v(len(set(states.values())) == len(states) == 7, f"each task state has its own glyph ({g})")
+v(g.get("skipped task") == g.get("open task"), f"a [_] task is an open task ({g})")
 v(d["calloutBadges"] == ['"1"'], f"a callout list badge shows its number ({d['calloutBadges']})")
 v(d["codeCallouts"] == ["1"], f"the callout marker stays in highlighted code ({d['codeCallouts']})")
 v(not d["mathFenceInPre"] and d["mathFence"], "a math fence is display math, not a code block")
