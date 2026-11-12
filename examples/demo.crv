@@ -74,10 +74,10 @@ A checklist you can actually tick:
 
 A pipe table with per-column alignment:
 
-|= Method    |=> Ratio |=~ Grind      |
-| V60        |    1:16 |  Medium-fine |
-| Aeropress  |    1:14 |  Fine        |
-| Batch brew |    1:17 |  Medium      |
+|= Method    |={>} Ratio |={~} Grind    |
+| V60        |      1:16 |  Medium-fine |
+| Aeropress  |      1:14 |  Fine        |
+| Batch brew |      1:17 |  Medium      |
 
 A compact span table uses `^` to continue the cell above and `<` to merge left:
 
