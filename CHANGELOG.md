@@ -6,18 +6,30 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.1.6] - 2026-11-12
+
+Follows the Carve 0.1.14 engines (carve-php 0.1.17, carve-js 0.1.16).
+
+### Breaking
+
+- A first-line `---` without a closing `---` is frontmatter that runs to the end of the file, as in the 0.1.14 engines; the metadata fallback reads it the same way (markup-carve/carve#5016, #60).
+
 ### Fixes
 
 - Use the document's body font in print instead of the browser serif default.
 - Use one monospace stack for inline code and code blocks.
 - Indent wrapped code lines relative to their source indentation.
 - A captioned `{.diff}` listing gets diff presentation, and diff markers stay inside the code box.
+- Task states `[/]` (in progress) and `[!]` (blocked) print with their own glyphs; `[_]` prints as open (#59).
 
 ### Improvements
 
 - Localize bylines and default page footers from frontmatter `lang`.
 - Allow code listings longer than 15 lines to split across pages.
 - Carve table markers and captions in code fences use the shared carve-grammars syntax palette (#52).
+- Carve code fences are highlighted with the pygments-carve 0.1.14 lexer, which reads braced table alignment such as `|={>}` (#60).
+
+**Full Changelog**: https://github.com/markup-carve/carve-pdf/compare/0.1.5...0.1.6
 
 ## [0.1.5] - 2026-10-24
 
