@@ -345,6 +345,43 @@ CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --html "$FIX/marks.crv" "$WOR
 hasnt "--html prints no temp-dir path" "$WORK/quiet.out" "crv2pdf."
 has   "--html reports the output it wrote" "$WORK/quiet.out" "$WORK/quiet.html"
 
+# Trusted project and CLI CSS, theme selection, and checked nested PDF tokens.
+mkdir -p "$WORK/style-doc" "$WORK/style-root"
+cat > "$WORK/style-doc/input.crv" <<'EOF'
+---yaml
+pdf:
+  accent: "#0a5"
+  font-size: 10.5pt
+---
+
+# Styled
+EOF
+echo '.carve h1 { color: green; }' > "$WORK/style-doc/carve-pdf.css"
+echo '.carve h1 { color: blue; }' > "$WORK/cli.css"
+"$HERE/crv2pdf.sh" --html --theme classic --css "$WORK/cli.css" \
+  "$WORK/style-doc/input.crv" "$WORK/styled.html" >/dev/null 2>&1
+has "document pdf accent token" "$WORK/styled.html" '--carve-accent: #0a5;'
+has "document pdf font size token" "$WORK/styled.html" '--pdf-font-size: 10.5pt;'
+has "project stylesheet included" "$WORK/styled.html" 'color: green;'
+has "CLI stylesheet included" "$WORK/styled.html" 'color: blue;'
+if python3 - "$WORK/styled.html" <<'PY'
+import sys
+s = open(sys.argv[1], encoding="utf-8").read()
+assert s.index('--carve-accent: #0a5;') < s.index('color: green;') < s.index('color: blue;')
+PY
+then ok "style cascade order"
+else bad "style cascade order"; fi
+echo '.carve h1 { color: purple; }' > "$WORK/style-root/carve-pdf.css"
+"$HERE/crv2pdf.sh" --html --include-root "$WORK/style-root" \
+  "$WORK/style-doc/input.crv" "$WORK/root-style.html" >/dev/null 2>&1
+has "include root chooses project CSS" "$WORK/root-style.html" 'color: purple;'
+hasnt "include root excludes input project CSS" "$WORK/root-style.html" 'color: green;'
+if "$HERE/crv2pdf.sh" --html --css "$WORK/missing.css" \
+  "$WORK/style-doc/input.crv" "$WORK/no-style.html" > "$WORK/missing-css.out" 2>&1; then
+  bad "missing --css is rejected"
+else ok "missing --css is rejected"; fi
+has "missing --css is named" "$WORK/missing-css.out" 'stylesheet not readable'
+
 # A module that refuses to import stands in for a missing websocket-client.
 mkdir -p "$WORK/nows"; echo 'raise ImportError("shadowed")' > "$WORK/nows/websocket.py"
 if PYTHONPATH="$WORK/nows" CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" "$FIX/marks.crv" "$WORK/nows.pdf" > "$WORK/nows.out" 2>&1; then
@@ -414,6 +451,15 @@ fi
 # --- panel visibility -------------------------------------------------------
 # Its own script because it needs a browser and the printed PDF, which nothing
 # else here does. A skip inside it is reported as a skip, not as a pass.
+echo
+if ! python3 "$HERE/tests/styling.py"; then
+  fail=$((fail+1))
+fi
+
+if ! "$HERE/tests/theme-snapshot.sh"; then
+  fail=$((fail+1))
+fi
+
 echo
 if ! "$HERE/tests/panels.sh"; then
   fail=$((fail+1))

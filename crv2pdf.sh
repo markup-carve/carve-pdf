@@ -33,8 +33,8 @@
 #   CARVE_JS            carve-js checkout or dist/index.js (js backend)
 #   CARVE_KATEX         KaTeX dist/ dir for math typesetting (default: autodetect)
 #   CARVE_SMART_LOCALE  smart-quotes locale (default: en)
-#   CARVE_PDF_FOOTER    footer template with {page}/{pages}; frontmatter `footer:` wins,
-#                       then this value, then the lang default. Empty disables the footer
+#   CARVE_PDF_FOOTER    host footer template with {page}/{pages}; overrides theme
+#                       and document values. Empty disables the footer
 #   CHROME_BIN          Chrome/Chromium binary (default: autodetect)
 set -euo pipefail
 
@@ -61,8 +61,10 @@ INCLUDE_ROOT=""
 INC_ARGS=()
 PRINT_ARGS=()
 WRAP_ARGS=()
+CSS_FILES=()
+THEME=""
 POS=()
-usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes] [--allow-remote] [--link-base URL] [--version]" >&2; exit 2; }
+usage() { echo "usage: crv2pdf <input.crv> [output] [--pdf|--html|--md|--txt] [--css FILE]... [--theme NAME|DIR] [--watch] [--out-dir DIR] [--include-root DIR] [--no-includes] [--allow-remote] [--link-base URL] [--version]" >&2; exit 2; }
 need_value() {  # need_value <flag> <remaining args...>
   [ $# -ge 2 ] || { echo "crv2pdf: $1 needs a value" >&2; usage; }
 }
@@ -79,6 +81,10 @@ while [ $# -gt 0 ]; do
     --include-root=*) INCLUDE_ROOT="${1#--include-root=}"; INC_ARGS+=(--include-root "$INCLUDE_ROOT") ;;
     --no-includes) INC_ARGS+=(--no-includes) ;;
     --allow-remote) PRINT_ARGS+=(--allow-remote) ;;
+    --css) need_value "$@"; CSS_FILES+=("$2"); shift ;;
+    --css=*) CSS_FILES+=("${1#--css=}") ;;
+    --theme) need_value "$@"; THEME="$2"; shift ;;
+    --theme=*) THEME="${1#--theme=}" ;;
     --link-base) need_value "$@"; WRAP_ARGS+=(--link-base "$2"); shift ;;
     --link-base=*) WRAP_ARGS+=(--link-base "${1#--link-base=}") ;;
     --) shift; POS+=("$@"); break ;;
@@ -94,6 +100,22 @@ case "$FORMAT" in
   *) echo "crv2pdf: unknown format: $FORMAT (want pdf, html, md or txt)" >&2; usage ;;
 esac
 [ ${#POS[@]} -ge 1 ] || usage
+
+# Resolve trusted styles once so a typo fails before any output is written.
+for i in "${!CSS_FILES[@]}"; do
+  [ -f "${CSS_FILES[$i]}" ] && [ -r "${CSS_FILES[$i]}" ] || { echo "crv2pdf: stylesheet not readable: ${CSS_FILES[$i]}" >&2; exit 2; }
+  CSS_FILES[$i]="$(realpath "${CSS_FILES[$i]}")"
+done
+THEME_CSS="$THEMES/base.css"
+THEME_CONFIG=""
+if [ -n "$THEME" ]; then
+  if [[ "$THEME" != */* ]] && [ -d "$THEMES/$THEME" ]; then theme_dir="$THEMES/$THEME"
+  elif [ -d "$THEME" ]; then theme_dir="$THEME"
+  else echo "crv2pdf: theme not found: $THEME" >&2; exit 2; fi
+  [ -r "$theme_dir/theme.css" ] && [ -r "$theme_dir/theme.json" ] || { echo "crv2pdf: theme needs theme.css and theme.json: $theme_dir" >&2; exit 2; }
+  THEME_CSS="$(realpath "$theme_dir/theme.css")"
+  THEME_CONFIG="$(realpath "$theme_dir/theme.json")"
+fi
 
 # Fail before rendering, with the fix named, rather than mid-pipeline.
 if [ "$FORMAT" = "html" ] || [ "$FORMAT" = "pdf" ]; then
@@ -197,12 +219,21 @@ build_one() {  # build_one <input.crv> <output>
   render_meta "$in" > "$WORK/fm.json" 2>/dev/null || : > "$WORK/fm.json"
   python3 "$LIB/meta.py" "$in" "$WORK/fm.json" > "$WORK/meta.json" || return 1
   local srcdir; srcdir="$(cd "$(dirname "$in")" && pwd)"
+  local project_root="$srcdir"
+  [ -z "$INCLUDE_ROOT" ] || project_root="$(realpath "$INCLUDE_ROOT")"
+  local project_css="$project_root/carve-pdf.css"
+  local custom=()
+  [ ! -f "$project_css" ] || [ -r "$project_css" ] || { echo "crv2pdf: project stylesheet not readable: $project_css" >&2; return 1; }
+  [ ! -f "$project_css" ] || custom+=(--custom-css "$project_css")
+  for cssfile in "${CSS_FILES[@]}"; do custom+=(--custom-css "$cssfile"); done
   local mode=(); [ "$FORMAT" = "pdf" ] && mode=(--print)
+  local theme_args=(); [ -z "$THEME_CONFIG" ] || theme_args=(--theme-config "$THEME_CONFIG")
   python3 "$LIB/wrap.py" ${mode[@]+"${mode[@]}"} ${WRAP_ARGS[@]+"${WRAP_ARGS[@]}"} \
+    --footer-out "$WORK/footer" --header-out "$WORK/header" ${theme_args[@]+"${theme_args[@]}"} ${custom[@]+"${custom[@]}"} \
     "$WORK/frag" "$WORK/meta.json" "$srcdir" "$WORK/doc.html" \
     "$THEMES/carve-css/tokens.css" "$THEMES/carve-css/core.css" \
     "$THEMES/carve-css/extensions.css" "$THEMES/carve-css/recipes.css" \
-    "$THEMES/base.css" "$THEMES/print.css" >/dev/null || return 1
+    "$THEME_CSS" "$THEMES/print.css" >/dev/null || return 1
 
   if [ "$FORMAT" = "html" ]; then
     cp "$WORK/doc.html" "$out" || return 1
@@ -213,21 +244,16 @@ build_one() {  # build_one <input.crv> <output>
   # Images may come from the input's directory, or the include root when one is set.
   local allow=(--allow-dir "$srcdir")
   if [ -n "$INCLUDE_ROOT" ]; then allow+=(--allow-dir "$INCLUDE_ROOT"); fi
+  allow+=(--allow-dir "$(dirname "$THEME_CSS")")
+  [ ! -f "$project_css" ] || allow+=(--allow-dir "$project_root")
+  for cssfile in "${CSS_FILES[@]}"; do allow+=(--allow-dir "$(dirname "$cssfile")"); done
   allow+=(${PRINT_ARGS[@]+"${PRINT_ARGS[@]}"})
   local author; author="$(python3 -c 'import json,sys; a=json.load(open(sys.argv[1])).get("author"); print(", ".join(map(str,a)) if isinstance(a,list) else (a or ""))' "$WORK/meta.json")"
   if [ -n "$author" ]; then allow+=(--author "$author"); fi
 
-  # Explicit empty values disable the footer.
-  local present; present="$(python3 -c 'import json,sys; print(int("footer" in json.load(open(sys.argv[1]))))' "$WORK/meta.json")"
-  if [ "$present" = "1" ]; then
-    local footer; footer="$(python3 -c 'import json,sys; print(json.load(open(sys.argv[1]))["footer"])' "$WORK/meta.json")"
-    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" "${allow[@]}" >/dev/null || return 1
-  elif [ "${CARVE_PDF_FOOTER+x}" = x ]; then
-    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "${allow[@]}" >/dev/null || return 1
-  else
-    local footer; footer="$(python3 "$LIB/locale_labels.py" "$WORK/meta.json")"
-    python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" "${allow[@]}" >/dev/null || return 1
-  fi
+  local footer; footer="$(cat "$WORK/footer")"
+  local header; header="$(cat "$WORK/header")"
+  python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" --header "$header" "${allow[@]}" >/dev/null || return 1
   echo "PDF: $out ($RENDERER backend)"
 }
 
@@ -255,6 +281,10 @@ if [ "$WATCH" = "1" ]; then
   watched_files() {  # the input plus every file the last render read
     echo "$dir/$base"
     [ -f "$WORK/deps" ] && while IFS= read -r d; do echo "$root/$d"; done < "$WORK/deps"
+    echo "$THEME_CSS"
+    [ -z "$THEME_CONFIG" ] || echo "$THEME_CONFIG"
+    echo "$root/carve-pdf.css"
+    for cssfile in "${CSS_FILES[@]}"; do echo "$cssfile"; done
     return 0
   }
 

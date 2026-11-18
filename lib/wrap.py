@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Assemble a print-ready HTML document from a Carve HTML fragment + metadata.
 
-Usage: wrap.py [--print] [--link-base URL] <fragment.html> <meta.json> <base_dir> <out.html> <css...>
+Usage: wrap.py [--print] [--link-base URL] [--theme-config FILE]
+               [--custom-css FILE]... <fragment.html> <meta.json> <base_dir> <out.html> <css...>
 
 <meta.json> is the frontmatter as JSON (produced by meta.py).
 <base_dir> is the source .crv's directory. The document gets no <base>: with
@@ -17,6 +18,7 @@ Any CSS files given are inlined into a single <style> block.
 import base64
 import html
 import json
+import os
 import re
 import sys
 from pathlib import Path
@@ -27,9 +29,13 @@ from urllib.parse import unquote, urljoin, urlsplit
 import assets
 import locale_labels
 
-USAGE = "usage: wrap.py [--print] [--link-base URL] <fragment.html> <meta.json> <base_dir> <out.html> <css...>"
+USAGE = "usage: wrap.py [--print] [--link-base URL] [--theme-config FILE] [--custom-css FILE]... <fragment.html> <meta.json> <base_dir> <out.html> <css...>"
 PRINT = False
 LINK_BASE = None
+THEME_CONFIG = None
+FOOTER_OUT = None
+HEADER_OUT = None
+CUSTOM_CSS = []
 positional = []
 argv = sys.argv[1:]
 while argv:
@@ -40,6 +46,14 @@ while argv:
         LINK_BASE = argv.pop(0) if argv else sys.exit(USAGE)
     elif arg.startswith("--link-base="):
         LINK_BASE = arg[len("--link-base="):]
+    elif arg == "--theme-config":
+        THEME_CONFIG = Path(argv.pop(0)) if argv else sys.exit(USAGE)
+    elif arg == "--footer-out":
+        FOOTER_OUT = Path(argv.pop(0)) if argv else sys.exit(USAGE)
+    elif arg == "--header-out":
+        HEADER_OUT = Path(argv.pop(0)) if argv else sys.exit(USAGE)
+    elif arg == "--custom-css":
+        CUSTOM_CSS.append(Path(argv.pop(0))) if argv else sys.exit(USAGE)
     else:
         positional.append(arg)
 if len(positional) < 4:
@@ -411,7 +425,28 @@ try:
     meta = json.loads(meta_path.read_text(encoding="utf-8") or "{}")
 except Exception:
     meta = {}
-css = "\n".join(p.read_text(encoding="utf-8") for p in css_paths if p.is_file())
+def css_file(path: Path) -> str:
+    """Inline a trusted sheet and resolve its local assets from that sheet."""
+    source = path.read_text(encoding="utf-8")
+    def resource(match):
+        raw = match.group(2).strip()
+        parsed = urlsplit(raw)
+        if not raw or parsed.scheme or raw.startswith(("/", "#", "//", "data:")):
+            return match.group(0)
+        target = (path.resolve().parent / unquote(parsed.path)).resolve()
+        if PRINT:
+            resolved = target.as_uri()
+        else:
+            resolved = os.path.relpath(target, out_path.resolve().parent).replace(os.sep, "/")
+        if parsed.query:
+            resolved += "?" + parsed.query
+        if parsed.fragment:
+            resolved += "#" + parsed.fragment
+        return f"url({match.group(1)}{resolved}{match.group(1)})"
+    return re.sub(r'url\(\s*([\'\"]?)([^)\'\"]+)\1\s*\)', resource, source, flags=re.IGNORECASE)
+
+
+css = "\n".join(css_file(p) for p in css_paths if p.is_file())
 
 
 def esc(v) -> str:
@@ -437,12 +472,46 @@ def _valid(value, *patterns):
 
 
 overrides = []
-paper = _valid(meta.get("paper", ""), _PAPER_NAMED, _DIMS) if meta.get("paper") else None
-margin = _valid(meta.get("margin", ""), _MARGIN) if meta.get("margin") else None
-if meta.get("paper") and not paper:
-    sys.stderr.write(f"wrap.py: ignoring invalid `paper` frontmatter: {meta.get('paper')!r}\n")
-if meta.get("margin") and not margin:
-    sys.stderr.write(f"wrap.py: ignoring invalid `margin` frontmatter: {meta.get('margin')!r}\n")
+theme = {}
+if THEME_CONFIG:
+    try:
+        theme = json.loads(THEME_CONFIG.read_text(encoding="utf-8"))
+        if not isinstance(theme, dict):
+            raise ValueError("theme.json must contain an object")
+    except (OSError, ValueError) as exc:
+        sys.exit(f"wrap.py: invalid theme config: {exc}")
+
+
+def geometry(name, *patterns):
+    # Theme is trusted but still syntax checked so bad settings fail visibly.
+    for origin, data in (("frontmatter", meta), ("theme", theme)):
+        if name not in data:
+            continue
+        value = _valid(data[name], *patterns)
+        if value:
+            return value
+        sys.stderr.write(f"wrap.py: ignoring invalid `{name}` {origin}: {data[name]!r}\n")
+    return None
+
+
+paper = geometry("paper", _PAPER_NAMED, _DIMS)
+margin = geometry("margin", _MARGIN)
+
+
+def landscape_size(value: str) -> str:
+    parts = value.split()
+    if _PAPER_NAMED.fullmatch(value):
+        return parts[0] + " landscape"
+    if len(parts) == 1:
+        return parts[0] + " " + parts[0]
+    scale = {"mm": 1, "cm": 10, "in": 25.4, "pt": 25.4 / 72,
+             "pc": 25.4 / 6, "px": 25.4 / 96}
+    def millimeters(part):
+        match = re.fullmatch(r"(\d+(?:\.\d+)?)(mm|cm|in|pt|pc|px)", part, re.IGNORECASE)
+        return float(match.group(1)) * scale[match.group(2).lower()]
+    return " ".join(parts if millimeters(parts[0]) >= millimeters(parts[1]) else parts[::-1])
+
+
 if paper or margin:
     decls = ""
     if paper:
@@ -450,6 +519,8 @@ if paper or margin:
     if margin:
         decls += f" margin: {margin};"
     overrides.append(f"@page {{{decls} }}")
+if paper:
+    overrides.append(f"@page carve-landscape {{ size: {landscape_size(paper)}; }}")
 page_breaks = str(meta.get("pageBreaks", "h2"))
 if page_breaks in ("none", "manual"):
     overrides.append("h2 { break-before: auto; }")
@@ -459,6 +530,63 @@ if page_breaks in ("none", "manual"):
     )
 if overrides:
     css += "\n/* frontmatter overrides */\n" + "\n".join(overrides) + "\n"
+
+# A document can set only these checked values. It cannot name CSS files.
+pdf = meta.get("pdf")
+if isinstance(pdf, dict):
+    token_rules = {
+        "accent": ("--carve-accent", re.compile(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\Z")),
+        "font": ("--carve-font-body", re.compile(r"[A-Za-z][A-Za-z0-9 -]{0,79}\Z")),
+        "font-size": ("--pdf-font-size", re.compile(r"(?:[6-9]|[12][0-9]|30)(?:\.\d{1,2})?(?:pt|px)\Z")),
+        "line-height": ("--carve-line-height", re.compile(r"(?:1(?:\.\d{1,2})?|2(?:\.\d{1,2})?)\Z")),
+    }
+    declarations = []
+    for name, value in pdf.items():
+        rule = token_rules.get(name)
+        if name == "line-height" and isinstance(value, (int, float)) and not isinstance(value, bool):
+            value = str(value)
+        if not rule or not isinstance(value, str) or not rule[1].fullmatch(value) or (name == "font-size" and float(value[:-2]) > 30):
+            sys.stderr.write(f"wrap.py: ignoring invalid pdf token `{name}`: {value!r}\n")
+            continue
+        css_value = json.dumps(value) if name == "font" else value
+        declarations.append(f"{rule[0]}: {css_value};")
+    if declarations:
+        css += "\n:root { " + " ".join(declarations) + " }\n"
+
+
+def css_string(value: str) -> str:
+    # Escaping '<' also prevents an untrusted </style> from ending the HTML
+    # style element, even though it would be harmless inside CSS syntax.
+    return '"' + ''.join(('\\%x ' % ord(ch)) if ch in '\\\"<\n\r\f' else ch for ch in value) + '"'
+
+
+footer = str(os.environ.get(
+    "CARVE_PDF_FOOTER",
+    theme.get("footer", meta.get("footer", locale_labels.labels(meta.get("lang"))[1])),
+))
+header_text = str(theme.get("header", ""))
+if FOOTER_OUT:
+    FOOTER_OUT.write_text(footer, encoding="utf-8")
+if HEADER_OUT:
+    HEADER_OUT.write_text(header_text, encoding="utf-8")
+
+
+def margin_content(value: str) -> str:
+    return " ".join("counter(page)" if part == "{page}" else "counter(pages)" if part == "{pages}" else css_string(part)
+                    for part in re.split(r"(\{page\}|\{pages\})", value) if part)
+
+margin_boxes = []
+if footer:
+    margin_boxes.append("@bottom-center { content: " + margin_content(footer) + "; font: 9px sans-serif; color: #8a8a8a; }")
+if header_text:
+    margin_boxes.append("@top-center { content: " + css_string(header_text) + "; font: 9px sans-serif; color: #8a8a8a; }")
+if margin_boxes:
+    css += "\n@page { " + " ".join(margin_boxes) + " }\n"
+
+# Trusted project and CLI styles always come last. This includes their @page
+# rules, so hosts can replace the built-in footer or geometry outright.
+if CUSTOM_CSS:
+    css += "\n/* host styles */\n" + "\n".join(css_file(p) for p in CUSTOM_CSS) + "\n"
 
 
 # --- optional client-side renderers (math / diagrams / charts) --------------

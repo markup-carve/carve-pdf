@@ -1,0 +1,350 @@
+/* carve-pdf :: base.css
+ *
+ * Target-agnostic styling for the HTML that carve-php emits. Styles the Carve
+ * construct vocabulary (admonitions, tables, tabs, code-group, footnotes,
+ * definition lists, math, ...) and is reusable for screen / print / email.
+ * Page geometry and paged-media concerns live in print.css.
+ */
+
+:root {
+  --ink: #1a1a1a;
+  --muted: #5a5a5a;
+  --faint: #8a8a8a;
+  --line: #d9d9d9;
+  --link: #1565c0;
+  --code-bg: #f4f4f6;
+  --code-ink: #24292f;
+  --accent: #2e7d32;
+
+  --tip: #2e7d32;      --tip-bg: #eaf6ea;
+  --note: #1565c0;     --note-bg: #e8f1fb;
+  --warning: #b26a00;  --warning-bg: #fdf3e2;
+  --danger: #c62828;   --danger-bg: #fbeaea;
+  --info: #00838f;     --info-bg: #e4f5f7;
+  --success: #2e7d32;  --success-bg: #eaf6ea;
+
+  --font-body: -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --font-mono: "SF Mono", ui-monospace, "Cascadia Code", Menlo, Consolas, "DejaVu Sans Mono", "Liberation Mono", monospace;
+  --carve-font-body: var(--font-body);
+  --carve-font-heading: var(--font-body);
+  --carve-font-mono: var(--font-mono);
+}
+
+* { box-sizing: border-box; }
+
+body {
+  font: 13px/1.62 var(--font-body);
+  color: var(--ink);
+  margin: 0;
+}
+
+/* ---- headings & sections ---- */
+h1, h2, h3, h4, h5, h6 { line-height: 1.25; font-weight: 700; break-after: avoid; }
+h1 { font-size: 26px; margin: 0 0 6px; letter-spacing: -0.01em; }
+h2 { font-size: 20px; margin: 22px 0 10px; }
+h3 { font-size: 15.5px; margin: 18px 0 6px; }
+h4 { font-size: 13px; margin: 14px 0 4px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+h5, h6 { font-size: 12px; margin: 12px 0 4px; color: var(--muted); }
+section { margin: 0; }
+
+p { margin: 0 0 10px; }
+a { color: var(--link); text-decoration: none; }
+a[href^="http"]::after { content: ""; } /* external-link hook, no glyph by default */
+
+/* ---- inline marks ---- */
+strong { font-weight: 700; }
+em { font-style: italic; }
+u { text-decoration: none; border-bottom: 1px solid currentColor; }
+del { color: var(--danger); text-decoration: line-through; }
+/* An inset box-shadow prints as edge slivers on an inline box; a real underline does not. */
+.carve ins { background: var(--tip-bg); text-decoration: underline 2px var(--tip); text-underline-offset: 2px; }
+mark { background: #fff2a8; padding: 0 2px; border-radius: 2px; }
+sup, sub { font-size: 0.72em; line-height: 0; }
+abbr[title] { text-decoration: underline dotted; cursor: help; }
+.mention, .wikilink { color: var(--link); font-weight: 500; }
+.mention strong, .tag strong { font-weight: 600; }
+.tag { color: var(--accent); }
+kbd, [kbd] {
+  font-family: var(--font-mono); font-size: 0.82em; line-height: 1;
+  padding: 2px 6px; border: 1px solid #c4c4c4; border-bottom-width: 2px;
+  border-radius: 4px; background: #fbfbfb; color: var(--code-ink); white-space: nowrap;
+}
+
+/* ---- code ---- */
+code {
+  font-family: var(--font-mono);
+  font-size: 0.88em;
+  background: var(--code-bg);
+  color: var(--code-ink);
+  padding: 1px 5px;
+  border-radius: 4px;
+}
+pre {
+  background: var(--code-bg);
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow: auto;
+  margin: 0 0 12px;
+  break-inside: avoid;
+}
+pre code { background: none; padding: 0; font-size: 12px; line-height: 1.5; }
+
+/* a fence's "Header" reaches <pre title>; print it top-left, opposite the language label */
+.carve pre[title] { position: relative; padding-top: 2.1em; }
+.carve pre[title]::after {
+  content: attr(title);
+  position: absolute; top: 0.6em; left: var(--carve-space-3, 12px);
+  font-family: var(--font-mono); font-size: 9.5px; line-height: 1; color: var(--muted);
+}
+
+/* the fence's language, carried onto <pre data-lang> by wrap.py; the extra top
+ * padding keeps a long first line from running under it */
+.carve pre[data-lang] { position: relative; padding-top: 2.1em; }
+.carve pre[data-lang]::before {
+  content: attr(data-lang);
+  position: absolute; top: 0.6em; right: 1em;
+  font-family: var(--font-mono); font-size: 9.5px; line-height: 1;
+  letter-spacing: 0.08em; text-transform: uppercase; color: var(--faint);
+}
+
+/* Pygments token colors: restrained, high-contrast, and safe on white paper. */
+.syntax-highlighted .tok-c, .syntax-highlighted .tok-c1, .syntax-highlighted .tok-cm,
+.syntax-highlighted .tok-cp, .syntax-highlighted .tok-cs { color: #667085; font-style: italic; }
+.syntax-highlighted .tok-k, .syntax-highlighted .tok-kc, .syntax-highlighted .tok-kd,
+.syntax-highlighted .tok-kn, .syntax-highlighted .tok-kp, .syntax-highlighted .tok-kr,
+.syntax-highlighted .tok-kt { color: #7c3aed; font-weight: 600; }
+.syntax-highlighted .tok-s, .syntax-highlighted .tok-s1, .syntax-highlighted .tok-s2,
+.syntax-highlighted .tok-sa, .syntax-highlighted .tok-sb, .syntax-highlighted .tok-sc,
+.syntax-highlighted .tok-sd, .syntax-highlighted .tok-se, .syntax-highlighted .tok-sh,
+.syntax-highlighted .tok-si, .syntax-highlighted .tok-sr, .syntax-highlighted .tok-ss,
+.syntax-highlighted .tok-sx { color: #16794b; }
+.syntax-highlighted .tok-m, .syntax-highlighted .tok-mb, .syntax-highlighted .tok-mf,
+.syntax-highlighted .tok-mh, .syntax-highlighted .tok-mi, .syntax-highlighted .tok-mo,
+.syntax-highlighted .tok-il { color: #b54708; }
+.syntax-highlighted .tok-nf, .syntax-highlighted .tok-fm { color: #005cc5; font-weight: 600; }
+.syntax-highlighted .tok-nc, .syntax-highlighted .tok-nd, .syntax-highlighted .tok-ne,
+.syntax-highlighted .tok-nn { color: #9a3412; }
+.syntax-highlighted .tok-na, .syntax-highlighted .tok-nv, .syntax-highlighted .tok-vc,
+.syntax-highlighted .tok-vg, .syntax-highlighted .tok-vi, .syntax-highlighted .tok-vm { color: #075985; }
+.syntax-highlighted .tok-nt { color: #b42318; }
+.syntax-highlighted .tok-nb, .syntax-highlighted .tok-bp { color: #005cc5; }
+.syntax-highlighted .tok-gi { color: #16794b; }
+.syntax-highlighted .tok-gd { color: #b42318; }
+.syntax-highlighted .tok-gp { color: #667085; font-weight: 600; }
+
+/* `{.diff}` on a language fence: wrap.py splits it into per-line spans, the
+ * shape of carve-grammars' diff/carve-diff.css, so these rules mirror it */
+pre.has-diff code { display: block; }
+/* rows run edge to edge: the block's side padding moves onto each line */
+.carve pre.has-diff { padding-inline: 0; }
+pre.has-diff .line {
+  display: inline-block; width: 100%; box-sizing: border-box;
+  padding-inline: var(--carve-space-3, 12px);
+}
+pre.has-diff .line.diff.add { background: #e6f4ea; }
+pre.has-diff .line.diff.remove { background: #fdecea; }
+pre.has-diff .diff-marker { display: inline-block; width: 1ch; font-weight: 700; }
+pre.has-diff .line.diff.add .diff-marker { color: #1a7f37; }
+pre.has-diff .line.diff.remove .diff-marker { color: #cf222e; }
+.syntax-highlighted .tok-o, .syntax-highlighted .tok-ow { color: #9f1239; }
+.syntax-highlighted .tok-gh, .syntax-highlighted .tok-gu { color: #7c3aed; font-weight: 700; }
+.syntax-highlighted .tok-gs { font-weight: 700; }
+.syntax-highlighted .tok-ge { font-style: italic; }
+.syntax-highlighted .tok-err { color: #b42318; background: #fee4e2; }
+/* Carve table and caption markers: light values of the shared palette in
+ * markup-carve/carve-grammars themes/palette.json (#818, #820). */
+.syntax-highlighted .tok-o-Table-Header { color: #005cc5; font-weight: 700; }
+.syntax-highlighted .tok-o-Table-Alignment { color: #e36209; font-weight: 400; }
+.syntax-highlighted .tok-o-Table-Rowspan,
+.syntax-highlighted .tok-o-Table-Colspan { color: #6f42c1; font-weight: 700; }
+.syntax-highlighted .tok-p-Table { color: #959da5; }
+.syntax-highlighted .tok-p-Table-Continuation { color: #22863a; font-weight: 700; }
+.syntax-highlighted .tok-p-Caption { color: #bc4c00; font-weight: 700; }
+.syntax-highlighted .tok-gu-Caption { color: #57606a; font-weight: 400; font-style: italic; }
+
+/* mermaid diagrams: drop the code-block chrome, center the rendered SVG */
+pre.mermaid { background: none; border: none; padding: 0; margin: 0 0 14px; text-align: center; break-inside: avoid; }
+pre.mermaid svg { max-width: 100%; height: auto; }
+
+/* chart.js: the <pre.chart> is replaced by a <canvas> at render time */
+pre.chart { background: none; border: none; padding: 0; margin: 0 0 14px; text-align: center; break-inside: avoid; }
+canvas { max-width: 100%; break-inside: avoid; }
+
+/* ---- blockquote ---- */
+blockquote {
+  margin: 14px 0;
+  padding: 6px 16px;
+  border-left: 4px solid var(--line);
+  color: var(--muted);
+  font-style: italic;
+}
+blockquote blockquote { margin: 8px 0; }
+blockquote :is(pre, code) { font-style: normal; }
+
+/* ---- lists ---- */
+ul, ol { margin: 0 0 10px; padding-left: 22px; }
+li { margin: 3px 0; }
+.carve li > :is(ul, ol) { margin-block-end: 0; }
+li > p { margin: 0 0 6px; }
+ul ul, ul ol, ol ul, ol ol { margin: 3px 0; }
+
+/* task lists: minimal glyph marker, no native checkbox, no double bullet */
+li:has(> input[type="checkbox"]) { list-style: none; }
+li > input[type="checkbox"] { display: none; }
+li:has(> input[type="checkbox"])::before {
+  content: "\25CB"; display: inline-block; width: 16px; margin-left: -16px;
+  color: #b0b0b0; font-weight: 700;
+}
+li:has(> input[type="checkbox"]:checked)::before { content: "\2713"; color: var(--tip); }
+/* The hidden checkbox carries carve-css's per-state outline, so each state needs its own glyph. */
+li:has(> input[type="checkbox"])[data-task-state="-"]::before { content: "\2715"; color: #b0b0b0; }
+/* `_` is the open state spelled differently, so it keeps the open glyph. */
+li:has(> input[type="checkbox"])[data-task-state="/"]::before { content: "\25D0"; color: var(--note); }
+li:has(> input[type="checkbox"])[data-task-state="!"]::before { content: "!"; color: var(--danger); }
+li:has(> input[type="checkbox"])[data-task-state=">"]::before { content: "\2192"; color: var(--note); }
+li:has(> input[type="checkbox"])[data-task-state="?"]::before { content: "?"; color: var(--warning); }
+
+/* carve-css numbers the badge with counter(list-item), which a display:flex <li>
+ * never increments; the engine's value attribute is the number itself. */
+ol.callouts > li[value]::before { content: attr(value); }
+
+/* ---- definition lists ---- */
+dl { margin: 0 0 12px; }
+dt { font-weight: 700; margin-top: 8px; }
+dd { margin: 2px 0 0 18px; color: var(--muted); }
+
+/* ---- tables (pipe + list-table both emit real <table>) ---- */
+table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0 0 14px;
+  font-size: 12.5px;
+  break-inside: avoid;
+}
+th, td { border: 1px solid var(--line); padding: 6px 9px; text-align: left; vertical-align: top; }
+thead th { background: #f0f0f2; }
+caption { caption-side: top; text-align: left; font-weight: 700; margin-bottom: 6px; }
+tbody tr:nth-child(even) { background: #fafafa; }
+/* carve-css drops the last row's rule for its open table; this one draws a full grid. */
+.carve tbody tr:last-child :is(th, td) { border-block-end: 1px solid var(--line); }
+
+/* list-table fallback (bare carve without ListTableExtension emits nested <ul>) */
+.list-table { margin: 0 0 14px; break-inside: avoid; }
+.list-table > .admonition-title { font-weight: 700; margin: 0 0 6px; }
+.list-table > ul { display: table; width: 100%; list-style: none; padding: 0; margin: 0; }
+.list-table > ul > li { display: table-row; }
+.list-table > ul > li > ul { display: contents; }
+.list-table > ul > li > ul > li {
+  display: table-cell; border: 1px solid var(--line); padding: 6px 9px; vertical-align: top;
+}
+.list-table > ul > li:first-child > ul > li { background: #f0f0f2; font-weight: 700; }
+
+/* ---- figures & images ---- */
+img { max-width: 100%; height: auto; }
+figure { margin: 0 0 14px; break-inside: avoid; text-align: center; }
+figcaption { font-size: 11.5px; color: var(--muted); margin-top: 6px; }
+/* The caption is centred, so the image above it is too. */
+.carve figure > img { margin-inline: auto; }
+/* The group is a flex row; its caption takes a line of its own. */
+.carve .carve-figure-group > figcaption { flex-basis: 100%; text-align: center; }
+
+/* ---- admonitions (aside.admonition.<type>) ---- */
+.admonition {
+  border: 1px solid var(--line);
+  border-left-width: 4px;
+  border-radius: 8px;
+  padding: 10px 14px;
+  margin: 0 0 14px;
+  background: #fafafa;
+  break-inside: avoid;
+}
+.admonition-title { font-weight: 700; margin: 0 0 4px; }
+.admonition > :last-child { margin-bottom: 0; }
+.admonition.tip { border-left-color: var(--tip); background: var(--tip-bg); }
+.admonition.tip .admonition-title { color: var(--tip); }
+.admonition.note { border-left-color: var(--note); background: var(--note-bg); }
+.admonition.note .admonition-title { color: var(--note); }
+.admonition.warning { border-left-color: var(--warning); background: var(--warning-bg); }
+.admonition.warning .admonition-title { color: var(--warning); }
+.admonition.danger { border-left-color: var(--danger); background: var(--danger-bg); }
+.admonition.danger .admonition-title { color: var(--danger); }
+.admonition.info { border-left-color: var(--info); background: var(--info-bg); }
+.admonition.info .admonition-title { color: var(--info); }
+.admonition.success { border-left-color: var(--success); background: var(--success-bg); }
+.admonition.success .admonition-title { color: var(--success); }
+
+/* ---- details / spoiler (static mode -> <details open>) ---- */
+details {
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  padding: 8px 14px;
+  margin: 0 0 14px;
+  break-inside: avoid;
+}
+details > summary {
+  font-weight: 700;
+  margin: -8px -14px 8px;
+  padding: 8px 14px;
+  background: #f0f0f2;
+  border-radius: 7px 7px 0 0;
+  list-style: none;
+}
+details > summary::-webkit-details-marker { display: none; }
+details.spoiler { border-style: dashed; }
+.spoiler:not(details) { background: #eee; border-radius: 3px; } /* inline spoiler */
+
+/* ---- tabs (static -> div.tabs > section.tabs-panel > h3.tabs-label) ----
+ * Panel visibility is the vendored stylesheet's job again. This layer used to
+ * force `display: block` and clear the first panel's separator, because the
+ * vendored copy hid every panel in every render mode and nothing unhid them.
+ * Upstream now does both, so the override is gone: keeping it would mask a
+ * future regression in the vendored copy instead of letting the panel gate
+ * fail. What is left is a print choice - a darker rule than the screen token,
+ * because #e3e6ea washes out on paper. */
+.tabs, .code-group { border: 1px solid var(--line); border-radius: 8px; margin: 0 0 14px; overflow: hidden; break-inside: avoid; }
+.tabs-label, .code-group-label {
+  margin: 0; padding: 6px 12px; font-weight: 700; font-size: 12px;
+  background: #f0f0f2; border-bottom: 1px solid var(--line);
+}
+/* The label is a full-width band, so the panel carries no padding of its own
+ * and every body block gets the same inset, the last one included. */
+.carve .tabs-panel, .carve .code-group-panel { border-block-start-color: var(--line); padding: 0; }
+.carve .tabs-panel > .tabs-label, .carve .code-group-panel > .code-group-label {
+  margin: 0; padding: 6px 12px; text-transform: none; letter-spacing: normal;
+  border-block-end: 1px solid var(--line);
+}
+.carve .tabs-panel > :not(.tabs-label), .carve .code-group-panel > :not(.code-group-label, pre) { margin: 10px 14px; }
+.code-group-panel pre { border: none; border-radius: 0; margin: 0; }
+
+/* ---- math (static mode renders TeX source in \(..\) / \[..\] delimiters) ---- */
+.math { font-family: var(--font-mono); font-size: 0.9em; }
+.math.inline { background: var(--code-bg); padding: 1px 5px; border-radius: 4px; }
+.math.display {
+  display: block; text-align: center; background: var(--code-bg);
+  border: 1px solid var(--line); border-radius: 8px; padding: 12px 14px; margin: 0 0 14px;
+  break-inside: avoid;
+}
+/* Typeset by KaTeX, the math is no longer TeX source and drops the code look. */
+.math:has(.katex) { font-family: inherit; font-size: inherit; background: none; border: 0; padding: 0; }
+
+/* ---- line block (verse / addresses) ---- */
+.line-block { margin: 0 0 12px; }
+.line-block p { margin: 0; }
+
+/* ---- table of contents (ul.toc) ---- */
+ul.toc {
+  list-style: none; padding: 12px 16px; margin: 0 0 16px;
+  background: #fafafa; border: 1px solid var(--line); border-radius: 8px;
+}
+ul.toc > li { margin: 2px 0; }
+ul.toc a { color: var(--ink); }
+
+/* ---- footnotes ---- */
+[role="doc-noteref"] sup { font-weight: 600; }
+[role="doc-endnotes"] { margin-top: 26px; padding-top: 8px; font-size: 11.5px; color: var(--muted); }
+[role="doc-endnotes"] ol { padding-left: 18px; }
+.fn { font-size: 0.85em; vertical-align: super; color: var(--muted); }
+
+/* ---- thematic break ---- */
+hr { border: none; border-top: 1px solid var(--line); margin: 20px 0; }
