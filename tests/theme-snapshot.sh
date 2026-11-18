@@ -24,13 +24,30 @@ for row in '01-spec:2:Carve Engineering Spec' '02-showcase:1:Feature Showcase'; 
   actual="$(pdfinfo "$WORK/$name.pdf" | awk '/^Pages:/ { print $2 }')"
   pdftotext "$WORK/$name.pdf" "$WORK/$name.txt"
   if [ "$actual" != "$pages" ] || ! grep -qF "$needle" "$WORK/$name.txt" || \
-     ! grep -qF "Page $pages of $pages" "$WORK/$name.txt"; then
+     [ "$(grep -cF "Page $pages of $pages" "$WORK/$name.txt")" -ne 1 ]; then
     echo "theme snapshot: FAIL $name ($actual pages, expected $pages; text or footer missing)"
     fail=1
   else
     echo "theme snapshot: ok $name ($pages pages, extracted text and footer)"
   fi
 done
+
+# Direct print_cdp callers supply no CSS margin box and keep the CDP footer.
+printf '<!doctype html><p>Standalone print</p>\n' > "$WORK/standalone.html"
+if python3 "$HERE/lib/print_cdp.py" "$WORK/standalone.html" "$WORK/standalone.pdf" \
+    'Direct {page} of {pages}' > "$WORK/standalone.log" 2>&1; then
+  pdftotext "$WORK/standalone.pdf" "$WORK/standalone.txt"
+  if grep -qF 'Direct 1 of 1' "$WORK/standalone.txt"; then
+    echo 'theme snapshot: ok direct printer keeps its footer'
+  else
+    echo 'theme snapshot: FAIL direct printer lost its footer'
+    fail=1
+  fi
+else
+  echo 'theme snapshot: FAIL direct printer did not run'
+  cat "$WORK/standalone.log"
+  fail=1
+fi
 
 # Imported CSS stays after built-in styles and can load its own local assets.
 if command -v pdfimages >/dev/null 2>&1; then

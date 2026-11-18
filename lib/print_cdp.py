@@ -1,11 +1,13 @@
 #!/usr/bin/env python3
 """Render an HTML file to PDF via Chrome DevTools Page.printToPDF.
 
-CDP gives printBackground, request containment, and a footer-template fallback
-for Chrome older than 131. Newer Chrome prints CSS page margin boxes.
+CDP gives printBackground and request containment. Direct callers use its
+footer template. A wrapper that added CSS page margin boxes passes
+--css-margins, so Chrome 131 and newer use those boxes instead; older Chrome
+keeps the DevTools template as a fallback.
 
 Usage: print_cdp.py <input.html> <output.pdf> [footer-template]
-                    [--header TEXT] [--allow-dir DIR]... [--allow-remote] [--author NAME]
+                    [--header TEXT] [--css-margins] [--allow-dir DIR]... [--allow-remote] [--author NAME]
 
 The footer template is plain text with two placeholders, {page} and {pages}
 (e.g. "Page {page} of {pages}" or "Seite {page} von {pages}"). Precedence:
@@ -45,17 +47,20 @@ try:
 except ImportError:
     sys.exit("print_cdp.py: needs the websocket-client package: pip install websocket-client")
 
-USAGE = "usage: print_cdp.py <input.html> <output.pdf> [footer-template] [--header TEXT] [--allow-dir DIR]... [--allow-remote] [--author NAME]"
+USAGE = "usage: print_cdp.py <input.html> <output.pdf> [footer-template] [--header TEXT] [--css-margins] [--allow-dir DIR]... [--allow-remote] [--author NAME]"
 positional = []
 ALLOW_DIRS = []
 ALLOW_REMOTE = False
 AUTHOR = ""
 HEADER_TEXT = ""
+CSS_MARGINS = False
 _argv = sys.argv[1:]
 while _argv:
     _arg = _argv.pop(0)
     if _arg == "--allow-remote":
         ALLOW_REMOTE = True
+    elif _arg == "--css-margins":
+        CSS_MARGINS = True
     elif _arg == "--author":
         if not _argv:
             sys.exit(USAGE)
@@ -332,7 +337,7 @@ def chrome_flags() -> list:
 port = free_port()
 profile = tempfile.mkdtemp(prefix="carve-pdf-cdp-")
 BROWSER = find_chrome()
-USE_CSS_MARGINS = supports_margin_boxes(BROWSER)
+USE_CSS_MARGINS = CSS_MARGINS and supports_margin_boxes(BROWSER)
 chrome = subprocess.Popen(
     [
         BROWSER, *chrome_flags(),

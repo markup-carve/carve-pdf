@@ -258,7 +258,7 @@ build_one() {  # build_one <input.crv> <output>
 
   local footer; footer="$(cat "$WORK/footer")"
   local header; header="$(cat "$WORK/header")"
-  python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" --header "$header" "${allow[@]}" >/dev/null || return 1
+  python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" --header "$header" --css-margins "${allow[@]}" >/dev/null || return 1
   echo "PDF: $out ($RENDERER backend)"
 }
 
