@@ -44,7 +44,7 @@ png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 16, 16, 8, 2
 open(sys.argv[1], 'wb').write(png)
 PY
   printf '# CSS import\n\nBody.\n' > "$WORK/import/input.crv"
-  printf '%s\n' '@import "imported.css";' > "$WORK/import/host.css"
+  printf '@import\n"imported.css";\n' > "$WORK/import/host.css"
   printf '%s\n' 'body::before { content:""; display:block; width:64px; height:64px; background: url("red.png") 0 0 / 64px 64px no-repeat; }' > "$WORK/import/imported.css"
   if "$HERE/crv2pdf.sh" --css "$WORK/import/host.css" "$WORK/import/input.crv" \
       "$WORK/import/out.pdf" > "$WORK/import/render.log" 2>&1 && \

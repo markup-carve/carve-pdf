@@ -71,6 +71,21 @@ class Styling(unittest.TestCase):
         printed, _ = self.wrap(options=options, print_mode=True)
         self.assertIn('@import "file://' + str(imported) + '"', printed)
 
+    def test_import_accepts_css_whitespace_and_comments(self):
+        imported = self.root / "imported.css"
+        imported.write_text('body { color: purple; }', encoding="utf-8")
+        host = self.root / "host.css"
+        host.write_text('@import\n/* note */ "imported.css";')
+        deps = self.root / "css-deps"
+        options = ("--css-deps-out", str(deps), "--custom-css", str(host))
+        printed, _ = self.wrap(options=options, print_mode=True)
+        self.assertIn('/* note */ "file://' + str(imported) + '"', printed)
+        self.assertIn(str(imported), deps.read_text())
+        host.write_text('@import\nurl("imported.css");')
+        printed, _ = self.wrap(options=options, print_mode=True)
+        self.assertIn('url("file://' + str(imported) + '")', printed)
+        self.assertIn(str(imported), deps.read_text())
+
     def test_html_assets_use_final_output_directory(self):
         styles = self.root / "styles"
         styles.mkdir()

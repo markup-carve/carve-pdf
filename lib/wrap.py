@@ -435,7 +435,7 @@ except Exception:
 
 
 CSS_DEPENDENCIES = set()
-IMPORT_TARGET = re.compile(r'^[ \t]*@import[ \t]+(?:url\(\s*[\'\"]?([^\)\'\"]+)[\'\"]?\s*\)|[\'\"]([^\'\"]+)[\'\"])', re.IGNORECASE | re.MULTILINE)
+IMPORT_TARGET = re.compile(r'^[ \t]*@import\s*(?:url\(\s*[\'\"]?([^\)\'\"]+)[\'\"]?\s*\)|[\'\"]([^\'\"]+)[\'\"])', re.IGNORECASE | re.MULTILINE)
 
 
 def local_target(path: Path, raw: str):
@@ -456,7 +456,7 @@ def css_dependencies(path: Path):
     except OSError:
         sys.stderr.write(f"wrap.py: imported stylesheet not readable: {path}\n")
         return
-    active_source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    active_source = re.sub(r"/\*.*?\*/", " ", source, flags=re.DOTALL)
     for match in IMPORT_TARGET.finditer(active_source):
         target, _ = local_target(path, match.group(1) or match.group(2))
         if target:
@@ -506,10 +506,21 @@ def css_file(path: Path) -> str:
             out.append(source[i:end])
             i = end
         elif source[i:i + 7].lower() == "@import" and (i + 7 == len(source) or not source[i + 7].isalnum()):
-            match = re.match(r'(@import[ \t]+)([\'\"])([^\'\"]+)\2', source[i:], re.IGNORECASE)
-            if match:
-                out.append(match.group(1) + match.group(2) + resource_url(match.group(3)) + match.group(2))
-                i += match.end()
+            start = i + 7
+            while start < len(source):
+                if source[start].isspace():
+                    start += 1
+                elif source.startswith("/*", start):
+                    end = source.find("*/", start + 2)
+                    if end < 0:
+                        break
+                    start = end + 2
+                else:
+                    break
+            if start < len(source) and source[start] in "\"'":
+                end = string_end(start)
+                out.append(source[i:start + 1] + resource_url(source[start + 1:end - 1]) + source[end - 1:end])
+                i = end
             else:
                 out.append(source[i])
                 i += 1
