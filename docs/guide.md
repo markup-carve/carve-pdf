@@ -66,7 +66,9 @@ order. `carve-pdf.css` beside the input is loaded automatically before these
 files. With `--include-root DIR`, the project file is sought in that directory
 instead. PDF and `--html` use the same styles. Local `url()` assets resolve from
 each stylesheet's directory; those directories join the PDF printer's local
-resource allowlist. Remote URLs still require `--allow-remote`.
+resource allowlist. Local CSS imports keep their cascade position, and their
+directories are allowed for assets too. Remote URLs and imports still require
+`--allow-remote` for PDF printing.
 
 Styles apply in this order: vendored `carve-css`, the selected theme, print
 rules, checked document tokens and page settings, the project stylesheet, then

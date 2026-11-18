@@ -229,7 +229,8 @@ build_one() {  # build_one <input.crv> <output>
   local mode=(); [ "$FORMAT" = "pdf" ] && mode=(--print)
   local theme_args=(); [ -z "$THEME_CONFIG" ] || theme_args=(--theme-config "$THEME_CONFIG")
   python3 "$LIB/wrap.py" ${mode[@]+"${mode[@]}"} ${WRAP_ARGS[@]+"${WRAP_ARGS[@]}"} \
-    --footer-out "$WORK/footer" --header-out "$WORK/header" ${theme_args[@]+"${theme_args[@]}"} ${custom[@]+"${custom[@]}"} \
+    --footer-out "$WORK/footer" --header-out "$WORK/header" --css-deps-out "$WORK/css-deps" \
+    ${theme_args[@]+"${theme_args[@]}"} ${custom[@]+"${custom[@]}"} \
     "$WORK/frag" "$WORK/meta.json" "$srcdir" "$WORK/doc.html" \
     "$THEMES/carve-css/tokens.css" "$THEMES/carve-css/core.css" \
     "$THEMES/carve-css/extensions.css" "$THEMES/carve-css/recipes.css" \
@@ -247,6 +248,9 @@ build_one() {  # build_one <input.crv> <output>
   allow+=(--allow-dir "$(dirname "$THEME_CSS")")
   [ ! -f "$project_css" ] || allow+=(--allow-dir "$project_root")
   for cssfile in "${CSS_FILES[@]}"; do allow+=(--allow-dir "$(dirname "$cssfile")"); done
+  while IFS= read -r cssdep; do
+    [ -z "$cssdep" ] || allow+=(--allow-dir "$(dirname "$cssdep")")
+  done < "$WORK/css-deps"
   allow+=(${PRINT_ARGS[@]+"${PRINT_ARGS[@]}"})
   local author; author="$(python3 -c 'import json,sys; a=json.load(open(sys.argv[1])).get("author"); print(", ".join(map(str,a)) if isinstance(a,list) else (a or ""))' "$WORK/meta.json")"
   if [ -n "$author" ]; then allow+=(--author "$author"); fi
@@ -285,6 +289,7 @@ if [ "$WATCH" = "1" ]; then
     [ -z "$THEME_CONFIG" ] || echo "$THEME_CONFIG"
     echo "$root/carve-pdf.css"
     for cssfile in "${CSS_FILES[@]}"; do echo "$cssfile"; done
+    [ ! -f "$WORK/css-deps" ] || cat "$WORK/css-deps"
     return 0
   }
 
@@ -294,10 +299,16 @@ if [ "$WATCH" = "1" ]; then
   signature() { watched_files | while IFS= read -r f; do echo "$f $(mtime "$f")"; done; }
 
   if command -v inotifywait >/dev/null 2>&1; then
-    # event-driven (blocks on inotify events, no sleep-poll)
-    watch_dirs=("$dir")
-    case "$dir/" in "$root"/*) watch_dirs=("$root") ;; *) watch_dirs+=("$root") ;; esac
-    inotifywait -m -r -q -e close_write,moved_to,create,delete,moved_from --format '%w%f' "${watch_dirs[@]}" | while IFS= read -r f; do
+    # Rebuild the watch set after every event so newly imported CSS is watched.
+    while true; do
+      mapfile -t watch_dirs < <(
+        { echo "$dir"; echo "$root"; watched_files | while IFS= read -r file; do dirname "$file"; done; } |
+          while IFS= read -r candidate; do [ ! -d "$candidate" ] || realpath "$candidate"; done | sort -u
+      )
+      if ! f="$(inotifywait -q -e close_write,moved_to,create,delete,moved_from --format '%w%f' "${watch_dirs[@]}")"; then
+        echo "crv2pdf: file watcher stopped" >&2
+        break
+      fi
       if watched_files | grep -qxF -- "$f"; then
         echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true
       fi

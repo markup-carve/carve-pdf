@@ -57,6 +57,20 @@ class Styling(unittest.TestCase):
         printed, _ = self.wrap(options=options, print_mode=True)
         self.assertIn("url('file://" + str(self.root) + "/fonts/a.woff2')", printed)
 
+    def test_css_import_keeps_its_cascade_position_and_dependency(self):
+        imported = self.root / "imported.css"
+        imported.write_text(".carve h1 { color: purple; }", encoding="utf-8")
+        host = self.root / "host.css"
+        host.write_text('@import "imported.css";\n.carve h1 { font-weight: bold; }', encoding="utf-8")
+        deps = self.root / "css-deps"
+        options = ("--css-deps-out", str(deps), "--custom-css", str(host))
+        html, _ = self.wrap(options=options)
+        self.assertIn('<style>\n@import "imported.css";', html)
+        self.assertLess(html.index("--carve-accent"), html.index('@import "imported.css"'))
+        self.assertIn(str(imported), deps.read_text())
+        printed, _ = self.wrap(options=options, print_mode=True)
+        self.assertIn('@import "file://' + str(imported) + '"', printed)
+
     def test_theme_defaults_and_host_footer(self):
         theme = self.root / "theme.json"
         theme.write_text(json.dumps({"paper": "Letter", "margin": "15mm",

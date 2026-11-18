@@ -13,7 +13,7 @@ against <base_dir> and print_cdp.py decides what may load; without it (the
 written in HTML and print as plain text in a PDF, where they could only point
 into the build machine's filesystem.
 Recognized keys: title, description, author, date, kicker, tags, lang.
-Any CSS files given are inlined into a single <style> block.
+Each CSS file is inlined into its own <style> block so imports remain valid.
 """
 import base64
 import html
@@ -36,6 +36,7 @@ THEME_CONFIG = None
 FOOTER_OUT = None
 HEADER_OUT = None
 CUSTOM_CSS = []
+CSS_DEPS_OUT = None
 positional = []
 argv = sys.argv[1:]
 while argv:
@@ -54,6 +55,8 @@ while argv:
         HEADER_OUT = Path(argv.pop(0)) if argv else sys.exit(USAGE)
     elif arg == "--custom-css":
         CUSTOM_CSS.append(Path(argv.pop(0))) if argv else sys.exit(USAGE)
+    elif arg == "--css-deps-out":
+        CSS_DEPS_OUT = Path(argv.pop(0)) if argv else sys.exit(USAGE)
     else:
         positional.append(arg)
 if len(positional) < 4:
@@ -425,28 +428,69 @@ try:
     meta = json.loads(meta_path.read_text(encoding="utf-8") or "{}")
 except Exception:
     meta = {}
+
+
+CSS_DEPENDENCIES = set()
+IMPORT_TARGET = re.compile(r'^[ \t]*@import[ \t]+(?:url\(\s*[\'\"]?([^\)\'\"]+)[\'\"]?\s*\)|[\'\"]([^\'\"]+)[\'\"])', re.IGNORECASE | re.MULTILINE)
+
+
+def local_target(path: Path, raw: str):
+    parsed = urlsplit(raw.strip())
+    if not raw or parsed.scheme or raw.startswith(("/", "#", "//")):
+        return None, parsed
+    return (path.resolve().parent / unquote(parsed.path)).resolve(), parsed
+
+
+def css_dependencies(path: Path):
+    """Record local imports and their assets' allowlisted and watched roots."""
+    path = path.resolve()
+    if path in CSS_DEPENDENCIES:
+        return
+    CSS_DEPENDENCIES.add(path)
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        sys.stderr.write(f"wrap.py: imported stylesheet not readable: {path}\n")
+        return
+    active_source = re.sub(r"/\*.*?\*/", "", source, flags=re.DOTALL)
+    for match in IMPORT_TARGET.finditer(active_source):
+        target, _ = local_target(path, match.group(1) or match.group(2))
+        if target:
+            css_dependencies(target)
+
+
 def css_file(path: Path) -> str:
     """Inline a trusted sheet and resolve its local assets from that sheet."""
     source = path.read_text(encoding="utf-8")
-    def resource(match):
-        raw = match.group(2).strip()
-        parsed = urlsplit(raw)
-        if not raw or parsed.scheme or raw.startswith(("/", "#", "//", "data:")):
-            return match.group(0)
-        target = (path.resolve().parent / unquote(parsed.path)).resolve()
-        if PRINT:
-            resolved = target.as_uri()
-        else:
-            resolved = os.path.relpath(target, out_path.resolve().parent).replace(os.sep, "/")
+    css_dependencies(path)
+
+    def resource_url(raw):
+        target, parsed = local_target(path, raw)
+        if target is None:
+            return raw
+        resolved = target.as_uri() if PRINT else os.path.relpath(target, out_path.resolve().parent).replace(os.sep, "/")
         if parsed.query:
             resolved += "?" + parsed.query
         if parsed.fragment:
             resolved += "#" + parsed.fragment
+        return resolved
+
+    def resource(match):
+        raw = match.group(2).strip()
+        resolved = resource_url(raw)
         return f"url({match.group(1)}{resolved}{match.group(1)})"
-    return re.sub(r'url\(\s*([\'\"]?)([^)\'\"]+)\1\s*\)', resource, source, flags=re.IGNORECASE)
+
+    source = re.sub(r'url\(\s*([\'\"]?)([^)\'\"]+)\1\s*\)', resource, source, flags=re.IGNORECASE)
+    return re.sub(r'(^[ \t]*@import[ \t]+)([\'\"])([^\'\"]+)\2',
+                  lambda m: m.group(1) + m.group(2) + resource_url(m.group(3)) + m.group(2),
+                  source, flags=re.IGNORECASE | re.MULTILINE)
 
 
-css = "\n".join(css_file(p) for p in css_paths if p.is_file())
+# Each sheet gets its own style element. An import at the start of a theme or
+# host sheet must remain at the start of a stylesheet to be valid CSS.
+style_parts = [css_file(p) for p in css_paths if p.is_file()]
+built_count = len(style_parts)
+css = ""
 
 
 def esc(v) -> str:
@@ -586,7 +630,12 @@ if margin_boxes:
 # Trusted project and CLI styles always come last. This includes their @page
 # rules, so hosts can replace the built-in footer or geometry outright.
 if CUSTOM_CSS:
-    css += "\n/* host styles */\n" + "\n".join(css_file(p) for p in CUSTOM_CSS) + "\n"
+    style_parts.extend(css_file(p) for p in CUSTOM_CSS)
+if css:
+    style_parts.insert(built_count, css)
+if CSS_DEPS_OUT:
+    CSS_DEPS_OUT.write_text("\n".join(str(p) for p in sorted(CSS_DEPENDENCIES)) + "\n", encoding="utf-8")
+styles = "\n".join(f"<style>\n{part}\n</style>" for part in style_parts)
 
 
 # --- optional client-side renderers (math / diagrams / charts) --------------
@@ -723,9 +772,7 @@ if byline_bits:
 doc = f"""<!doctype html>
 <html lang="{esc(meta.get('lang', 'en'))}"><head><meta charset="utf-8">
 <title>{esc(title)}</title>
-<style>
-{css}
-</style>
+{styles}
 {client_head}
 </head><body class="carve">
 {header}

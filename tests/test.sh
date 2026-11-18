@@ -456,6 +456,10 @@ if ! python3 "$HERE/tests/styling.py"; then
   fail=$((fail+1))
 fi
 
+if ! "$HERE/tests/styling-watch.sh"; then
+  fail=$((fail+1))
+fi
+
 if ! "$HERE/tests/theme-snapshot.sh"; then
   fail=$((fail+1))
 fi

@@ -31,4 +31,29 @@ for row in '01-spec:2:Carve Engineering Spec' '02-showcase:1:Feature Showcase'; 
     echo "theme snapshot: ok $name ($pages pages, extracted text and footer)"
   fi
 done
+
+# Imported CSS stays after built-in styles and can load its own local assets.
+if command -v pdfimages >/dev/null 2>&1; then
+  mkdir -p "$WORK/import"
+  python3 - "$WORK/import/red.png" <<'PY'
+import struct, sys, zlib
+def chunk(kind, data):
+    return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
+raw = b''.join(b'\x00' + b'\xff\x00\x00' * 16 for _ in range(16))
+png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 16, 16, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b'')
+open(sys.argv[1], 'wb').write(png)
+PY
+  printf '# CSS import\n\nBody.\n' > "$WORK/import/input.crv"
+  printf '%s\n' '@import "imported.css";' > "$WORK/import/host.css"
+  printf '%s\n' 'body::before { content:""; display:block; width:64px; height:64px; background: url("red.png") 0 0 / 64px 64px no-repeat; }' > "$WORK/import/imported.css"
+  if "$HERE/crv2pdf.sh" --css "$WORK/import/host.css" "$WORK/import/input.crv" \
+      "$WORK/import/out.pdf" > "$WORK/import/render.log" 2>&1 && \
+      pdfimages -list "$WORK/import/out.pdf" | awk 'NR > 2 && $3 == "image" { found=1 } END { exit !found }'; then
+    echo 'theme snapshot: ok imported CSS loaded its local image'
+  else
+    echo 'theme snapshot: FAIL imported CSS image was not embedded'
+    cat "$WORK/import/render.log"
+    fail=1
+  fi
+fi
 exit "$fail"
