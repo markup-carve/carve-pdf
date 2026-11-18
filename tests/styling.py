@@ -4,10 +4,14 @@ import json
 import os
 from pathlib import Path
 import subprocess
+import sys
 import tempfile
 import unittest
 
 HERE = Path(__file__).resolve().parents[1]
+sys.path.insert(0, str(HERE / "lib"))
+from chrome_version import supports_margin_boxes
+
 CSS = HERE / "themes"
 BUILTINS = [CSS / "carve-css" / name for name in
             ("tokens.css", "core.css", "extensions.css", "recipes.css")]
@@ -87,14 +91,14 @@ class Styling(unittest.TestCase):
         self.assertIn(str(imported), deps.read_text())
 
     def test_html_assets_use_final_output_directory(self):
-        styles = self.root / "styles"
+        styles = self.root / "styles with spaces"
         styles.mkdir()
         host = styles / "host.css"
-        host.write_text('@import "more.css";\nbody { background: url("icon.svg"); }')
+        host.write_text('@import "more.css";\nbody { background: url(icon.svg); }')
         exported = self.root / "export" / "report.html"
         html, _ = self.wrap(options=("--asset-base", str(exported), "--custom-css", str(host)))
-        self.assertIn('@import "../styles/more.css"', html)
-        self.assertIn('url("../styles/icon.svg")', html)
+        self.assertIn('@import "../styles%20with%20spaces/more.css"', html)
+        self.assertIn('url(../styles%20with%20spaces/icon.svg)', html)
         self.assertNotIn("carve-pdf-styling-", html.split("@import", 1)[1])
 
     def test_literal_url_text_is_untouched(self):
@@ -140,6 +144,15 @@ class Styling(unittest.TestCase):
         html, _ = self.wrap({"footer": '</style><script>alert(1)</script>'})
         self.assertNotIn('</style><script>alert(1)', html)
         self.assertIn('\\3c /style>', html)
+
+    def test_chrome_for_testing_version_gate(self):
+        browser = self.root / "fake-chrome"
+        for label, expected in (("Google Chrome for Testing 156.0.0.0", True),
+                                ("Google Chrome 130.0.0.0", False),
+                                ("Chromium 131.0.0.0", True)):
+            browser.write_text('#!/bin/sh\necho "' + label + '"\n', encoding="utf-8")
+            browser.chmod(0o755)
+            self.assertEqual(supports_margin_boxes(str(browser)), expected, label)
 
 
 if __name__ == "__main__":

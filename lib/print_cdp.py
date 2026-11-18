@@ -38,6 +38,8 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from chrome_version import supports_margin_boxes
+
 try:
     import websocket  # websocket-client (synchronous)
 except ImportError:
@@ -118,16 +120,6 @@ def find_chrome() -> str:
         if path:
             return path
     sys.exit("print_cdp.py: no Chrome/Chromium binary found (set $CHROME_BIN)")
-
-
-def supports_margin_boxes(browser: str) -> bool:
-    """Page margin boxes first shipped in Chrome 131."""
-    try:
-        version = subprocess.check_output([browser, "--version"], text=True, timeout=5)
-        match = re.search(r"(?:Chrome|Chromium)\s+(\d+)", version)
-        return bool(match and int(match.group(1)) >= 131)
-    except (OSError, subprocess.SubprocessError):
-        return False
 
 
 def free_port() -> int:

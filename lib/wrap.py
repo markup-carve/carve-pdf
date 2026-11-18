@@ -22,7 +22,7 @@ import os
 import re
 import sys
 from pathlib import Path
-from urllib.parse import unquote, urljoin, urlsplit
+from urllib.parse import quote as url_quote, unquote, urljoin, urlsplit
 
 # assets.py owns where the optional client libraries live, so `make check`
 # reports on the same paths the renderer reads rather than its own copy of them.
@@ -472,7 +472,9 @@ def css_file(path: Path) -> str:
         target, parsed = local_target(path, raw)
         if target is None:
             return raw
-        resolved = target.as_uri() if PRINT else os.path.relpath(target, asset_base_dir).replace(os.sep, "/")
+        resolved = target.as_uri() if PRINT else url_quote(
+            os.path.relpath(target, asset_base_dir).replace(os.sep, "/"), safe="/.-_~"
+        )
         if parsed.query:
             resolved += "?" + parsed.query
         if parsed.fragment:
