@@ -227,10 +227,11 @@ build_one() {  # build_one <input.crv> <output>
   [ ! -f "$project_css" ] || custom+=(--custom-css "$project_css")
   for cssfile in "${CSS_FILES[@]}"; do custom+=(--custom-css "$cssfile"); done
   local mode=(); [ "$FORMAT" = "pdf" ] && mode=(--print)
+  local asset_base=(); [ "$FORMAT" != "html" ] || asset_base=(--asset-base "$out")
   local theme_args=(); [ -z "$THEME_CONFIG" ] || theme_args=(--theme-config "$THEME_CONFIG")
   python3 "$LIB/wrap.py" ${mode[@]+"${mode[@]}"} ${WRAP_ARGS[@]+"${WRAP_ARGS[@]}"} \
     --footer-out "$WORK/footer" --header-out "$WORK/header" --css-deps-out "$WORK/css-deps" \
-    ${theme_args[@]+"${theme_args[@]}"} ${custom[@]+"${custom[@]}"} \
+    ${asset_base[@]+"${asset_base[@]}"} ${theme_args[@]+"${theme_args[@]}"} ${custom[@]+"${custom[@]}"} \
     "$WORK/frag" "$WORK/meta.json" "$srcdir" "$WORK/doc.html" \
     "$THEMES/carve-css/tokens.css" "$THEMES/carve-css/core.css" \
     "$THEMES/carve-css/extensions.css" "$THEMES/carve-css/recipes.css" \

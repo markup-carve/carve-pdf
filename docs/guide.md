@@ -57,7 +57,8 @@ block is reported on stderr and the document prints without that image.
   plain text in a PDF, where it could only point into the build machine's filesystem.
 
 In `--html` output, image paths stay relative to the HTML file, so write it next to
-the source (the default) or copy the images along.
+the source (the default) or copy the images along. CSS asset and import paths are
+resolved relative to the final HTML output location.
 
 ## Custom styling
 

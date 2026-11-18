@@ -364,6 +364,12 @@ has "document pdf accent token" "$WORK/styled.html" '--carve-accent: #0a5;'
 has "document pdf font size token" "$WORK/styled.html" '--pdf-font-size: 10.5pt;'
 has "project stylesheet included" "$WORK/styled.html" 'color: green;'
 has "CLI stylesheet included" "$WORK/styled.html" 'color: blue;'
+mkdir -p "$WORK/export"
+echo 'body { background: url("asset.png"); }' > "$WORK/style-doc/assets.css"
+"$HERE/crv2pdf.sh" --html --css "$WORK/style-doc/assets.css" \
+  "$WORK/style-doc/input.crv" "$WORK/export/styled.html" >/dev/null 2>&1
+has "exported HTML resolves CSS asset from final output" "$WORK/export/styled.html" 'url("../style-doc/asset.png")'
+hasnt "exported HTML has no temporary CSS path" "$WORK/export/styled.html" 'crv2pdf.'
 if python3 - "$WORK/styled.html" <<'PY'
 import sys
 s = open(sys.argv[1], encoding="utf-8").read()

@@ -71,6 +71,26 @@ class Styling(unittest.TestCase):
         printed, _ = self.wrap(options=options, print_mode=True)
         self.assertIn('@import "file://' + str(imported) + '"', printed)
 
+    def test_html_assets_use_final_output_directory(self):
+        styles = self.root / "styles"
+        styles.mkdir()
+        host = styles / "host.css"
+        host.write_text('@import "more.css";\nbody { background: url("icon.svg"); }')
+        exported = self.root / "export" / "report.html"
+        html, _ = self.wrap(options=("--asset-base", str(exported), "--custom-css", str(host)))
+        self.assertIn('@import "../styles/more.css"', html)
+        self.assertIn('url("../styles/icon.svg")', html)
+        self.assertNotIn("carve-pdf-styling-", html.split("@import", 1)[1])
+
+    def test_literal_url_text_is_untouched(self):
+        host = self.root / "host.css"
+        host.write_text('/* url(comment.svg) */\nbody::before { content: "url(icon.svg)"; background: url(icon.svg); }')
+        exported = self.root / "export" / "report.html"
+        html, _ = self.wrap(options=("--asset-base", str(exported), "--custom-css", str(host)))
+        self.assertIn('/* url(comment.svg) */', html)
+        self.assertIn('content: "url(icon.svg)"', html)
+        self.assertIn('background: url(../icon.svg)', html)
+
     def test_theme_defaults_and_host_footer(self):
         theme = self.root / "theme.json"
         theme.write_text(json.dumps({"paper": "Letter", "margin": "15mm",

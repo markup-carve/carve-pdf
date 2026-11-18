@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 """Assemble a print-ready HTML document from a Carve HTML fragment + metadata.
 
-Usage: wrap.py [--print] [--link-base URL] [--theme-config FILE]
+Usage: wrap.py [--print] [--link-base URL] [--asset-base FILE] [--theme-config FILE]
                [--custom-css FILE]... <fragment.html> <meta.json> <base_dir> <out.html> <css...>
 
 <meta.json> is the frontmatter as JSON (produced by meta.py).
@@ -29,7 +29,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 import assets
 import locale_labels
 
-USAGE = "usage: wrap.py [--print] [--link-base URL] [--theme-config FILE] [--custom-css FILE]... <fragment.html> <meta.json> <base_dir> <out.html> <css...>"
+USAGE = "usage: wrap.py [--print] [--link-base URL] [--asset-base FILE] [--theme-config FILE] [--custom-css FILE]... <fragment.html> <meta.json> <base_dir> <out.html> <css...>"
 PRINT = False
 LINK_BASE = None
 THEME_CONFIG = None
@@ -37,6 +37,7 @@ FOOTER_OUT = None
 HEADER_OUT = None
 CUSTOM_CSS = []
 CSS_DEPS_OUT = None
+ASSET_BASE = None
 positional = []
 argv = sys.argv[1:]
 while argv:
@@ -57,6 +58,8 @@ while argv:
         CUSTOM_CSS.append(Path(argv.pop(0))) if argv else sys.exit(USAGE)
     elif arg == "--css-deps-out":
         CSS_DEPS_OUT = Path(argv.pop(0)) if argv else sys.exit(USAGE)
+    elif arg == "--asset-base":
+        ASSET_BASE = Path(argv.pop(0)) if argv else sys.exit(USAGE)
     else:
         positional.append(arg)
 if len(positional) < 4:
@@ -65,6 +68,7 @@ if len(positional) < 4:
 frag_path, meta_path, base_dir, out_path = map(Path, positional[:4])
 css_paths = [Path(p) for p in positional[4:]]
 base_dir = base_dir.resolve()
+asset_base_dir = (ASSET_BASE or out_path).resolve().parent
 
 fragment = frag_path.read_text(encoding="utf-8")
 # Reveal all disclosure widgets (details + spoilers) in print - there is no
@@ -468,22 +472,76 @@ def css_file(path: Path) -> str:
         target, parsed = local_target(path, raw)
         if target is None:
             return raw
-        resolved = target.as_uri() if PRINT else os.path.relpath(target, out_path.resolve().parent).replace(os.sep, "/")
+        resolved = target.as_uri() if PRINT else os.path.relpath(target, asset_base_dir).replace(os.sep, "/")
         if parsed.query:
             resolved += "?" + parsed.query
         if parsed.fragment:
             resolved += "#" + parsed.fragment
         return resolved
 
-    def resource(match):
-        raw = match.group(2).strip()
-        resolved = resource_url(raw)
-        return f"url({match.group(1)}{resolved}{match.group(1)})"
+    def string_end(at):
+        quote = source[at]
+        at += 1
+        while at < len(source):
+            if source[at] == "\\":
+                at += 2
+            elif source[at] == quote:
+                return at + 1
+            else:
+                at += 1
+        return len(source)
 
-    source = re.sub(r'url\(\s*([\'\"]?)([^)\'\"]+)\1\s*\)', resource, source, flags=re.IGNORECASE)
-    return re.sub(r'(^[ \t]*@import[ \t]+)([\'\"])([^\'\"]+)\2',
-                  lambda m: m.group(1) + m.group(2) + resource_url(m.group(3)) + m.group(2),
-                  source, flags=re.IGNORECASE | re.MULTILINE)
+    # Scan tokens so text like `content: "url(icon.svg)"` and CSS comments
+    # never get treated as resource references.
+    out = []
+    i = 0
+    while i < len(source):
+        if source.startswith("/*", i):
+            end = source.find("*/", i + 2)
+            end = len(source) if end < 0 else end + 2
+            out.append(source[i:end])
+            i = end
+        elif source[i] in "\"'":
+            end = string_end(i)
+            out.append(source[i:end])
+            i = end
+        elif source[i:i + 7].lower() == "@import" and (i + 7 == len(source) or not source[i + 7].isalnum()):
+            match = re.match(r'(@import[ \t]+)([\'\"])([^\'\"]+)\2', source[i:], re.IGNORECASE)
+            if match:
+                out.append(match.group(1) + match.group(2) + resource_url(match.group(3)) + match.group(2))
+                i += match.end()
+            else:
+                out.append(source[i])
+                i += 1
+        elif source[i:i + 4].lower() == "url(" and (i == 0 or not (source[i - 1].isalnum() or source[i - 1] in "_-")):
+            value_start = i + 4
+            while value_start < len(source) and source[value_start].isspace():
+                value_start += 1
+            quote = source[value_start:value_start + 1]
+            if quote in ("'", '"'):
+                value_end = string_end(value_start) - 1
+                close = value_end + 1
+                while close < len(source) and source[close].isspace():
+                    close += 1
+                raw = source[value_start + 1:value_end]
+                prefix_end = value_start + 1
+            else:
+                close = source.find(")", value_start)
+                value_end = close if close >= 0 else len(source)
+                while value_end > value_start and source[value_end - 1].isspace():
+                    value_end -= 1
+                raw = source[value_start:value_end]
+                prefix_end = value_start
+            if close >= 0 and close < len(source) and source[close] == ")":
+                out.append(source[i:prefix_end] + resource_url(raw) + source[value_end:close + 1])
+                i = close + 1
+            else:
+                out.append(source[i])
+                i += 1
+        else:
+            out.append(source[i])
+            i += 1
+    return "".join(out)
 
 
 # Each sheet gets its own style element. An import at the start of a theme or
