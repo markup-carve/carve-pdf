@@ -61,9 +61,16 @@ def parse_lines(content: str, sep: str) -> dict:
     out = {}
     key_line = re.compile(r"^([A-Za-z0-9_-]+)\s*" + re.escape(sep) + r"\s*(.*)$")
     last = None
+    nested = None
     for line in content.splitlines():
         if not line.strip() or line.lstrip().startswith("#"):
             continue
+        if nested and line[:1].isspace():
+            child = key_line.match(line.strip())
+            if child:
+                out[nested][child.group(1)] = scalar(child.group(2))
+                continue
+        nested = None
         item = re.match(r"^\s+-\s+(.*)$", line)
         if item and last is not None:
             if not isinstance(out[last], list):
@@ -75,7 +82,11 @@ def parse_lines(content: str, sep: str) -> dict:
             last = None
             continue
         last = kv.group(1)
-        out[last] = scalar(kv.group(2))
+        if last == "pdf" and not kv.group(2).strip():
+            out[last] = {}
+            nested = last
+        else:
+            out[last] = scalar(kv.group(2))
     return out
 
 

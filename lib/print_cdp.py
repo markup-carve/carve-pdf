@@ -1,17 +1,19 @@
 #!/usr/bin/env python3
 """Render an HTML file to PDF via Chrome DevTools Page.printToPDF.
 
-Why CDP instead of `chrome --print-to-pdf`: the CLI flag can't set a custom
-footer (page numbers), and Blink ignores CSS `@bottom-center` counters. CDP
-gives footerTemplate + printBackground (keeps admonition colors).
+CDP gives printBackground and request containment. Direct callers use its
+footer template. A wrapper that added CSS page margin boxes passes
+--css-margins, so Chrome 131 and newer use those boxes instead; older Chrome
+keeps the DevTools template as a fallback.
 
 Usage: print_cdp.py <input.html> <output.pdf> [footer-template]
-                    [--allow-dir DIR]... [--allow-remote] [--author NAME]
+                    [--header TEXT] [--css-margins] [--allow-dir DIR]... [--allow-remote] [--author NAME]
 
 The footer template is plain text with two placeholders, {page} and {pages}
 (e.g. "Page {page} of {pages}" or "Seite {page} von {pages}"). Precedence:
-argv[3], then $CARVE_PDF_FOOTER, then the English default. crv2pdf.sh passes
-the document language's default as argv[3]. An empty template disables the footer.
+argv[3], then $CARVE_PDF_FOOTER, then the English default. crv2pdf.sh resolves
+host, theme, document, and language values before calling this script. An
+empty template disables the footer.
 
 Every request the page makes is intercepted. Allowed: the input file, data:
 and blob: URLs, and files whose real path lies under an --allow-dir. Remote
@@ -38,25 +40,35 @@ import urllib.parse
 import urllib.request
 from pathlib import Path
 
+from chrome_version import supports_margin_boxes
+
 try:
     import websocket  # websocket-client (synchronous)
 except ImportError:
     sys.exit("print_cdp.py: needs the websocket-client package: pip install websocket-client")
 
-USAGE = "usage: print_cdp.py <input.html> <output.pdf> [footer-template] [--allow-dir DIR]... [--allow-remote] [--author NAME]"
+USAGE = "usage: print_cdp.py <input.html> <output.pdf> [footer-template] [--header TEXT] [--css-margins] [--allow-dir DIR]... [--allow-remote] [--author NAME]"
 positional = []
 ALLOW_DIRS = []
 ALLOW_REMOTE = False
 AUTHOR = ""
+HEADER_TEXT = ""
+CSS_MARGINS = False
 _argv = sys.argv[1:]
 while _argv:
     _arg = _argv.pop(0)
     if _arg == "--allow-remote":
         ALLOW_REMOTE = True
+    elif _arg == "--css-margins":
+        CSS_MARGINS = True
     elif _arg == "--author":
         if not _argv:
             sys.exit(USAGE)
         AUTHOR = _argv.pop(0)
+    elif _arg == "--header":
+        if not _argv:
+            sys.exit(USAGE)
+        HEADER_TEXT = _argv.pop(0)
     elif _arg == "--allow-dir":
         if not _argv:
             sys.exit(USAGE)
@@ -98,7 +110,7 @@ def build_footer(tpl: str) -> str:
 
 FOOTER = build_footer(footer_tpl)
 DISPLAY_FOOTER = FOOTER != ""
-HEADER = "<span></span>"  # empty -> suppresses Chrome's default header
+HEADER = build_footer(HEADER_TEXT) if HEADER_TEXT else "<span></span>"
 
 
 def find_chrome() -> str:
@@ -324,9 +336,11 @@ def chrome_flags() -> list:
 
 port = free_port()
 profile = tempfile.mkdtemp(prefix="carve-pdf-cdp-")
+BROWSER = find_chrome()
+USE_CSS_MARGINS = CSS_MARGINS and supports_margin_boxes(BROWSER)
 chrome = subprocess.Popen(
     [
-        find_chrome(), *chrome_flags(),
+        BROWSER, *chrome_flags(),
         f"--remote-debugging-port={port}", "--remote-allow-origins=*",
         f"--user-data-dir={profile}", "about:blank",
     ],
@@ -429,7 +443,7 @@ try:
     result = cmd("Page.printToPDF", {
         "printBackground": True,
         "preferCSSPageSize": True,
-        "displayHeaderFooter": DISPLAY_FOOTER,
+        "displayHeaderFooter": (DISPLAY_FOOTER or bool(HEADER_TEXT)) and not USE_CSS_MARGINS,
         "headerTemplate": HEADER,
         "footerTemplate": FOOTER if DISPLAY_FOOTER else "<span></span>",
         "generateDocumentOutline": True,
