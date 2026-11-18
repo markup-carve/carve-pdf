@@ -435,6 +435,7 @@ except Exception:
 
 
 CSS_DEPENDENCIES = set()
+CSS_RESOURCES = set()
 
 
 def local_target(path: Path, raw: str):
@@ -537,11 +538,11 @@ def css_dependencies(path: Path):
         sys.stderr.write(f"wrap.py: imported stylesheet not readable: {path}\n")
         return
     for kind, _, _, raw in css_resource_tokens(source):
-        if kind != "import":
-            continue
         target, _ = local_target(path, raw)
-        if target:
+        if target and kind == "import":
             css_dependencies(target)
+        elif target:
+            CSS_RESOURCES.add(target)
 
 
 def css_file(path: Path) -> str:
@@ -722,7 +723,7 @@ if CUSTOM_CSS:
 if css:
     style_parts.insert(built_count, css)
 if CSS_DEPS_OUT:
-    CSS_DEPS_OUT.write_text("\n".join(str(p) for p in sorted(CSS_DEPENDENCIES)) + "\n", encoding="utf-8")
+    CSS_DEPS_OUT.write_text("\n".join(str(p) for p in sorted(CSS_DEPENDENCIES | CSS_RESOURCES)) + "\n", encoding="utf-8")
 styles = "\n".join(f"<style>\n{part}\n</style>" for part in style_parts)
 
 

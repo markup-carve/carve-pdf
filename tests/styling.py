@@ -93,16 +93,19 @@ class Styling(unittest.TestCase):
     def test_all_imports_on_one_line_are_discovered(self):
         styles = self.root / "styles"
         sibling = self.root / "sibling"
+        assets = self.root / "assets"
         styles.mkdir()
         sibling.mkdir()
+        assets.mkdir()
         (styles / "one.css").write_text('body { color: blue; }')
-        (sibling / "two.css").write_text('body { color: red; }')
+        (sibling / "two.css").write_text('body { background: url("../assets/red.png"); }')
         host = styles / "host.css"
         host.write_text('@import "one.css"; @import "../sibling/two.css";')
         deps = self.root / "css-deps"
         printed, _ = self.wrap(options=("--css-deps-out", str(deps), "--custom-css", str(host)), print_mode=True)
         self.assertIn(str(styles / "one.css"), deps.read_text())
         self.assertIn(str(sibling / "two.css"), deps.read_text())
+        self.assertIn(str(assets / "red.png"), deps.read_text())
         self.assertIn((sibling / "two.css").as_uri(), printed)
 
     def test_html_assets_use_final_output_directory(self):
