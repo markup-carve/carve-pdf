@@ -128,6 +128,16 @@ class Styling(unittest.TestCase):
         self.assertIn('content: "url(icon.svg)"', html)
         self.assertIn('background: url(../icon.svg)', html)
 
+    def test_css_escaped_asset_paths(self):
+        host = self.root / "host.css"
+        host.write_text(r'body { background: url(icon\ space.png), url(icon\)name.png); }')
+        deps = self.root / "css-deps"
+        html, _ = self.wrap(options=("--css-deps-out", str(deps), "--custom-css", str(host)))
+        self.assertIn('url(icon%20space.png)', html)
+        self.assertIn('url(icon%29name.png)', html)
+        self.assertIn(str(self.root / "icon space.png"), deps.read_text())
+        self.assertIn(str(self.root / "icon)name.png"), deps.read_text())
+
     def test_theme_defaults_and_host_footer(self):
         theme = self.root / "theme.json"
         theme.write_text(json.dumps({"paper": "Letter", "margin": "15mm",

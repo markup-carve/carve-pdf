@@ -438,9 +438,38 @@ CSS_DEPENDENCIES = set()
 CSS_RESOURCES = set()
 
 
+def css_unescape(value: str) -> str:
+    """Decode CSS escapes in a URL before interpreting it as a path."""
+    out = []
+    i = 0
+    while i < len(value):
+        if value[i] != "\\" or i + 1 == len(value):
+            out.append(value[i])
+            i += 1
+            continue
+        i += 1
+        if value[i] in "\r\n\f":
+            i += 2 if value[i:i + 2] == "\r\n" else 1
+        elif value[i] in "0123456789abcdefABCDEF":
+            end = i
+            while end < len(value) and end - i < 6 and value[end] in "0123456789abcdefABCDEF":
+                end += 1
+            codepoint = int(value[i:end], 16)
+            out.append(chr(codepoint) if 0 < codepoint <= 0x10ffff and not 0xd800 <= codepoint <= 0xdfff else "\ufffd")
+            i = end
+            if i < len(value) and value[i].isspace():
+                i += 2 if value[i:i + 2] == "\r\n" else 1
+        else:
+            char = value[i]
+            out.append(f"%{ord(char):02X}" if char in "?#:" else char)
+            i += 1
+    return "".join(out)
+
+
 def local_target(path: Path, raw: str):
-    parsed = urlsplit(raw.strip())
-    if not raw or parsed.scheme or raw.startswith(("/", "#", "//")):
+    decoded = css_unescape(raw.strip())
+    parsed = urlsplit(decoded)
+    if not decoded or parsed.scheme or decoded.startswith(("/", "#", "//")):
         return None, parsed
     return (path.resolve().parent / unquote(parsed.path)).resolve(), parsed
 
@@ -471,7 +500,16 @@ def css_url_token(source: str, at: int):
         while close < len(source) and source[close].isspace():
             close += 1
     else:
-        close = source.find(")", start)
+        close = start
+        while close < len(source):
+            if source[close] == "\\":
+                close += 2
+            elif source[close] == ")":
+                break
+            else:
+                close += 1
+        if close >= len(source):
+            close = -1
         value_start = start
         value_end = close if close >= 0 else len(source)
         while value_end > value_start and source[value_end - 1].isspace():

@@ -12,6 +12,10 @@ case " $* " in
   *"$MOCK_ROOT/external"*) ;;
   *) echo "external stylesheet directory was not watched" >&2; exit 2 ;;
 esac
+if [ ! -f "$MOCK_ROOT/timeout_seen" ]; then
+  : > "$MOCK_ROOT/timeout_seen"
+  exit 2
+fi
 if [ ! -f "$MOCK_ROOT/triggered" ]; then
   printf '.carve h1 { color: blue; }\n' > "$MOCK_ROOT/external/style.css"
   : > "$MOCK_ROOT/triggered"

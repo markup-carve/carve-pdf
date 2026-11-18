@@ -294,24 +294,46 @@ if [ "$WATCH" = "1" ]; then
     return 0
   }
 
-  mtime() {  # portable mtime in epoch seconds
-    stat -c %Y "$1" 2>/dev/null || stat -f %m "$1" 2>/dev/null || echo 0
+  mtime() {  # nanosecond precision where available; include size for quick saves
+    stat -c '%y:%s' "$1" 2>/dev/null || stat -f '%m:%z' "$1" 2>/dev/null || echo 0
   }
   signature() { watched_files | while IFS= read -r f; do echo "$f $(mtime "$f")"; done; }
 
+  rebuild_until_stable() {
+    local before after
+    before="$(signature)"
+    while true; do
+      echo "[rebuild $(date +%T)]"
+      build_one "$IN" "$OUT" || true
+      after="$(signature)"
+      last_sig="$after"
+      [ "$after" = "$before" ] && break
+      before="$after"
+    done
+  }
+
   if command -v inotifywait >/dev/null 2>&1; then
     # Rebuild the watch set after every event so newly imported CSS is watched.
+    last_sig="$(signature)"
     while true; do
+      if [ "$(signature)" != "$last_sig" ]; then
+        rebuild_until_stable
+        continue
+      fi
       mapfile -t watch_dirs < <(
         { echo "$dir"; echo "$root"; watched_files | while IFS= read -r file; do dirname "$file"; done; } |
           while IFS= read -r candidate; do [ ! -d "$candidate" ] || realpath "$candidate"; done | sort -u
       )
-      if ! f="$(inotifywait -q -e close_write,moved_to,create,delete,moved_from --format '%w%f' "${watch_dirs[@]}")"; then
+      if f="$(inotifywait -t 1 -q -e close_write,moved_to,create,delete,moved_from --format '%w%f' "${watch_dirs[@]}")"; then
+        :
+      elif [ "$?" -eq 2 ]; then
+        continue
+      else
         echo "crv2pdf: file watcher stopped" >&2
         break
       fi
       if watched_files | grep -qxF -- "$f"; then
-        echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true
+        rebuild_until_stable
       fi
     done
   else
