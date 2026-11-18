@@ -435,7 +435,6 @@ except Exception:
 
 
 CSS_DEPENDENCIES = set()
-IMPORT_TARGET = re.compile(r'^[ \t]*@import\s*(?:url\(\s*[\'\"]?([^\)\'\"]+)[\'\"]?\s*\)|[\'\"]([^\'\"]+)[\'\"])', re.IGNORECASE | re.MULTILINE)
 
 
 def local_target(path: Path, raw: str):
@@ -443,6 +442,87 @@ def local_target(path: Path, raw: str):
     if not raw or parsed.scheme or raw.startswith(("/", "#", "//")):
         return None, parsed
     return (path.resolve().parent / unquote(parsed.path)).resolve(), parsed
+
+
+def css_string_end(source: str, at: int) -> int:
+    quote = source[at]
+    at += 1
+    while at < len(source):
+        if source[at] == "\\":
+            at += 2
+        elif source[at] == quote:
+            return at + 1
+        else:
+            at += 1
+    return len(source)
+
+
+def css_url_token(source: str, at: int):
+    """Return the path span, value and token end for a CSS url() token."""
+    start = at + 4
+    while start < len(source) and source[start].isspace():
+        start += 1
+    quote = source[start:start + 1]
+    if quote in ("'", '"'):
+        end = css_string_end(source, start)
+        value_start, value_end = start + 1, end - 1
+        close = end
+        while close < len(source) and source[close].isspace():
+            close += 1
+    else:
+        close = source.find(")", start)
+        value_start = start
+        value_end = close if close >= 0 else len(source)
+        while value_end > value_start and source[value_end - 1].isspace():
+            value_end -= 1
+    if close < 0 or close >= len(source) or source[close] != ")":
+        return None
+    return value_start, value_end, source[value_start:value_end], close + 1
+
+
+def css_resource_tokens(source: str):
+    """Yield import and URL paths without touching quoted text or comments."""
+    i = 0
+    while i < len(source):
+        if source.startswith("/*", i):
+            end = source.find("*/", i + 2)
+            i = len(source) if end < 0 else end + 2
+        elif source[i] in "\"'":
+            i = css_string_end(source, i)
+        elif source[i:i + 7].lower() == "@import" and (i + 7 == len(source) or not source[i + 7].isalnum()):
+            start = i + 7
+            while start < len(source):
+                if source[start].isspace():
+                    start += 1
+                elif source.startswith("/*", start):
+                    end = source.find("*/", start + 2)
+                    if end < 0:
+                        break
+                    start = end + 2
+                else:
+                    break
+            if start < len(source) and source[start] in "\"'":
+                end = css_string_end(source, start)
+                yield "import", start + 1, end - 1, source[start + 1:end - 1]
+                i = end
+            elif source[start:start + 4].lower() == "url(":
+                token = css_url_token(source, start)
+                if token:
+                    yield "import", *token[:3]
+                    i = token[3]
+                else:
+                    i += 1
+            else:
+                i += 1
+        elif source[i:i + 4].lower() == "url(" and (i == 0 or not (source[i - 1].isalnum() or source[i - 1] in "_-")):
+            token = css_url_token(source, i)
+            if token:
+                yield "url", *token[:3]
+                i = token[3]
+            else:
+                i += 1
+        else:
+            i += 1
 
 
 def css_dependencies(path: Path):
@@ -456,9 +536,10 @@ def css_dependencies(path: Path):
     except OSError:
         sys.stderr.write(f"wrap.py: imported stylesheet not readable: {path}\n")
         return
-    active_source = re.sub(r"/\*.*?\*/", " ", source, flags=re.DOTALL)
-    for match in IMPORT_TARGET.finditer(active_source):
-        target, _ = local_target(path, match.group(1) or match.group(2))
+    for kind, _, _, raw in css_resource_tokens(source):
+        if kind != "import":
+            continue
+        target, _ = local_target(path, raw)
         if target:
             css_dependencies(target)
 
@@ -481,79 +562,15 @@ def css_file(path: Path) -> str:
             resolved += "#" + parsed.fragment
         return resolved
 
-    def string_end(at):
-        quote = source[at]
-        at += 1
-        while at < len(source):
-            if source[at] == "\\":
-                at += 2
-            elif source[at] == quote:
-                return at + 1
-            else:
-                at += 1
-        return len(source)
-
-    # Scan tokens so text like `content: "url(icon.svg)"` and CSS comments
-    # never get treated as resource references.
+    # The same token scan discovers imports for the resource allowlist and
+    # rewrites URLs. A later import on the same line cannot be missed here.
     out = []
-    i = 0
-    while i < len(source):
-        if source.startswith("/*", i):
-            end = source.find("*/", i + 2)
-            end = len(source) if end < 0 else end + 2
-            out.append(source[i:end])
-            i = end
-        elif source[i] in "\"'":
-            end = string_end(i)
-            out.append(source[i:end])
-            i = end
-        elif source[i:i + 7].lower() == "@import" and (i + 7 == len(source) or not source[i + 7].isalnum()):
-            start = i + 7
-            while start < len(source):
-                if source[start].isspace():
-                    start += 1
-                elif source.startswith("/*", start):
-                    end = source.find("*/", start + 2)
-                    if end < 0:
-                        break
-                    start = end + 2
-                else:
-                    break
-            if start < len(source) and source[start] in "\"'":
-                end = string_end(start)
-                out.append(source[i:start + 1] + resource_url(source[start + 1:end - 1]) + source[end - 1:end])
-                i = end
-            else:
-                out.append(source[i])
-                i += 1
-        elif source[i:i + 4].lower() == "url(" and (i == 0 or not (source[i - 1].isalnum() or source[i - 1] in "_-")):
-            value_start = i + 4
-            while value_start < len(source) and source[value_start].isspace():
-                value_start += 1
-            quote = source[value_start:value_start + 1]
-            if quote in ("'", '"'):
-                value_end = string_end(value_start) - 1
-                close = value_end + 1
-                while close < len(source) and source[close].isspace():
-                    close += 1
-                raw = source[value_start + 1:value_end]
-                prefix_end = value_start + 1
-            else:
-                close = source.find(")", value_start)
-                value_end = close if close >= 0 else len(source)
-                while value_end > value_start and source[value_end - 1].isspace():
-                    value_end -= 1
-                raw = source[value_start:value_end]
-                prefix_end = value_start
-            if close >= 0 and close < len(source) and source[close] == ")":
-                out.append(source[i:prefix_end] + resource_url(raw) + source[value_end:close + 1])
-                i = close + 1
-            else:
-                out.append(source[i])
-                i += 1
-        else:
-            out.append(source[i])
-            i += 1
+    cursor = 0
+    for _, start, end, raw in css_resource_tokens(source):
+        out.append(source[cursor:start])
+        out.append(resource_url(raw))
+        cursor = end
+    out.append(source[cursor:])
     return "".join(out)
 
 

@@ -90,6 +90,21 @@ class Styling(unittest.TestCase):
         self.assertIn('url("file://' + str(imported) + '")', printed)
         self.assertIn(str(imported), deps.read_text())
 
+    def test_all_imports_on_one_line_are_discovered(self):
+        styles = self.root / "styles"
+        sibling = self.root / "sibling"
+        styles.mkdir()
+        sibling.mkdir()
+        (styles / "one.css").write_text('body { color: blue; }')
+        (sibling / "two.css").write_text('body { color: red; }')
+        host = styles / "host.css"
+        host.write_text('@import "one.css"; @import "../sibling/two.css";')
+        deps = self.root / "css-deps"
+        printed, _ = self.wrap(options=("--css-deps-out", str(deps), "--custom-css", str(host)), print_mode=True)
+        self.assertIn(str(styles / "one.css"), deps.read_text())
+        self.assertIn(str(sibling / "two.css"), deps.read_text())
+        self.assertIn((sibling / "two.css").as_uri(), printed)
+
     def test_html_assets_use_final_output_directory(self):
         styles = self.root / "styles with spaces"
         styles.mkdir()

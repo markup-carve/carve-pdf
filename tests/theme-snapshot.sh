@@ -34,8 +34,8 @@ done
 
 # Imported CSS stays after built-in styles and can load its own local assets.
 if command -v pdfimages >/dev/null 2>&1; then
-  mkdir -p "$WORK/import"
-  python3 - "$WORK/import/red.png" <<'PY'
+  mkdir -p "$WORK/import" "$WORK/other"
+  python3 - "$WORK/other/red.png" <<'PY'
 import struct, sys, zlib
 def chunk(kind, data):
     return struct.pack('>I', len(data)) + kind + data + struct.pack('>I', zlib.crc32(kind + data) & 0xffffffff)
@@ -44,8 +44,9 @@ png = b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', 16, 16, 8, 2
 open(sys.argv[1], 'wb').write(png)
 PY
   printf '# CSS import\n\nBody.\n' > "$WORK/import/input.crv"
-  printf '@import\n"imported.css";\n' > "$WORK/import/host.css"
-  printf '%s\n' 'body::before { content:""; display:block; width:64px; height:64px; background: url("red.png") 0 0 / 64px 64px no-repeat; }' > "$WORK/import/imported.css"
+  printf '@import\n"first.css"; @import "../other/image.css";\n' > "$WORK/import/host.css"
+  printf '%s\n' 'body { color: black; }' > "$WORK/import/first.css"
+  printf '%s\n' 'body::before { content:""; display:block; width:64px; height:64px; background: url("red.png") 0 0 / 64px 64px no-repeat; }' > "$WORK/other/image.css"
   if "$HERE/crv2pdf.sh" --css "$WORK/import/host.css" "$WORK/import/input.crv" \
       "$WORK/import/out.pdf" > "$WORK/import/render.log" 2>&1 && \
       pdfimages -list "$WORK/import/out.pdf" | awk 'NR > 2 && $3 == "image" { found=1 } END { exit !found }'; then
