@@ -22,7 +22,7 @@ crv2pdf post.crv --theme ./my-theme
 ```
 
 Output format defaults to `--pdf`. `--html` emits a self-contained styled document
-(CSS inlined); `--md` / `--txt` use the renderer's native flattening converters.
+(CSS inlined); `--md` / `--txt` use the engine's Markdown and plain-text exports (JS backend).
 
 **Batch.** Pass several `.crv` files (or set `--out-dir DIR`) to render each; outputs
 are named `<basename>.<fmt>` beside the input or in `--out-dir`.
@@ -145,30 +145,23 @@ The Carve -> HTML step is pluggable. `CARVE_RENDERER` selects it (default `auto`
 
 | Backend | Script | Needs | Notes |
 |---------|--------|-------|-------|
-| `php` | `render.php` | PHP 8.2+ and a `MarkupCarve\Carve` autoloader | default when PHP is present |
-| `js`  | `render.mjs` | Node 18+ and the `markup-carve/carve` npm package | runs PHP-free |
+| `js`  | `render.mjs` | Node 20+ and the Carve 0.2 `@markup-carve/carve` package | default; the complete backend |
+| `php` | `render.php` | PHP 8.2+ and a Carve 0.2 `MarkupCarve\Carve` autoloader | fewer extensions; no `--md` / `--txt` yet |
 
-`auto` picks PHP when it can actually load a `MarkupCarve\Carve` autoloader, else
-Node, else it reports what to install. An interpreter on PATH is not enough: a machine
-with PHP but no carve-php would otherwise be sent to the PHP backend and fail there
-while a working Node engine sat unused. Setting `CARVE_RENDERER` explicitly skips the
-probe, so asking for a backend reports that backend's own error.
+`auto` picks Node when it can actually load the Carve 0.2 package, else PHP, else it
+reports what to install. An interpreter on PATH is not enough, and a Carve 0.1 engine
+does not count. Setting `CARVE_RENDERER` explicitly skips the probe, so asking for a
+backend reports that backend's own error.
 
-Both register the same extension set (the shopware-carve plugin's) in static mode.
-Output is **equivalent, not byte-identical**:
+Output is **equivalent, not byte-identical**. carve-php 0.2 does not have all the
+standard extensions yet; [rendering.md](rendering.md#extensions) lists what each
+backend renders. `--md` and `--txt` use the 0.2 Markdown and plain-text exports of
+carve-js. The PHP backend stops with `writer not available yet` until carve-php
+registers them (markup-carve/carve-php#5263).
 
-- Both emit admonitions as `<aside class="admonition ...">` with the title and label
-  slot from the engine core; `base.css` styles them by class.
-- Inline `[...]{.fn}` footnotes are **numbered endnotes** under PHP (via its
-  `InlineFootnotesExtension`) but plain inline `<span class="fn">` under JS (carve-js
-  has no such extension). Regular `[^1]` footnotes work identically in both.
-
-Both engines are published, so neither backend needs a checkout:
-
-```bash
-composer require markup-carve/carve-php
-npm install "@markup-carve/carve"
-```
+Carve 0.2 is not released yet. On the `next2` branch, CI builds both engines from the
+commits that `engine-pins.json` names. Locally, point the backends at a checkout of
+each engine's `next2`.
 
 Point the backend at its library:
 - `CARVE_PHP_AUTOLOAD` - a `vendor/autoload.php` providing `MarkupCarve\Carve`,
@@ -248,10 +241,10 @@ found are in [docs/rendering.md](../docs/rendering.md).
 
 | Var | Default | Meaning |
 |-----|---------|---------|
-| `CARVE_RENDERER` | `auto` | Backend: `php`, `js`, or `auto` |
+| `CARVE_RENDERER` | `auto` | Backend: `js`, `php`, or `auto` |
 | `CARVE_PHP_AUTOLOAD` | autodetect | Composer autoloader providing `MarkupCarve\Carve` (php) |
 | `CARVE_JS` | autodetect | carve-js dist dir or `dist/index.js`, e.g. under `node_modules` (js) |
-| `CARVE_SMART_LOCALE` | `en` | Smart-quotes locale (php backend) |
+| `CARVE_SMART_LOCALE` | `en` | Smart-quotes locale (js backend) |
 | `CARVE_PDF_FOOTER` | Theme, document, or language default | Host footer template with `{page}`/`{pages}` placeholders; empty string disables it |
 | `CARVE_KATEX` | autodetect | KaTeX `dist/` dir for math typesetting |
 | `CARVE_MERMAID` | autodetect | `mermaid.min.js` for diagram rendering |

@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main]
+    branches: [main, next2]
   pull_request:
 
 # A new push to a PR supersedes the run still going for it. Pushes to main each
@@ -18,40 +18,19 @@ permissions:
 # Each job declares timeout-minutes so a hung step fails fast
 # instead of inheriting the 360-minute GitHub default.
 jobs:
-  released:
-    name: released engines
+  # next2 is the Carve 0.2 port: both engines are built from the commits engine-pins.json names.
+  engines-next2:
+    name: engines from next2
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout carve-pdf
         uses: actions/checkout@v7
 
-      - name: Set up the released engines and gate dependencies
+      - name: Set up the pinned next2 engines and gate dependencies
         uses: ./.github/actions/setup
         with:
-          engines: released
-
-      - name: Run tests
-        run: ./tests/test.sh
-
-      - name: Check delimited fence highlighting
-        run: python3 tests/delimited.py
-
-  engines-main:
-    # Early warning for a breaking engine change. This one tracks the default
-    # branches on purpose, so a red run here and a green `released` run mean the
-    # engines moved, not carve-pdf.
-    name: engines from main
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout carve-pdf
-        uses: actions/checkout@v7
-
-      - name: Set up the engines from main and gate dependencies
-        uses: ./.github/actions/setup
-        with:
-          engines: main
+          engines: next2
 
       - name: Run tests
         run: ./tests/test.sh
@@ -67,6 +46,8 @@ jobs:
     # the engines from main because the corpus on main describes them; a
     # released engine can lag it.
     name: corpus content
+    # The renderers on next2 take Carve 0.2 engines only and this corpus is 0.1 source (markup-carve/carve-pdf#65).
+    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
