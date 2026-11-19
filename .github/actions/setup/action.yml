@@ -128,7 +128,8 @@ runs:
       shell: bash
       working-directory: _deps/carve-php
       run: |
-        composer install --no-interaction --no-progress
+        # The renderer needs the library only; skipping the dev tools also spares the GitHub download quota.
+        composer install --no-interaction --no-progress ${{ inputs.engines == 'next2' && '--no-dev' || '' }}
         echo "CARVE_PHP_AUTOLOAD=$GITHUB_WORKSPACE/_deps/carve-php/vendor/autoload.php" >> "$GITHUB_ENV"
     - name: Set up Node with the carve-js npm cache
       if: inputs.engines == 'main' || inputs.engines == 'next2'
