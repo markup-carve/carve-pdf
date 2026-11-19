@@ -293,6 +293,9 @@ if [[ " ${backends[*]} " == *" js "* ]]; then
   has   "js: smart quotes default to English"      "$WORK/host.js.html" '“hi”'
   CARVE_SMART_LOCALE=de node "$LIB/render.mjs" "$WORK/host.crv" > "$WORK/host.de.html" 2>/dev/null
   has   "js: CARVE_SMART_LOCALE picks the quotes"  "$WORK/host.de.html" '„hi“'
+  printf '= Top\n\n::: toc\n\n:::\n\n== Sub\n' > "$WORK/toc.crv"
+  node "$LIB/render.mjs" "$WORK/toc.crv" > "$WORK/toc.js.html" 2>/dev/null
+  has   "js: a ::: toc marker lists the headings" "$WORK/toc.js.html" '<nav class="toc"><ul><li><a href="#Top">Top</a><ul><li><a href="#Sub">Sub</a></li></ul></li></ul></nav>'
   node "$LIB/render.mjs" --format txt "$FIX/marks.crv" > "$WORK/marks.txt" 2>/dev/null
   has   "js: txt is the plain-text export"         "$WORK/marks.txt" "Tip body."
 fi

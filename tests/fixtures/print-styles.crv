@@ -67,11 +67,11 @@ echo 'header';
 ```
 
 :::: tabs
-::: tab [First]
+::: tab "First"
 First body.
 :::
 
-::: tab [Second]
+::: tab "Second"
 Second body.
 :::
 ::::

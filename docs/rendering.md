@@ -20,13 +20,13 @@ their own page: [code-blocks.md](code-blocks.md).
 | Mermaid | ` ```mermaid ` diagrams | yes | not yet (carve-php#5257) |
 | Chart | ` ```chart ` blocks | yes | not yet (carve-php#5257) |
 | Smart quotes | typographic quotes; `CARVE_SMART_LOCALE` picks the locale | yes | not yet (carve-php#5258) |
+| Table of contents | a `::: toc` marker prints the document's headings as links | yes, filled by carve-pdf | no |
 
 Without its extension a construct renders as the core node it parses as: a
 ` ```mermaid ` fence is a code block and `::: details` a `div`.
 
 0.1 extensions that have no 0.2 counterpart are not rendered: autolink (a bare URL
-stays text), the table of contents (`::: toc` stays a `div`) and inline `[...]{.fn}`
-footnotes as endnotes.
+stays text) and inline `[...]{.fn}` footnotes as endnotes.
 
 ## Math, diagrams and charts
 
