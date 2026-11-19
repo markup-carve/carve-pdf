@@ -846,7 +846,8 @@ def client_assets():
         if src:
             lib_scripts.append(f"<script>{src.read_text(encoding='utf-8')}</script>")
             init_steps.append(
-                "document.querySelectorAll('pre.chart').forEach(function(el){"
+                # Carve 0.2 writes the config as a JSON script inside div.chart; 0.1 wrote it as the text of pre.chart.
+                "document.querySelectorAll('pre.chart,div.chart').forEach(function(el){"
                 "var cfg;try{cfg=JSON.parse(el.textContent);}catch(e){return;}"
                 "cfg.options=Object.assign({},cfg.options||{});"
                 "cfg.options.responsive=false;cfg.options.animation=false;"

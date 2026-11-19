@@ -1,33 +1,32 @@
 # What renders
 
-carve-pdf renders the Carve core syntax plus the extension set of the
-shopware-carve plugin, in static mode with raw HTML off. Code blocks have their own
-page: [code-blocks.md](code-blocks.md).
+carve-pdf renders Carve 0.2 core syntax and the provisional 0.2 standard extensions,
+in static mode, with raw HTML off and the default URL policy. Code blocks are covered on
+their own page: [code-blocks.md](code-blocks.md).
 
 ## Extensions
 
-Both backends enable these:
+| Extension | What it adds | JS | PHP |
+|---|---|---|---|
+| Admonitions | note, tip, warning and similar callout containers (core) | yes | yes |
+| Tabs | tabbed panels, printed one after another | yes | yes |
+| Details | collapsible blocks, printed open | yes | not yet (carve-php#5258) |
+| Spoiler | spoiler text; a block prints open, inline text prints revealed | yes | not yet (carve-php#5258) |
+| Code group | tabbed code blocks with their own labels | yes | not yet (carve-php#5257) |
+| List table | a table written as nested lists | yes | not yet (carve-php#5258) |
+| External links | off-site links get `rel="nofollow noopener"` and `target="_blank"` | yes, as a document transform | not yet (carve-php#5253) |
+| Math | `$`...`$` inline (core), `$$`...`$$` block math and ` ```math ` fences | yes | inline only (carve-php#5257) |
+| Code callouts | `<1>` markers in a fence become numbered badges, bound to a `<1> text` list below it | yes | not yet (carve-php#5257) |
+| Mermaid | ` ```mermaid ` diagrams | yes | not yet (carve-php#5257) |
+| Chart | ` ```chart ` blocks | yes | not yet (carve-php#5257) |
+| Smart quotes | typographic quotes; `CARVE_SMART_LOCALE` picks the locale | yes | not yet (carve-php#5258) |
 
-| Extension | What it adds |
-|---|---|
-| Admonitions | note, tip, warning and similar callout containers |
-| Details | collapsible blocks, printed open |
-| Spoiler | spoiler text; a block prints open with a dashed border, inline text prints shaded |
-| Tabs | tabbed panels, printed one after another and labeled `Tab N` |
-| Code group | tabbed code blocks with their own labels |
-| List table | a table written as nested lists |
-| Autolink | bare URLs become links |
-| External links | off-site links get `rel="nofollow noopener"` and `target="_blank"` |
-| Smart quotes | typographic quotes; `CARVE_SMART_LOCALE` picks the locale (PHP backend) |
-| Math | `$`...`$` inline and `$$`...`$$` block math, and ` ```math ` fences |
-| Table of contents | a `::: toc` marker prints the document's headings as links |
-| Code callouts | `<1>` markers in a fence become numbered badges, bound to a `<1> text` list below it |
-| Mermaid | ` ```mermaid ` diagrams |
-| Chart | ` ```chart ` blocks |
+Without its extension a construct renders as the core node it parses as: a
+` ```mermaid ` fence is a code block and `::: details` a `div`.
 
-Only the PHP backend also enables inline footnotes. Under
-the JS backend, inline `[...]{.fn}` footnotes stay inline instead of becoming
-numbered endnotes. Regular `[^1]` footnotes work the same in both.
+0.1 extensions that have no 0.2 counterpart are not rendered: autolink (a bare URL
+stays text), the table of contents (`::: toc` stays a `div`) and inline `[...]{.fn}`
+footnotes as endnotes.
 
 ## Math, diagrams and charts
 

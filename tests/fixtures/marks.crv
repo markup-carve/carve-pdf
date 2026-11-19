@@ -1,11 +1,11 @@
----yaml
+---
 title: Marks fixture
 ---
 
-# Heading one
+= Heading one
 
-Text with *bold*, /italic/, _underline_, {=highlight=}, {+insert+}, {-delete-},
-~strike~, `code`, super{^2^}, sub{,2,}, and an abbreviation HTML, plus a key
+Text with *bold*, /italic/, {_underline_}, {=highlight=}, {+insert+}, {-delete-},
+{~strike~}, `code`, super{^2^}, sub{,2,}, and an abbreviation HTML, plus a key
 [Ctrl]{kbd}.
 
 *[HTML]: HyperText Markup Language
@@ -23,7 +23,7 @@ Tip body.
 :::
 
 :: Washed
-:  Fruit removed before drying.
+: Fruit removed before drying.
 
 A footnote[^n].
 

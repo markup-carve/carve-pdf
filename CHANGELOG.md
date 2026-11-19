@@ -6,6 +6,13 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+### Breaking
+
+- Ported to Carve 0.2 on the `next2` branch. Both backends need a Carve 0.2 engine (carve-js and carve-php `next2`); a 0.1 engine no longer resolves. Sources go through the 0.2 upgrade tool first.
+- `auto` prefers the JS backend. carve-php 0.2 renders fewer extensions and has no Markdown or plain-text writer yet, so `--md` and `--txt` with `CARVE_RENDERER=php` stop with "writer not available yet".
+- Autolink, the table of contents and inline footnotes as endnotes are gone with the 0.1 extensions. External links and `CARVE_SMART_LOCALE` smart quotes work on the JS backend only.
+- Include warnings carry the 0.2 cause codes (`include-not-found`, `include-outside-root`, `include-cycle`).
+
 ## [0.1.6] - 2026-11-12
 
 Follows the Carve 0.1.14 engines (carve-php 0.1.17, carve-js 0.1.16).

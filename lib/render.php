@@ -3,14 +3,14 @@
 declare(strict_types=1);
 
 /**
- * Faithful Carve -> HTML renderer for carve-pdf.
+ * Carve -> HTML renderer for carve-pdf, Carve 0.2 (carve-php next2).
  *
- * Mirrors the shopware-carve plugin's converter (same extension set) so the PDF
- * output matches the storefront/CLI rendering, plus MathBlock and SmartQuotes.
- * Admonitions are core: registering the legacy AdmonitionExtension over them
- * dropped the label slot and invented a "Note" heading for untitled blocks.
- * Renders in STATIC mode (interactive constructs flattened, no client JS) with
- * safe mode on (raw HTML escaped).
+ * Renders in STATIC mode with raw HTML off (the 0.2 default) and the default
+ * URL policy. Registers the 0.2 standard tabs extension. The other extensions
+ * of the 0.1 converter (details, spoiler, list-table, code groups and callouts,
+ * math blocks, Mermaid and Chart.js fences, autolink, external links, smart
+ * quotes, table of contents) have no carve-php 0.2 counterpart yet; the JS
+ * backend has most of them.
  *
  * Usage:  php render.php [--format html|md|txt] [include options] <input.crv>
  *         php render.php --meta <input.crv>   # the frontmatter block as JSON, or null
@@ -20,37 +20,20 @@ declare(strict_types=1);
  *   --no-includes       leave {{ path }} directives literal
  *   --deps FILE         write the files the render read, root-relative, one per line
  *
- * html (default) applies the faithful extension set; md/txt use carve-php's
- * markdown/plain converters (which flatten interactive constructs natively).
+ * md/txt need the 0.2 Markdown and plain-text writers, which carve-php has not
+ * registered yet: those formats fail with "writer not available yet".
  *
  * The composer autoloader that provides MarkupCarve\Carve is resolved from
  * $CARVE_PHP_AUTOLOAD, falling back to locations relative to this script: the
- * vendor/ beside it, the repo's _deps/php install, a sibling checkout.
+ * vendor/ beside it, the repo's _deps/carve-php or _deps/php install, a sibling checkout.
  *
  * --probe exits 0 if the autoloader resolves and 1 if it does not, printing
  * nothing, so crv2pdf can pick a backend that actually works.
  */
 
-use MarkupCarve\Carve\CarveConverter;
-use MarkupCarve\Carve\Extension\AutolinkExtension;
-use MarkupCarve\Carve\Extension\CodeCalloutsExtension;
-use MarkupCarve\Carve\Extension\CodeGroupExtension;
-use MarkupCarve\Carve\Extension\DetailsExtension;
-use MarkupCarve\Carve\Extension\ExternalLinksExtension;
-use MarkupCarve\Carve\Extension\FencedRenderExtension;
-use MarkupCarve\Carve\Extension\Frontmatter;
-use MarkupCarve\Carve\Extension\InlineFootnotesExtension;
-use MarkupCarve\Carve\Extension\ListTableExtension;
-use MarkupCarve\Carve\Extension\MathBlockExtension;
-use MarkupCarve\Carve\Extension\SmartQuotesExtension;
-use MarkupCarve\Carve\Extension\SpoilerExtension;
-use MarkupCarve\Carve\Extension\TableOfContentsExtension;
-use MarkupCarve\Carve\Extension\TabsExtension;
-use MarkupCarve\Carve\Extension\TocPlacementExtension;
-use MarkupCarve\Carve\Node\Document;
-use MarkupCarve\Carve\Renderer\RenderMode;
-use MarkupCarve\Carve\Transform\FilesystemIncludeResolver;
-use MarkupCarve\Carve\Transform\IncludeExpander;
+use MarkupCarve\Carve\Carve;
+use MarkupCarve\Carve\Include\FileResolver;
+use MarkupCarve\Carve\Node;
 
 function fail(string $msg): never
 {
@@ -70,6 +53,7 @@ $candidates = array_filter([
     // repo root lays down.
     __DIR__ . '/../vendor/autoload.php',
     // The repo's own dependency install, which CI builds and uses.
+    __DIR__ . '/../_deps/carve-php/vendor/autoload.php',
     __DIR__ . '/../_deps/php/vendor/autoload.php',
     // A sibling checkout, for working on the plugin and carve-pdf together.
     __DIR__ . '/../../shopware-carve/vendor/autoload.php',
@@ -95,11 +79,12 @@ if ($autoload === null) {
 }
 require $autoload;
 
-if (!class_exists(CarveConverter::class)) {
+// Carve 0.2 only: its one entry point is the static class Carve.
+if (!class_exists(Carve::class) || !method_exists(Carve::class, 'render')) {
     if ($probeOnly) {
         exit(1);
     }
-    fail("autoloader {$autoload} does not provide MarkupCarve\\Carve\\CarveConverter");
+    fail("autoloader {$autoload} does not provide the Carve 0.2 entry point MarkupCarve\\Carve\\Carve");
 }
 if ($probeOnly) {
     exit(0);
@@ -165,131 +150,72 @@ if ($source === false) {
 // opener rules are the engine's; meta.py turns it into keys.
 if ($metaOnly) {
     $block = null;
-    if (class_exists(Frontmatter::class)) {
-        foreach ((new CarveConverter())->parse($source)->getChildren() as $child) {
-            if ($child instanceof Frontmatter) {
-                $block = ['format' => $child->getFormat(), 'content' => $child->getContent()];
-            }
-            break;
+    foreach (Carve::parse($source)->children ?? [] as $child) {
+        if ($child->type === 'frontmatter') {
+            $block = ['format' => $child->f['format'] ?? null, 'content' => $child->f['value'] ?? ''];
         }
+        break;
     }
     echo json_encode($block, JSON_UNESCAPED_SLASHES | JSON_UNESCAPED_UNICODE);
     exit(0);
 }
 
-// --- includes (PART 9 section 19) --------------------------------------------
-/**
- * The path below $root, or null when it is not below it. Keeps host paths out
- * of everything this script prints.
- */
-function belowRoot(string $path, string $root): ?string
-{
-    $prefix = rtrim($root, '/') . '/';
-
-    return str_starts_with($path, $prefix) ? substr($path, strlen($prefix)) : null;
-}
-
-/**
- * The document with includes expanded, or null to render the source unchanged.
- */
-function expandIncludes(CarveConverter $converter, string $source, string $input, ?string $root, bool $off, ?string $depsOut): ?Document
-{
-    $explicit = $root !== null;
-    $deps = [];
-    $document = null;
-    if (!$off && ($explicit || str_contains($source, '{{'))) {
-        $document = expandWithRoot($converter, $source, $input, $root, $explicit, $deps);
-    }
-    if ($depsOut !== null && file_put_contents($depsOut, implode('', array_map(static fn ($d) => $d . "\n", $deps))) === false) {
-        fail("could not write {$depsOut}");
-    }
-
-    return $document;
-}
-
-/**
- * @param array<string> $deps
- */
-function expandWithRoot(CarveConverter $converter, string $source, string $input, ?string $root, bool $explicit, array &$deps): ?Document
-{
-    $inputReal = (string)realpath($input);
-    if (!class_exists(IncludeExpander::class)) {
-        if ($explicit) {
-            fail('this carve-php has no include support; drop --include-root or upgrade carve-php');
-        }
-        fwrite(STDERR, "warning: include directives left literal: this carve-php has no include support\n");
-
-        return null;
-    }
+// --- md / txt: the 0.2 writers are not registered yet -----------------------
+if ($format === 'md' || $format === 'txt') {
+    $target = $format === 'md' ? 'markdown' : 'text';
     try {
-        $resolver = new FilesystemIncludeResolver($root ?? dirname($inputReal));
-    } catch (RuntimeException $e) {
+        echo Carve::writeTo($target, Carve::parse($source));
+        exit(0);
+    } catch (Throwable $e) {
+        fail("writer not available yet: {$target} (carve-php 0.2 has no {$target} writer; use the js backend)");
+    }
+}
+
+// --- includes (C2-N) ----------------------------------------------------------
+/**
+ * The options with an include resolver, or without one when includes are off.
+ *
+ * @param array<string, mixed> $options
+ * @param array<string> $deps
+ *
+ * @return array<string, mixed>
+ */
+function withIncludes(array $options, string $source, string $input, ?string $root, bool $off, array &$deps): array
+{
+    if ($off || ($root === null && !str_contains($source, '{{'))) {
+        return $options;
+    }
+    $inputReal = (string)realpath($input);
+    $base = $root ?? dirname($inputReal);
+    try {
+        $resolver = FileResolver::forRoot((string)realpath($base));
+    } catch (Throwable $e) {
         fail($e->getMessage());
     }
-    $rootReal = (string)realpath($root ?? dirname($inputReal));
-
-    $expander = new IncludeExpander(
-        resolver: $resolver,
-        currentPath: $inputReal,
-        source: $source,
-        extensions: $converter->getExtensions(),
-    );
-    $document = $converter->transform($converter->parse($source), $expander);
-
-    foreach ($expander->getWarnings() as $w) {
-        $file = $w->getFile() === null ? null : belowRoot($w->getFile(), $rootReal);
-        fwrite(STDERR, 'warning: ' . $w->getMessage() . ' [' . ($w->getRule() ?? 'include') . ']' . ($file === null ? '' : " in {$file}") . "\n");
-    }
-    if ($expander->getSuppressedWarnings() > 0) {
-        fwrite(STDERR, 'warning: ' . $expander->getSuppressedWarnings() . " further include warning(s) suppressed\n");
-    }
-    foreach ($expander->getDependencies() as $dependency) {
-        $relative = $dependency->isResolved() ? belowRoot($dependency->getTarget(), $rootReal) : null;
-        if ($relative !== null) {
-            $deps[] = $relative;
+    $rootReal = (string)realpath($base);
+    $file = str_starts_with($inputReal, rtrim($rootReal, '/') . '/') ? substr($inputReal, strlen(rtrim($rootReal, '/')) + 1) : basename($inputReal);
+    $options['includes'] = ['resolver' => $resolver, 'file' => $file];
+    foreach (Carve::includeDependencies($source, ['includes' => $options['includes'], 'extensions' => $options['extensions'] ?? []]) as $dependency) {
+        if ($dependency['read'] && is_string($dependency['file']) && !str_starts_with($dependency['file'], '/') && !in_array($dependency['file'], $deps, true)) {
+            $deps[] = $dependency['file'];
         }
     }
 
-    return $document;
+    return $options;
 }
 
-// --- md / txt: carve-php's native flattening converters ---------------------
-if ($format === 'md' || $format === 'txt') {
-    $flat = $format === 'md' ? CarveConverter::markdown() : CarveConverter::plainText();
-    $expanded = expandIncludes($flat, $source, $input, $includeRoot, $noIncludes, $depsOut);
-    echo $expanded === null ? $flat->convert($source) : $flat->render($expanded);
-    exit(0);
+// --- html ---------------------------------------------------------------------
+$deps = [];
+$options = withIncludes(['mode' => 'static', 'extensions' => ['carve.tabs']], $source, $input, $includeRoot, $noIncludes, $deps);
+if ($depsOut !== null && file_put_contents($depsOut, implode('', array_map(static fn ($d) => $d . "\n", $deps))) === false) {
+    fail("could not write {$depsOut}");
+}
+$result = Carve::renderWithDiagnostics($source, $options);
+foreach ($result->diagnostics as $d) {
+    if (isset($options['includes']) && str_starts_with($d->code, 'include')) {
+        $file = is_string($d->file ?? null) && !str_starts_with($d->file, '/') ? " in {$d->file}" : '';
+        fwrite(STDERR, "warning: {$d->message} [{$d->code}]{$file}\n");
+    }
 }
 
-// --- html: the faithful converter -------------------------------------------
-$converter = new CarveConverter(
-    warnings: true,
-    safeMode: true,
-    mode: RenderMode::STATIC,
-);
-$converter->addExtensions([
-    new CodeGroupExtension(),
-    new DetailsExtension(),
-    new SpoilerExtension(),
-    new TabsExtension(),
-    new ListTableExtension(),
-    new InlineFootnotesExtension(),
-    new AutolinkExtension(),
-    new ExternalLinksExtension(rel: 'nofollow noopener', target: '_blank'),
-    new TableOfContentsExtension(),
-    new TocPlacementExtension(),
-    new CodeCalloutsExtension(),
-    new MathBlockExtension(),
-    FencedRenderExtension::mermaid(),
-    FencedRenderExtension::chart(),
-    new SmartQuotesExtension(locale: (string) (getenv('CARVE_SMART_LOCALE') ?: 'en')),
-]);
-
-$expanded = expandIncludes($converter, $source, $input, $includeRoot, $noIncludes, $depsOut);
-$html = $expanded === null ? $converter->convert($source) : $converter->render($expanded);
-
-foreach ($converter->getWarnings() as $w) {
-    fwrite(STDERR, "warning: {$w}\n");
-}
-
-echo $html;
+echo $result->html;

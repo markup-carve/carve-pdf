@@ -26,13 +26,16 @@ has_any() {
 }
 
 # --- which backends can run? ------------------------------------------------
+# js first: in Carve 0.2 it is the complete backend, and the front-end rows below use the first one.
 backends=()
-if command -v php >/dev/null 2>&1 && php "$LIB/render.php" "$FIX/marks.crv" >/dev/null 2>&1; then
-  backends+=(php)
-fi
 if command -v node >/dev/null 2>&1 && node "$LIB/render.mjs" "$FIX/marks.crv" >/dev/null 2>&1; then
   backends+=(js)
 fi
+if command -v php >/dev/null 2>&1 && php "$LIB/render.php" "$FIX/marks.crv" >/dev/null 2>&1; then
+  backends+=(php)
+fi
+# A row the carve-php 0.2 engine cannot pass yet: a named skip that points at its issue.
+php_gap() { echo "  skip - $1 [carve-php 0.2 gap: markup-carve/carve-php#$2]"; }
 if [ ${#backends[@]} -eq 0 ]; then
   echo "no usable renderer backend (need php+carve-php or node+carve-js)" >&2
   exit 1
@@ -63,16 +66,26 @@ for be in "${backends[@]}"; do
   has_any "kbd"           "$m" "<kbd>Ctrl</kbd>" '<span kbd="">Ctrl</span>'
   has  "abbr"            "$m" '<abbr title="HyperText Markup Language">HTML</abbr>'
   has  "admonition tip"  "$m" 'class="admonition tip"'
-  has  "list-table->table" "$m" "<table>"
-  hasnt "no raw list-table div" "$m" 'class="list-table"'
+  if [ "$be" = php ]; then
+    php_gap "list-table->table" 5258
+    php_gap "no raw list-table div" 5258
+  else
+    has  "list-table->table" "$m" "<table>"
+    hasnt "no raw list-table div" "$m" 'class="list-table"'
+  fi
   has  "definition list" "$m" "<dl>"
   has  "footnote ref"    "$m" "doc-noteref"
 
-  d="$WORK/diagram.$be.html"; render "$be" "$FIX/diagram.crv" "$d"
-  has  "mermaid block"   "$d" 'class="mermaid"'
+  if [ "$be" = php ]; then
+    php_gap "mermaid block" 5257
+    php_gap "chart block" 5257
+  else
+    d="$WORK/diagram.$be.html"; render "$be" "$FIX/diagram.crv" "$d"
+    has  "mermaid block"   "$d" 'class="mermaid"'
 
-  c="$WORK/chart.$be.html"; render "$be" "$FIX/chart.crv" "$c"
-  has  "chart block"     "$c" 'class="chart"'
+    c="$WORK/chart.$be.html"; render "$be" "$FIX/chart.crv" "$c"
+    has  "chart block"     "$c" 'class="chart"'
+  fi
 done
 
 # --- admonitions: the engine's own container output --------------------------
@@ -180,19 +193,24 @@ for be in "${backends[@]}"; do
 
   "${R[@]}" --deps "$o.deps" "$INC/doc/nested.crv" > "$o.nested" 2> "$o.nested.err"
   has   "nested relative include expands"     "$o.nested" "Beta nested"
-  has   "missing target reports itself"       "$o.nested.err" "[include-unresolved]"
+  # C2-N-061: a 0.2 include failure carries its cause code (include-not-found, include-outside-root).
+  has   "missing target reports itself"       "$o.nested.err" "[include-not-found]"
   has   "warning names the file root-relative" "$o.nested.err" "in sub/a.crv"
   has   "missing target stays literal"        "$o.nested" "{{ gone.crv }}"
   hasnt "no host path in warnings"            "$o.nested.err" "$INC"
   if [ "$(cat "$o.deps")" = "$(printf 'sub/a.crv\nsub/b.crv')" ]; then ok "deps are the files read, root-relative"
   else bad "deps are the files read, root-relative (got: $(tr '\n' ' ' < "$o.deps"))"; fi
 
-  "${R[@]}" --format md "$INC/doc/nested.crv" > "$o.md" 2>/dev/null
-  has   "md output expands too"               "$o.md" "Beta nested"
+  if [ "$be" = php ]; then
+    php_gap "md output expands too" 5263
+  else
+    "${R[@]}" --format md "$INC/doc/nested.crv" > "$o.md" 2>/dev/null
+    has   "md output expands too"               "$o.md" "Beta nested"
+  fi
 
   "${R[@]}" "$INC/doc/escape.crv" > "$o.escape" 2> "$o.escape.err"
   hasnt "traversal out of the input dir refused" "$o.escape" "SECRET-OUTSIDE"
-  has   "traversal refusal reports itself"    "$o.escape.err" "[include-unresolved]"
+  has   "traversal refusal reports itself"    "$o.escape.err" "[include-outside-root]"
 
   "${R[@]}" "$INC/doc/symlink.crv" > "$o.symlink" 2>/dev/null
   hasnt "symlink escape refused"              "$o.symlink" "SECRET-OUTSIDE"
@@ -219,7 +237,8 @@ done
 
 # An engine that predates includes must say so rather than render directives as prose.
 echo "== includes: engine without include support =="
-if [ -n "${CARVE_PHP_AUTOLOAD:-}" ] && [[ " ${backends[*]} " == *" php "* ]]; then
+# Every carve-php 0.2 engine has includes in its core (C2-N), so there is no 0.2 engine without them to fake.
+if false; then
   cat > "$WORK/old-autoload.php" <<'EOF'
 <?php
 $loader = require getenv('REAL_AUTOLOAD');
@@ -239,7 +258,7 @@ EOF
     bad "old carve-php: explicit root is fatal"
   else ok "old carve-php: explicit root is fatal"; fi
 else
-  echo "  skip - old carve-php rows need CARVE_PHP_AUTOLOAD"
+  echo "  skip - old carve-php rows: every carve-php 0.2 engine has includes"
 fi
 if [ -n "${CARVE_JS:-}" ] && [[ " ${backends[*]} " == *" js "* ]]; then
   if [ -d "$CARVE_JS" ]; then jsdist="$CARVE_JS/dist"; else jsdist="$(dirname "$CARVE_JS")"; fi
@@ -263,6 +282,28 @@ has   "crv2pdf passes --include-root"         "$WORK/front.md" "SECRET-OUTSIDE"
 has   "crv2pdf resolves a relative root against the cwd" "$WORK/front-rel.md" "SECRET-OUTSIDE"
 CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --md --no-includes "$INC/doc/nested.crv" "$WORK/front-off.md" >/dev/null 2>&1
 has   "crv2pdf passes --no-includes"          "$WORK/front-off.md" "{{ sub/a.crv }}"
+
+# --- Carve 0.2 port: host features rebuilt over the 0.2 API ------------------
+echo "== Carve 0.2 host features =="
+printf 'He said "hi" [x](https://example.com) and [y](/local).\n' > "$WORK/host.crv"
+if [[ " ${backends[*]} " == *" js "* ]]; then
+  node "$LIB/render.mjs" "$WORK/host.crv" > "$WORK/host.js.html" 2>/dev/null
+  has   "js: an external link opens in a new tab" "$WORK/host.js.html" '<a href="https://example.com" rel="nofollow noopener" target="_blank">x</a>'
+  hasnt "js: a local link stays as written"       "$WORK/host.js.html" '<a href="/local" rel='
+  has   "js: smart quotes default to English"      "$WORK/host.js.html" '“hi”'
+  CARVE_SMART_LOCALE=de node "$LIB/render.mjs" "$WORK/host.crv" > "$WORK/host.de.html" 2>/dev/null
+  has   "js: CARVE_SMART_LOCALE picks the quotes"  "$WORK/host.de.html" '„hi“'
+  node "$LIB/render.mjs" --format txt "$FIX/marks.crv" > "$WORK/marks.txt" 2>/dev/null
+  has   "js: txt is the plain-text export"         "$WORK/marks.txt" "Tip body."
+fi
+if [[ " ${backends[*]} " == *" php "* ]]; then
+  if php "$LIB/render.php" --format md "$FIX/marks.crv" > /dev/null 2> "$WORK/php-md.err"; then
+    bad "php: md without a writer fails"
+  else ok "php: md without a writer fails"; fi
+  has   "php: md names the missing writer"         "$WORK/php-md.err" "writer not available yet: markdown"
+  php_gap "php: external links" 5253
+  php_gap "php: smart quotes" 5258
+fi
 
 # --- version surface ---------------------------------------------------------
 # CRV2PDF_VERSION in crv2pdf.sh is the single source of truth, and the tag is

@@ -1,12 +1,12 @@
----yaml
+---
 title: Print styles fixture
 author: Fixture
 date: 2026-10-09
 ---
 
-# Print styles
+= Print styles
 
-Inserted {+INSERTMARKER+}, struck ~STRIKEMARKER~ and an [HTML]{abbr="HyperText Markup Language"} abbreviation.
+Inserted {+INSERTMARKER+}, struck {~STRIKEMARKER~} and an [HTML]{abbr="HyperText Markup Language"} abbreviation.
 A note[^n] and inline math $`a^2`.
 Inline `sample` code.
 
@@ -37,7 +37,7 @@ $$`e^{i\pi} + 1 = 0`
 
 Before the break.
 
----
+***
 
 After the break.
 
@@ -66,15 +66,15 @@ After the break.
 echo 'header';
 ```
 
-::: tabs
-:::: tab [First]
+:::: tabs
+::: tab [First]
 First body.
-::::
-
-:::: tab [Second]
-Second body.
-::::
 :::
+
+::: tab [Second]
+Second body.
+:::
+::::
 
 ::: code-group
 ```bash [one]
@@ -86,13 +86,13 @@ echo two
 ```
 :::
 
-## Section A
+== Section A
 
 A section that ends in a break.
 
----
+***
 
-## Section B
+== Section B
 
 The next section starts a new page, so the break above it is dropped.
 
@@ -101,7 +101,7 @@ sequenceDiagram
   Author->>Carve: write
 ```
 
-## Generated and stateful
+== Generated and stateful
 
 ::: toc
 
@@ -131,13 +131,13 @@ value = 1  <1>
 \prod_{k=1}^{n} k
 ```
 
-````carve
+```carve
 |=< Framework |= Paket |
 | Shopware | ^ |
 | Tempest | < |
 + more |
 ^ Tabelle #: Integrationen
-````
+```
 
 {.diff}
 ```js

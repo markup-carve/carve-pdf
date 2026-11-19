@@ -28,7 +28,7 @@
 #            | print_cdp.py (Chrome DevTools -> PDF with page numbers).
 #
 # Env:
-#   CARVE_RENDERER      php | js | auto (default auto: php if it resolves an engine, else js)
+#   CARVE_RENDERER      js | php | auto (default auto: js if it resolves an engine, else php)
 #   CARVE_PHP_AUTOLOAD  composer autoloader providing MarkupCarve\Carve (php backend)
 #   CARVE_JS            carve-js checkout or dist/index.js (js backend)
 #   CARVE_KATEX         KaTeX dist/ dir for math typesetting (default: autodetect)
@@ -154,12 +154,13 @@ fi
 # to the php backend and fail there, even with a working node engine present.
 # An explicit CARVE_RENDERER is honored as given, so asking for a backend
 # reports that backend's own error instead of quietly using the other one.
+# With Carve 0.2, js comes first: carve-php 0.2 has no Markdown or plain-text writer and fewer extensions yet.
 RENDERER="${CARVE_RENDERER:-auto}"
 if [ "$RENDERER" = "auto" ]; then
-  if command -v php >/dev/null 2>&1 && php "$LIB/render.php" --probe >/dev/null 2>&1; then
-    RENDERER="php"
-  elif command -v node >/dev/null 2>&1 && node "$LIB/render.mjs" --probe >/dev/null 2>&1; then
+  if command -v node >/dev/null 2>&1 && node "$LIB/render.mjs" --probe >/dev/null 2>&1; then
     RENDERER="js"
+  elif command -v php >/dev/null 2>&1 && php "$LIB/render.php" --probe >/dev/null 2>&1; then
+    RENDERER="php"
   else
     {
       echo "crv2pdf: no usable Carve renderer backend."

@@ -1,8 +1,8 @@
----yaml
+---
 title: Fences fixture
 ---
 
-# Fences
+= Fences
 
 ```blade
 {{-- BLADECOMMENT --}}

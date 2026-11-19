@@ -1,4 +1,4 @@
----yaml
+---
 title: "Carve Field Guide: Every Construct, One Source"
 description: "A single Carve document exercising the full markup spectrum, rendered to PDF."
 author: Mark Scherer
@@ -9,7 +9,7 @@ lang: en
 pageBreaks: none
 ---
 
-# Carve Field Guide
+= Carve Field Guide
 
 {.lead}
 This document is a *working reference*: one plain-text Carve source that exercises
@@ -18,15 +18,15 @@ to a clean PDF. It doubles
 as the coffee handbook for /Carve Coffee Roasters/ --- because a reference is easier to
 read when it actually says something.
 
-Text carries the usual inline marks: *bold*, /italic/, _underline_, {=highlighted=},
-{+inserted+}, {-deleted-}, ~struck~, `inline code`, super{^script^} and sub{,script,},
+Text carries the usual inline marks: *bold*, /italic/, {_underline_}, {=highlighted=},
+{+inserted+}, {-deleted-}, {~struck~}, `inline code`, super{^script^} and sub{,script,},
 plus an abbreviation like HTML and a keyboard hint [Ctrl]{kbd} + [C]{kbd}. Smart typography
 turns "straight quotes" curly, 'single' too, and --- / -- into proper dashes.
-Revision marks also express a replacement: the {~old recipe~>new recipe~} wins.
+Revision marks also express a replacement: the {-old recipe-}{+new recipe+} wins.
 
 *[HTML]: HyperText Markup Language
 
-## Origin and tasting
+== Origin and tasting
 
 Coffees from a /single/ farm, washing station, or co-operative --- never blended. Each
 lot tastes of its place: the soil, the altitude, the process.
@@ -52,7 +52,7 @@ Carve Coffee Roasters
 Vienna, AT
 :::
 
-## Brew methods
+== Brew methods
 
 Ordered steps for a pour-over (note the list starts at 1, then a custom-start list):
 
@@ -74,10 +74,10 @@ A checklist you can actually tick:
 
 A pipe table with per-column alignment:
 
-|= Method    |={>} Ratio |={~} Grind    |
-| V60        |      1:16 |  Medium-fine |
-| Aeropress  |      1:14 |  Fine        |
-| Batch brew |      1:17 |  Medium      |
+|= Method |={>} Ratio |={~} Grind |
+| V60 | 1:16 | Medium-fine |
+| Aeropress | 1:14 | Fine |
+| Batch brew | 1:17 | Medium |
 
 A compact span table uses `^` to continue the cell above and `<` to merge left:
 
@@ -108,7 +108,7 @@ Keep the bag sealed and away from light. Whole bean stays bright for about three
 
 A Mermaid diagram (typeset to SVG at print time):
 
-``` mermaid
+```mermaid
 graph LR
   G[Green beans] --> R[Roast]
   R --> D[Rest 3-7 days]
@@ -119,22 +119,22 @@ graph LR
 
 A Chart.js chart (Chart config as JSON, drawn to a canvas at print time):
 
-``` chart
+```chart
 {"type":"bar","data":{"labels":["V60","Aeropress","Batch"],"datasets":[{"label":"Cups per day","data":[12,7,20],"backgroundColor":["#2e7d32","#1565c0","#b26a00"]}]},"options":{"plugins":{"title":{"display":true,"text":"Brews by method"}}}}
 ```
 
-## Reference
+== Reference
 
 A definition list:
 
 :: Washed
 :: Natural
-:  Fruit removed before drying --- clean, bright cups.
-:  Dried in the whole cherry --- heavier, fruit-forward cups.
+: Fruit removed before drying --- clean, bright cups.
+: Dried in the whole cherry --- heavier, fruit-forward cups.
 
 Named code fences are highlighted before printing. A PHP block:
 
-``` php
+```php
 <?php
 $html = (new CarveConverter(safeMode: true))->convert($source);
 ```
@@ -142,13 +142,15 @@ $html = (new CarveConverter(safeMode: true))->convert($source);
 A `code-group` (tabs flatten to labeled sections in print):
 
 ::: code-group
-``` bash [composer]
+```bash [composer]
 composer require markup-carve/shopware-carve
 ```
-``` bash [git]
+
+```bash [git]
 git clone https://github.com/markup-carve/carve-php
 ```
-``` carve [Carve]
+
+```carve [Carve]
 ::: tip "Highlighted Carve"
 Use *semantic source* with [links](https://markup-carve.github.io/carve/),
 {=marks=}, and `code`.
@@ -162,6 +164,7 @@ A `tabs` block:
 ::: tab "Storefront"
 Rendered server-side through the Twig `|carve` filter.
 :::
+
 ::: tab "CLI"
 Rendered from a `.crv` file with `carve --html`.
 :::
@@ -171,14 +174,14 @@ Inline math $`c = \sqrt{a^2 + b^2}` and a display block:
 
 $$`\text{extraction \%} = \frac{\text{TDS} \times \text{beverage mass}}{\text{dose}}`
 
-## Layout recipes
+== Layout recipes
 
 The recipe layer turns ordinary semantic Carve into polished layouts without adding
 parser extensions. The same source remains useful in Markdown and plain text.
 
-### A connected project tree
+=== A connected project tree
 
-{data-guides="dotted"}
+{data-guides=dotted}
 ::: tree
 - coffee-guide/
   - beans/
@@ -192,7 +195,7 @@ parser extensions. The same source remains useful in Markdown and plain text.
   - README.crv
 :::
 
-### Cards and badges
+=== Cards and badges
 
 ::: cards
 - *Source-first* - one readable `.crv` file feeds every output.
@@ -200,12 +203,12 @@ parser extensions. The same source remains useful in Markdown and plain text.
 - *Portable* - PHP and JavaScript backends produce the same document structure.
 :::
 
-Release status: [stable]{.badge data-tone="success"}, quality [verified]{.badge},
-and output [PDF]{.badge data-tone="info"}.
+Release status: [stable]{.badge data-tone=success}, quality [verified]{.badge},
+and output [PDF]{.badge data-tone=info}.
 
-### Columns and steps
+=== Columns and steps
 
-{data-columns="3"}
+{data-columns=3}
 ::: columns
 *Choose.* Pick a freshly roasted coffee whose origin and process sound interesting.
 
@@ -221,9 +224,9 @@ and output [PDF]{.badge data-tone="info"}.
 4. Wait for math, charts, and diagrams, then print.
 :::
 
-### Gallery, aside, and wide content
+=== Gallery, aside, and wide content
 
-{data-fit="contain"}
+{data-fit=contain}
 ::: gallery
 ![Roast spectrum](roast.svg)
 ^ Light-to-dark roast development
@@ -242,7 +245,7 @@ This wide callout can escape a deliberately narrow reading measure for diagrams,
 tables, or other material that benefits from the full printable width.
 :::
 
-### Dense and scroll-safe data
+=== Dense and scroll-safe data
 
 {.striped .compact .sticky-head}
 |= Engine |= Recipes |= Math |= Diagrams |
@@ -258,7 +261,7 @@ tables, or other material that benefits from the full printable width.
 | Print | ready document | paginated PDF | vectors, links, and color |
 :::
 
-## Notes and fine print
+== Notes and fine print
 
 Footnotes come in two flavors: a referenced note[^ratio] and an inline one[the grind
 matters as much as the ratio]{.fn}.

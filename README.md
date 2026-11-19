@@ -2,7 +2,7 @@
 
 [![CI](https://github.com/markup-carve/carve-pdf/actions/workflows/ci.yml/badge.svg)](https://github.com/markup-carve/carve-pdf/actions/workflows/ci.yml)
 
-Render Carve documents to paginated PDF through HTML and Chromium. The renderer uses Carve engines and styles matching Carve 0.1 output. See the [Carve documentation](https://markup-carve.github.io/carve/).
+Render Carve documents to paginated PDF through HTML and Chromium. On this `next2` branch the renderer uses the Carve 0.2 engines (carve-js and carve-php `next2`, pinned in `engine-pins.json`). See the [Carve documentation](https://markup-carve.github.io/carve/).
 
 Use `--css FILE` for a stylesheet, `carve-pdf.css` beside an input for project
 defaults, or `--theme NAME|DIR` for a named visual theme. The
