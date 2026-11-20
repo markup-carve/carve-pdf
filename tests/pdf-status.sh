@@ -5,8 +5,8 @@ set -euo pipefail
 HERE="$(cd "$(dirname "$0")/.." && pwd)"
 WORK="$(mktemp -d "${TMPDIR:-/tmp}/carve-pdf-status.XXXXXX")"
 REAL_PYTHON="$(command -v python3)"
-REAL_NODE="$(command -v node)"
-REAL_PHP="$(command -v php)"
+REAL_NODE="$(command -v node || true)"
+REAL_PHP="$(command -v php || true)"
 export REAL_PYTHON REAL_NODE REAL_PHP
 REAL_PATH="$PATH"
 mkdir -p "$WORK/bin"
@@ -31,11 +31,13 @@ export CARVE_RENDERER="${CARVE_RENDERER:-js}"
 cat > "$WORK/bin/node" <<'EOF'
 #!/usr/bin/env bash
 if [ "${FAKE_NO_BACKEND:-0}" = 1 ]; then exit 1; fi
+[ -n "$REAL_NODE" ] || exit 127
 exec "$REAL_NODE" "$@"
 EOF
 cat > "$WORK/bin/php" <<'EOF'
 #!/usr/bin/env bash
 if [ "${FAKE_NO_BACKEND:-0}" = 1 ]; then exit 1; fi
+[ -n "$REAL_PHP" ] || exit 127
 exec "$REAL_PHP" "$@"
 EOF
 chmod +x "$WORK/bin/node" "$WORK/bin/php"
@@ -116,9 +118,15 @@ fi
 grep -qF 'PDF printing failed' "$WORK/log"
 echo 'ok: watch initial failure exits nonzero'
 
-if { [ -n "${CHROME_BIN:-}" ] || command -v google-chrome >/dev/null 2>&1 || \
-     command -v chromium >/dev/null 2>&1; } && \
-   "$REAL_PYTHON" -c 'import websocket' 2>/dev/null; then
+have_chrome() {
+  if [ -n "${CHROME_BIN:-}" ] && command -v "$CHROME_BIN" >/dev/null 2>&1; then return 0; fi
+  local binary
+  for binary in google-chrome google-chrome-stable chromium chromium-browser chrome; do
+    if command -v "$binary" >/dev/null 2>&1; then return 0; fi
+  done
+  return 1
+}
+if have_chrome && "$REAL_PYTHON" -c 'import websocket' 2>/dev/null; then
   if ! PATH="$REAL_PATH" "$HERE/crv2pdf.sh" "$WORK/input.crv" "$WORK/real.pdf" --pdf > "$WORK/log" 2>&1; then
     cat "$WORK/log" >&2; exit 1
   fi
