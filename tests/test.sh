@@ -201,12 +201,8 @@ for be in "${backends[@]}"; do
   if [ "$(cat "$o.deps")" = "$(printf 'sub/a.crv\nsub/b.crv')" ]; then ok "deps are the files read, root-relative"
   else bad "deps are the files read, root-relative (got: $(tr '\n' ' ' < "$o.deps"))"; fi
 
-  if [ "$be" = php ]; then
-    php_gap "md output expands too" 5263
-  else
-    "${R[@]}" --format md "$INC/doc/nested.crv" > "$o.md" 2>/dev/null
-    has   "md output expands too"               "$o.md" "Beta nested"
-  fi
+  "${R[@]}" --format md "$INC/doc/nested.crv" > "$o.md" 2>/dev/null
+  has   "md output expands too"               "$o.md" "Beta nested"
 
   "${R[@]}" "$INC/doc/escape.crv" > "$o.escape" 2> "$o.escape.err"
   hasnt "traversal out of the input dir refused" "$o.escape" "SECRET-OUTSIDE"
@@ -300,10 +296,10 @@ if [[ " ${backends[*]} " == *" js "* ]]; then
   has   "js: txt is the plain-text export"         "$WORK/marks.txt" "Tip body."
 fi
 if [[ " ${backends[*]} " == *" php "* ]]; then
-  if php "$LIB/render.php" --format md "$FIX/marks.crv" > /dev/null 2> "$WORK/php-md.err"; then
-    bad "php: md without a writer fails"
-  else ok "php: md without a writer fails"; fi
-  has   "php: md names the missing writer"         "$WORK/php-md.err" "writer not available yet: markdown"
+  php "$LIB/render.php" --format md "$FIX/marks.crv" > "$WORK/marks.php.md" 2>/dev/null
+  has   "php: md is the Markdown export"          "$WORK/marks.php.md" "# Heading one"
+  php "$LIB/render.php" --format txt "$FIX/marks.crv" > "$WORK/marks.php.txt" 2>/dev/null
+  has   "php: txt is the plain-text export"       "$WORK/marks.php.txt" "Tip body."
   php_gap "php: external links" 5253
   php_gap "php: smart quotes" 5258
 fi

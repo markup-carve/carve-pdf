@@ -20,8 +20,7 @@ declare(strict_types=1);
  *   --no-includes       leave {{ path }} directives literal
  *   --deps FILE         write the files the render read, root-relative, one per line
  *
- * md/txt need the 0.2 Markdown and plain-text writers, which carve-php has not
- * registered yet: those formats fail with "writer not available yet".
+ * md/txt use the 0.2 `markdown` and `plain` exports of carve-php.
  *
  * The composer autoloader that provides MarkupCarve\Carve is resolved from
  * $CARVE_PHP_AUTOLOAD, falling back to locations relative to this script: the
@@ -160,17 +159,6 @@ if ($metaOnly) {
     exit(0);
 }
 
-// --- md / txt: the 0.2 writers are not registered yet -----------------------
-if ($format === 'md' || $format === 'txt') {
-    $target = $format === 'md' ? 'markdown' : 'text';
-    try {
-        echo Carve::writeTo($target, Carve::parse($source));
-        exit(0);
-    } catch (Throwable $e) {
-        fail("writer not available yet: {$target} (carve-php 0.2 has no {$target} writer; use the js backend)");
-    }
-}
-
 // --- includes (C2-N) ----------------------------------------------------------
 /**
  * The options with an include resolver, or without one when includes are off.
@@ -204,12 +192,25 @@ function withIncludes(array $options, string $source, string $input, ?string $ro
     return $options;
 }
 
-// --- html ---------------------------------------------------------------------
 $deps = [];
 $options = withIncludes(['mode' => 'static', 'extensions' => ['carve.tabs']], $source, $input, $includeRoot, $noIncludes, $deps);
 if ($depsOut !== null && file_put_contents($depsOut, implode('', array_map(static fn ($d) => $d . "\n", $deps))) === false) {
     fail("could not write {$depsOut}");
 }
+
+// --- md / txt -----------------------------------------------------------------
+if ($format === 'md' || $format === 'txt') {
+    $target = $format === 'md' ? 'markdown' : 'plain';
+    $parseOptions = array_intersect_key($options, ['includes' => true, 'extensions' => true]);
+    try {
+        echo Carve::writeTo($target, Carve::parse($source, $parseOptions));
+        exit(0);
+    } catch (Throwable $e) {
+        fail("{$target} export failed: {$e->getMessage()}");
+    }
+}
+
+// --- html ---------------------------------------------------------------------
 $result = Carve::renderWithDiagnostics($source, $options);
 foreach ($result->diagnostics as $d) {
     if (isset($options['includes']) && str_starts_with($d->code, 'include')) {

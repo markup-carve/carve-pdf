@@ -156,8 +156,7 @@ backend reports that backend's own error.
 Output is **equivalent, not byte-identical**. carve-php 0.2 does not have all the
 standard extensions yet; [rendering.md](rendering.md#extensions) lists what each
 backend renders. `--md` and `--txt` use the 0.2 Markdown and plain-text exports of
-carve-js. The PHP backend stops with `writer not available yet` until carve-php
-registers them (markup-carve/carve-php#5263).
+the engine the backend runs.
 
 Carve 0.2 is not released yet. On the `next2` branch, CI builds both engines from the
 commits that `engine-pins.json` names. Locally, point the backends at a checkout of
