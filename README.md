@@ -21,6 +21,13 @@ make install
 crv2pdf examples/demo.crv
 ```
 
+In a container where Chromium cannot use its sandbox, run as a non-root user
+with `CARVE_CHROME_NO_SANDBOX=1`. For example:
+
+```sh
+CARVE_CHROME_NO_SANDBOX=1 crv2pdf examples/demo.crv
+```
+
 ## Language and print layout
 
 Set frontmatter `lang` to `de`, `fr`, `es`, `nl`, or `it` to localize the byline and default page footer. English and unknown languages use "By" and "Page {page} of {pages}". Plain ISO dates in the byline use the document language's date format; other dates stay as written. `CARVE_PDF_FOOTER` overrides the selected theme and frontmatter `footer:`; an empty value disables the footer.
