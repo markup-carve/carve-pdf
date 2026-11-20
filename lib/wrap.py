@@ -1,7 +1,8 @@
 #!/usr/bin/env python3
 """Assemble a print-ready HTML document from a Carve HTML fragment + metadata.
 
-Usage: wrap.py [--print] [--link-base URL] <fragment.html> <meta.json> <base_dir> <out.html> <css...>
+Usage: wrap.py [--print] [--link-base URL] [--asset-base FILE] [--theme-config FILE]
+               [--custom-css FILE]... <fragment.html> <meta.json> <base_dir> <out.html> <css...>
 
 <meta.json> is the frontmatter as JSON (produced by meta.py).
 <base_dir> is the source .crv's directory. The document gets no <base>: with
@@ -12,24 +13,31 @@ against <base_dir> and print_cdp.py decides what may load; without it (the
 written in HTML and print as plain text in a PDF, where they could only point
 into the build machine's filesystem.
 Recognized keys: title, description, author, date, kicker, tags, lang.
-Any CSS files given are inlined into a single <style> block.
+Each CSS file is inlined into its own <style> block so imports remain valid.
 """
 import base64
 import html
 import json
+import os
 import re
 import sys
 from pathlib import Path
-from urllib.parse import unquote, urljoin, urlsplit
+from urllib.parse import quote as url_quote, unquote, urljoin, urlsplit
 
 # assets.py owns where the optional client libraries live, so `make check`
 # reports on the same paths the renderer reads rather than its own copy of them.
 import assets
 import locale_labels
 
-USAGE = "usage: wrap.py [--print] [--link-base URL] <fragment.html> <meta.json> <base_dir> <out.html> <css...>"
+USAGE = "usage: wrap.py [--print] [--link-base URL] [--asset-base FILE] [--theme-config FILE] [--custom-css FILE]... <fragment.html> <meta.json> <base_dir> <out.html> <css...>"
 PRINT = False
 LINK_BASE = None
+THEME_CONFIG = None
+FOOTER_OUT = None
+HEADER_OUT = None
+CUSTOM_CSS = []
+CSS_DEPS_OUT = None
+ASSET_BASE = None
 positional = []
 argv = sys.argv[1:]
 while argv:
@@ -40,6 +48,18 @@ while argv:
         LINK_BASE = argv.pop(0) if argv else sys.exit(USAGE)
     elif arg.startswith("--link-base="):
         LINK_BASE = arg[len("--link-base="):]
+    elif arg == "--theme-config":
+        THEME_CONFIG = Path(argv.pop(0)) if argv else sys.exit(USAGE)
+    elif arg == "--footer-out":
+        FOOTER_OUT = Path(argv.pop(0)) if argv else sys.exit(USAGE)
+    elif arg == "--header-out":
+        HEADER_OUT = Path(argv.pop(0)) if argv else sys.exit(USAGE)
+    elif arg == "--custom-css":
+        CUSTOM_CSS.append(Path(argv.pop(0))) if argv else sys.exit(USAGE)
+    elif arg == "--css-deps-out":
+        CSS_DEPS_OUT = Path(argv.pop(0)) if argv else sys.exit(USAGE)
+    elif arg == "--asset-base":
+        ASSET_BASE = Path(argv.pop(0)) if argv else sys.exit(USAGE)
     else:
         positional.append(arg)
 if len(positional) < 4:
@@ -48,6 +68,7 @@ if len(positional) < 4:
 frag_path, meta_path, base_dir, out_path = map(Path, positional[:4])
 css_paths = [Path(p) for p in positional[4:]]
 base_dir = base_dir.resolve()
+asset_base_dir = (ASSET_BASE or out_path).resolve().parent
 
 fragment = frag_path.read_text(encoding="utf-8")
 # Reveal all disclosure widgets (details + spoilers) in print - there is no
@@ -411,7 +432,192 @@ try:
     meta = json.loads(meta_path.read_text(encoding="utf-8") or "{}")
 except Exception:
     meta = {}
-css = "\n".join(p.read_text(encoding="utf-8") for p in css_paths if p.is_file())
+
+
+CSS_DEPENDENCIES = set()
+CSS_RESOURCES = set()
+
+
+def css_unescape(value: str) -> str:
+    """Decode CSS escapes in a URL before interpreting it as a path."""
+    out = []
+    i = 0
+    while i < len(value):
+        if value[i] != "\\" or i + 1 == len(value):
+            out.append(value[i])
+            i += 1
+            continue
+        i += 1
+        if value[i] in "\r\n\f":
+            i += 2 if value[i:i + 2] == "\r\n" else 1
+        elif value[i] in "0123456789abcdefABCDEF":
+            end = i
+            while end < len(value) and end - i < 6 and value[end] in "0123456789abcdefABCDEF":
+                end += 1
+            codepoint = int(value[i:end], 16)
+            out.append(chr(codepoint) if 0 < codepoint <= 0x10ffff and not 0xd800 <= codepoint <= 0xdfff else "\ufffd")
+            i = end
+            if i < len(value) and value[i].isspace():
+                i += 2 if value[i:i + 2] == "\r\n" else 1
+        else:
+            char = value[i]
+            out.append(f"%{ord(char):02X}" if char in "?#:" else char)
+            i += 1
+    return "".join(out)
+
+
+def local_target(path: Path, raw: str):
+    decoded = css_unescape(raw.strip())
+    parsed = urlsplit(decoded)
+    if not decoded or parsed.scheme or decoded.startswith(("/", "#", "//")):
+        return None, parsed
+    return (path.resolve().parent / unquote(parsed.path)).resolve(), parsed
+
+
+def css_string_end(source: str, at: int) -> int:
+    quote = source[at]
+    at += 1
+    while at < len(source):
+        if source[at] == "\\":
+            at += 2
+        elif source[at] == quote:
+            return at + 1
+        else:
+            at += 1
+    return len(source)
+
+
+def css_url_token(source: str, at: int):
+    """Return the path span, value and token end for a CSS url() token."""
+    start = at + 4
+    while start < len(source) and source[start].isspace():
+        start += 1
+    quote = source[start:start + 1]
+    if quote in ("'", '"'):
+        end = css_string_end(source, start)
+        value_start, value_end = start + 1, end - 1
+        close = end
+        while close < len(source) and source[close].isspace():
+            close += 1
+    else:
+        close = start
+        while close < len(source):
+            if source[close] == "\\":
+                close += 2
+            elif source[close] == ")":
+                break
+            else:
+                close += 1
+        if close >= len(source):
+            close = -1
+        value_start = start
+        value_end = close if close >= 0 else len(source)
+        while value_end > value_start and source[value_end - 1].isspace():
+            value_end -= 1
+    if close < 0 or close >= len(source) or source[close] != ")":
+        return None
+    return value_start, value_end, source[value_start:value_end], close + 1
+
+
+def css_resource_tokens(source: str):
+    """Yield import and URL paths without touching quoted text or comments."""
+    i = 0
+    while i < len(source):
+        if source.startswith("/*", i):
+            end = source.find("*/", i + 2)
+            i = len(source) if end < 0 else end + 2
+        elif source[i] in "\"'":
+            i = css_string_end(source, i)
+        elif source[i:i + 7].lower() == "@import" and (i + 7 == len(source) or not source[i + 7].isalnum()):
+            start = i + 7
+            while start < len(source):
+                if source[start].isspace():
+                    start += 1
+                elif source.startswith("/*", start):
+                    end = source.find("*/", start + 2)
+                    if end < 0:
+                        break
+                    start = end + 2
+                else:
+                    break
+            if start < len(source) and source[start] in "\"'":
+                end = css_string_end(source, start)
+                yield "import", start + 1, end - 1, source[start + 1:end - 1]
+                i = end
+            elif source[start:start + 4].lower() == "url(":
+                token = css_url_token(source, start)
+                if token:
+                    yield "import", *token[:3]
+                    i = token[3]
+                else:
+                    i += 1
+            else:
+                i += 1
+        elif source[i:i + 4].lower() == "url(" and (i == 0 or not (source[i - 1].isalnum() or source[i - 1] in "_-")):
+            token = css_url_token(source, i)
+            if token:
+                yield "url", *token[:3]
+                i = token[3]
+            else:
+                i += 1
+        else:
+            i += 1
+
+
+def css_dependencies(path: Path):
+    """Record local imports and their assets' allowlisted and watched roots."""
+    path = path.resolve()
+    if path in CSS_DEPENDENCIES:
+        return
+    CSS_DEPENDENCIES.add(path)
+    try:
+        source = path.read_text(encoding="utf-8")
+    except OSError:
+        sys.stderr.write(f"wrap.py: imported stylesheet not readable: {path}\n")
+        return
+    for kind, _, _, raw in css_resource_tokens(source):
+        target, _ = local_target(path, raw)
+        if target and kind == "import":
+            css_dependencies(target)
+        elif target:
+            CSS_RESOURCES.add(target)
+
+
+def css_file(path: Path) -> str:
+    """Inline a trusted sheet and resolve its local assets from that sheet."""
+    source = path.read_text(encoding="utf-8")
+    css_dependencies(path)
+
+    def resource_url(raw):
+        target, parsed = local_target(path, raw)
+        if target is None:
+            return raw
+        resolved = target.as_uri() if PRINT else url_quote(
+            os.path.relpath(target, asset_base_dir).replace(os.sep, "/"), safe="/.-_~"
+        )
+        if parsed.query:
+            resolved += "?" + parsed.query
+        if parsed.fragment:
+            resolved += "#" + parsed.fragment
+        return resolved
+
+    # The same token scan discovers imports for the resource allowlist and
+    # rewrites URLs. A later import on the same line cannot be missed here.
+    out = []
+    cursor = 0
+    for _, start, end, raw in css_resource_tokens(source):
+        out.append(source[cursor:start])
+        out.append(resource_url(raw))
+        cursor = end
+    out.append(source[cursor:])
+    return "".join(out)
+
+
+# Each sheet gets its own style element. An import at the start of a theme or
+# host sheet must remain at the start of a stylesheet to be valid CSS.
+style_parts = [css_file(p) for p in css_paths if p.is_file()]
+built_count = len(style_parts)
+css = ""
 
 
 def esc(v) -> str:
@@ -437,12 +643,46 @@ def _valid(value, *patterns):
 
 
 overrides = []
-paper = _valid(meta.get("paper", ""), _PAPER_NAMED, _DIMS) if meta.get("paper") else None
-margin = _valid(meta.get("margin", ""), _MARGIN) if meta.get("margin") else None
-if meta.get("paper") and not paper:
-    sys.stderr.write(f"wrap.py: ignoring invalid `paper` frontmatter: {meta.get('paper')!r}\n")
-if meta.get("margin") and not margin:
-    sys.stderr.write(f"wrap.py: ignoring invalid `margin` frontmatter: {meta.get('margin')!r}\n")
+theme = {}
+if THEME_CONFIG:
+    try:
+        theme = json.loads(THEME_CONFIG.read_text(encoding="utf-8"))
+        if not isinstance(theme, dict):
+            raise ValueError("theme.json must contain an object")
+    except (OSError, ValueError) as exc:
+        sys.exit(f"wrap.py: invalid theme config: {exc}")
+
+
+def geometry(name, *patterns):
+    # Theme is trusted but still syntax checked so bad settings fail visibly.
+    for origin, data in (("frontmatter", meta), ("theme", theme)):
+        if name not in data:
+            continue
+        value = _valid(data[name], *patterns)
+        if value:
+            return value
+        sys.stderr.write(f"wrap.py: ignoring invalid `{name}` {origin}: {data[name]!r}\n")
+    return None
+
+
+paper = geometry("paper", _PAPER_NAMED, _DIMS)
+margin = geometry("margin", _MARGIN)
+
+
+def landscape_size(value: str) -> str:
+    parts = value.split()
+    if _PAPER_NAMED.fullmatch(value):
+        return parts[0] + " landscape"
+    if len(parts) == 1:
+        return parts[0] + " " + parts[0]
+    scale = {"mm": 1, "cm": 10, "in": 25.4, "pt": 25.4 / 72,
+             "pc": 25.4 / 6, "px": 25.4 / 96}
+    def millimeters(part):
+        match = re.fullmatch(r"(\d+(?:\.\d+)?)(mm|cm|in|pt|pc|px)", part, re.IGNORECASE)
+        return float(match.group(1)) * scale[match.group(2).lower()]
+    return " ".join(parts if millimeters(parts[0]) >= millimeters(parts[1]) else parts[::-1])
+
+
 if paper or margin:
     decls = ""
     if paper:
@@ -450,6 +690,8 @@ if paper or margin:
     if margin:
         decls += f" margin: {margin};"
     overrides.append(f"@page {{{decls} }}")
+if paper:
+    overrides.append(f"@page carve-landscape {{ size: {landscape_size(paper)}; }}")
 page_breaks = str(meta.get("pageBreaks", "h2"))
 if page_breaks in ("none", "manual"):
     overrides.append("h2 { break-before: auto; }")
@@ -459,6 +701,68 @@ if page_breaks in ("none", "manual"):
     )
 if overrides:
     css += "\n/* frontmatter overrides */\n" + "\n".join(overrides) + "\n"
+
+# A document can set only these checked values. It cannot name CSS files.
+pdf = meta.get("pdf")
+if isinstance(pdf, dict):
+    token_rules = {
+        "accent": ("--carve-accent", re.compile(r"#[0-9a-fA-F]{3}(?:[0-9a-fA-F]{3})?\Z")),
+        "font": ("--carve-font-body", re.compile(r"[A-Za-z][A-Za-z0-9 -]{0,79}\Z")),
+        "font-size": ("--pdf-font-size", re.compile(r"(?:[6-9]|[12][0-9]|30)(?:\.\d{1,2})?(?:pt|px)\Z")),
+        "line-height": ("--carve-line-height", re.compile(r"(?:1(?:\.\d{1,2})?|2(?:\.\d{1,2})?)\Z")),
+    }
+    declarations = []
+    for name, value in pdf.items():
+        rule = token_rules.get(name)
+        if name == "line-height" and isinstance(value, (int, float)) and not isinstance(value, bool):
+            value = str(value)
+        if not rule or not isinstance(value, str) or not rule[1].fullmatch(value) or (name == "font-size" and float(value[:-2]) > 30):
+            sys.stderr.write(f"wrap.py: ignoring invalid pdf token `{name}`: {value!r}\n")
+            continue
+        css_value = json.dumps(value) if name == "font" else value
+        declarations.append(f"{rule[0]}: {css_value};")
+    if declarations:
+        css += "\n:root { " + " ".join(declarations) + " }\n"
+
+
+def css_string(value: str) -> str:
+    # Escaping '<' also prevents an untrusted </style> from ending the HTML
+    # style element, even though it would be harmless inside CSS syntax.
+    return '"' + ''.join(('\\%x ' % ord(ch)) if ch in '\\\"<\n\r\f' else ch for ch in value) + '"'
+
+
+footer = str(os.environ.get(
+    "CARVE_PDF_FOOTER",
+    theme.get("footer", meta.get("footer", locale_labels.labels(meta.get("lang"))[1])),
+))
+header_text = str(theme.get("header", ""))
+if FOOTER_OUT:
+    FOOTER_OUT.write_text(footer, encoding="utf-8")
+if HEADER_OUT:
+    HEADER_OUT.write_text(header_text, encoding="utf-8")
+
+
+def margin_content(value: str) -> str:
+    return " ".join("counter(page)" if part == "{page}" else "counter(pages)" if part == "{pages}" else css_string(part)
+                    for part in re.split(r"(\{page\}|\{pages\})", value) if part)
+
+margin_boxes = []
+if footer:
+    margin_boxes.append("@bottom-center { content: " + margin_content(footer) + "; font: 9px sans-serif; color: #8a8a8a; }")
+if header_text:
+    margin_boxes.append("@top-center { content: " + css_string(header_text) + "; font: 9px sans-serif; color: #8a8a8a; }")
+if margin_boxes:
+    css += "\n@page { " + " ".join(margin_boxes) + " }\n"
+
+# Trusted project and CLI styles always come last. This includes their @page
+# rules, so hosts can replace the built-in footer or geometry outright.
+if CUSTOM_CSS:
+    style_parts.extend(css_file(p) for p in CUSTOM_CSS)
+if css:
+    style_parts.insert(built_count, css)
+if CSS_DEPS_OUT:
+    CSS_DEPS_OUT.write_text("\n".join(str(p) for p in sorted(CSS_DEPENDENCIES | CSS_RESOURCES)) + "\n", encoding="utf-8")
+styles = "\n".join(f"<style>\n{part}\n</style>" for part in style_parts)
 
 
 # --- optional client-side renderers (math / diagrams / charts) --------------
@@ -542,7 +846,8 @@ def client_assets():
         if src:
             lib_scripts.append(f"<script>{src.read_text(encoding='utf-8')}</script>")
             init_steps.append(
-                "document.querySelectorAll('pre.chart').forEach(function(el){"
+                # Carve 0.2 writes the config as a JSON script inside div.chart; 0.1 wrote it as the text of pre.chart.
+                "document.querySelectorAll('pre.chart,div.chart').forEach(function(el){"
                 "var cfg;try{cfg=JSON.parse(el.textContent);}catch(e){return;}"
                 "cfg.options=Object.assign({},cfg.options||{});"
                 "cfg.options.responsive=false;cfg.options.animation=false;"
@@ -595,9 +900,7 @@ if byline_bits:
 doc = f"""<!doctype html>
 <html lang="{esc(meta.get('lang', 'en'))}"><head><meta charset="utf-8">
 <title>{esc(title)}</title>
-<style>
-{css}
-</style>
+{styles}
 {client_head}
 </head><body class="carve">
 {header}

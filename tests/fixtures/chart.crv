@@ -1,7 +1,7 @@
----yaml
+---
 title: Chart fixture
 ---
 
-``` chart
+```chart
 {"type":"bar","data":{"labels":["A"],"datasets":[{"data":[1]}]}}
 ```
