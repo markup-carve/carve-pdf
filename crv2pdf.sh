@@ -154,7 +154,7 @@ fi
 # to the php backend and fail there, even with a working node engine present.
 # An explicit CARVE_RENDERER is honored as given, so asking for a backend
 # reports that backend's own error instead of quietly using the other one.
-# With Carve 0.2, js comes first: the php backend registers fewer extensions.
+# With Carve 0.2, js comes first.
 RENDERER="${CARVE_RENDERER:-auto}"
 if [ "$RENDERER" = "auto" ]; then
   if command -v node >/dev/null 2>&1 && node "$LIB/render.mjs" --probe >/dev/null 2>&1; then
