@@ -7,16 +7,18 @@ free to differ (static mode, safe mode, extensions); text going missing is not.
 That is how a legacy extension registered over the engine core went unnoticed
 while it dropped container labels in seven corpus cases.
 
-Usage: corpus-content.py <corpus-dir> [--backend php|js]... [--sample N]
+Usage: corpus-content.py <corpus-dir|examples.json> [--backend php|js]... [--sample N]
 
 The sample is deterministic: an even stride over the sorted cases plus every
 case named in ALWAYS. Exit 1 on any unexplained loss.
 """
 import argparse
 import html
+import json
 import re
 import subprocess
 import sys
+import tempfile
 from collections import Counter
 from pathlib import Path
 
@@ -51,6 +53,20 @@ def render(backend: str, path: Path) -> str:
     return proc.stdout
 
 
+def example_cases(path: Path):
+    """Use the default render cases whose expected HTML matches host defaults."""
+    data = json.loads(path.read_text(encoding="utf-8"))
+    if data.get("kind") != "examples" or not isinstance(data.get("examples"), list):
+        raise ValueError(f"not a conformance examples file: {path}")
+    return sorted(
+        (case for case in data["examples"]
+         if case.get("kind") == "render" and case.get("options") == {}
+         and isinstance(case.get("input"), str)
+         and isinstance(case.get("expected", {}).get("html"), str)),
+        key=lambda case: case["id"],
+    )
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
     ap.add_argument("corpus")
@@ -59,28 +75,41 @@ def main() -> int:
     args = ap.parse_args()
 
     corpus = Path(args.corpus)
-    cases = sorted(p for p in corpus.glob("*.crv") if p.with_suffix(".html").is_file())
+    examples = corpus.is_file()
+    cases = example_cases(corpus) if examples else sorted(
+        p for p in corpus.glob("*.crv") if p.with_suffix(".html").is_file()
+    )
     if not cases:
-        print(f"corpus-content: no cases with expected HTML in {corpus}", file=sys.stderr)
+        print(f"corpus-content: no render cases with expected HTML in {corpus}", file=sys.stderr)
         return 1
     stride = max(1, len(cases) // max(1, args.sample))
-    chosen = {p for p in cases[::stride]} | {corpus / f"{n}.crv" for n in ALWAYS if (corpus / f"{n}.crv").is_file()}
-    chosen = sorted(chosen)
+    chosen = cases[::stride] if examples else sorted(
+        set(cases[::stride]) | {corpus / f"{n}.crv" for n in ALWAYS if (corpus / f"{n}.crv").is_file()}
+    )
 
     failed = 0
     for backend in args.backend or ["php", "js"]:
         losses, errors = [], []
-        for case in chosen:
-            try:
-                ours = words(render(backend, case))
-            except Exception as exc:  # a crash is a loss of everything
-                errors.append(f"{case.stem}: render failed: {exc}")
-                continue
-            missing = words(case.with_suffix(".html").read_text(encoding="utf-8")) - ours
-            if not missing:
-                continue
-            sample = ", ".join(f"{w}x{n}" if n > 1 else w for w, n in missing.most_common(8))
-            losses.append(f"{case.stem}: missing {sum(missing.values())} word(s): {sample}")
+        with tempfile.TemporaryDirectory(prefix="carve-corpus-") as tmp:
+            for case in chosen:
+                name = case["id"] if examples else case.stem
+                if examples:
+                    source = Path(tmp) / f"{name}.crv"
+                    source.write_text(case["input"], encoding="utf-8")
+                    expected = case["expected"]["html"]
+                else:
+                    source = case
+                    expected = case.with_suffix(".html").read_text(encoding="utf-8")
+                try:
+                    ours = words(render(backend, source))
+                except Exception as exc:  # a crash is a loss of everything
+                    errors.append(f"{name}: render failed: {exc}")
+                    continue
+                missing = words(expected) - ours
+                if not missing:
+                    continue
+                sample = ", ".join(f"{w}x{n}" if n > 1 else w for w, n in missing.most_common(8))
+                losses.append(f"{name}: missing {sum(missing.values())} word(s): {sample}")
         print(f"== corpus content ({backend}): {len(chosen)} cases, "
               f"{len(losses)} lose text, {len(errors)} fail to render ==")
         for line in errors + losses:

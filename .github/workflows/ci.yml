@@ -47,34 +47,22 @@ jobs:
     # carve-pdf configures its own extension set over the engines. A wrong
     # registration there dropped container labels in seven corpus cases with
     # every structural assertion still green, so this compares the words of a
-    # corpus sample against the corpus HTML on both backends. It runs against
-    # the engines from main because the corpus on main describes them; a
-    # released engine can lag it.
+    # 0.2 render examples against their expected HTML on both backends. The
+    # examples come from the pinned carve-js checkout used by the renderers.
     name: corpus content
-    # The renderers on next2 take Carve 0.2 engines only and this corpus is 0.1 source (markup-carve/carve-pdf#65).
-    if: false
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout carve-pdf
         uses: actions/checkout@v7
 
-      - name: Checkout the Carve corpus
-        uses: actions/checkout@v7
-        with:
-          repository: markup-carve/carve
-          ref: main
-          path: _deps/carve
-          sparse-checkout: tests/corpus
-          sparse-checkout-cone-mode: true
-
-      - name: Set up the engines from main
+      - name: Set up the pinned next2 engines
         uses: ./.github/actions/setup
         with:
-          engines: main
+          engines: next2
           browser-gates: 'false'
 
-      - name: Corpus sample keeps its text
+      - name: Conformance examples keep their text
         run: |
-          git -C _deps/carve log -1 --format='corpus: carve %h %s'
-          python3 tests/corpus-content.py _deps/carve/tests/corpus --sample 300
+          git -C _deps/carve-js log -1 --format='examples: carve-js %h %s'
+          python3 tests/corpus-content.py _deps/carve-js/data/conformance/examples.json --sample 300
