@@ -272,7 +272,7 @@ build_one() {  # build_one <input.crv> <output>
     echo "crv2pdf: printer did not write a PDF: $out" >&2
     return 1
   fi
-  cp "$printed" "$out" || { echo "crv2pdf: cannot write PDF: $out" >&2; return 1; }
+  python3 "$LIB/publish_pdf.py" "$printed" "$out" || { echo "crv2pdf: cannot write PDF: $out" >&2; return 1; }
   echo "PDF: $out ($RENDERER backend)"
 }
 

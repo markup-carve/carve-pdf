@@ -75,10 +75,23 @@ check_failure 'invalid printer output' 'printer did not write a PDF'
 [ ! -e "$WORK/output.pdf" ]
 
 export FAKE_PRINT=good
+printf 'old output\n' > "$WORK/output.pdf"
 "$HERE/crv2pdf.sh" "$WORK/input.crv" "$WORK/output.pdf" --pdf > "$WORK/log" 2>&1
 [ -f "$WORK/output.pdf" ]
 [ "$(head -c 4 "$WORK/output.pdf")" = '%PDF' ]
 echo 'ok: successful PDF has a PDF signature'
+
+if [ "$(id -u)" -ne 0 ]; then
+  mkdir -p "$WORK/no-write"
+  chmod 500 "$WORK/no-write"
+  if "$HERE/crv2pdf.sh" "$WORK/input.crv" "$WORK/no-write/new.pdf" --pdf > "$WORK/log" 2>&1; then
+    echo 'FAIL: publication into an unwritable directory returned success' >&2; exit 1
+  fi
+  grep -qF 'cannot write PDF' "$WORK/log"
+  [ ! -e "$WORK/no-write/new.pdf" ]
+  chmod 700 "$WORK/no-write"
+  echo 'ok: failed publication exits nonzero with a message'
+fi
 
 export FAKE_PRINT=missing
 check_failure 'stale PDF does not count' 'printer did not write a PDF'
