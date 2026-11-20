@@ -132,7 +132,7 @@ value = 1  <1>
 ```
 
 ```carve
-|=< Framework |= Paket |
+|={<} Framework |= Paket |
 | Shopware | ^ |
 | Tempest | < |
 + more |
