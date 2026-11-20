@@ -6,11 +6,9 @@ declare(strict_types=1);
  * Carve -> HTML renderer for carve-pdf, Carve 0.2 (carve-php next2).
  *
  * Renders in STATIC mode with raw HTML off (the 0.2 default) and the default
- * URL policy. Registers the 0.2 standard tabs extension. The other extensions
- * of the 0.1 converter (details, spoiler, list-table, code groups and callouts,
- * math blocks, Mermaid and Chart.js fences, autolink, external links, smart
- * quotes, table of contents) have no carve-php 0.2 counterpart yet; the JS
- * backend has most of them.
+ * URL policy. Registers the same extensions as render.mjs: tabs, details,
+ * spoiler, code groups, list tables, math blocks, Mermaid and Chart.js fences,
+ * code callouts, smart quotes, external links and the `::: toc` fill.
  *
  * Usage:  php render.php [--format html|md|txt] [include options] <input.crv>
  *         php render.php --meta <input.crv>   # the frontmatter block as JSON, or null
@@ -31,6 +29,17 @@ declare(strict_types=1);
  */
 
 use MarkupCarve\Carve\Carve;
+use MarkupCarve\Carve\Extension\Bundle;
+use MarkupCarve\Carve\Extension\CodeCallouts;
+use MarkupCarve\Carve\Extension\CodeGroup;
+use MarkupCarve\Carve\Extension\Details;
+use MarkupCarve\Carve\Extension\ExtensionDefinition;
+use MarkupCarve\Carve\Extension\FencedRender;
+use MarkupCarve\Carve\Extension\ListTable;
+use MarkupCarve\Carve\Extension\MathBlock;
+use MarkupCarve\Carve\Extension\Navigation;
+use MarkupCarve\Carve\Extension\SmartQuotes;
+use MarkupCarve\Carve\Extension\Spoiler;
 use MarkupCarve\Carve\Include\FileResolver;
 use MarkupCarve\Carve\Node;
 
@@ -192,8 +201,27 @@ function withIncludes(array $options, string $source, string $input, ?string $ro
     return $options;
 }
 
+// Math, diagrams and charts are drawn in Chrome before printing (wrap.py), so static mode writes the
+// client element of interactive mode instead of the fallback code block (C2-X-052), as render.mjs does.
+$clientSide = static fn (Bundle $b): Bundle => new Bundle(array_map(
+    static fn (ExtensionDefinition $d): ExtensionDefinition => $d->renderer === null ? $d : $d->withBuildTimeRenderer($d->renderer),
+    $b->definitions(),
+), $b->transforms());
+$bundle = Bundle::merge(
+    Details::bundle(),
+    Spoiler::bundle(),
+    CodeGroup::bundle(),
+    ListTable::bundle(),
+    $clientSide(MathBlock::bundle()),
+    $clientSide(FencedRender::mermaid()),
+    $clientSide(FencedRender::chart()),
+    CodeCallouts::bundle(),
+    SmartQuotes::bundle((string)(getenv('CARVE_SMART_LOCALE') ?: 'en')),
+);
+$extensions = [$bundle, 'carve.tabs', Navigation::externalLinks('_blank', 'nofollow noopener'), Navigation::tocPlacement()];
+
 $deps = [];
-$options = withIncludes(['mode' => 'static', 'extensions' => ['carve.tabs']], $source, $input, $includeRoot, $noIncludes, $deps);
+$options = withIncludes(['mode' => 'static', 'extensions' => $extensions], $source, $input, $includeRoot, $noIncludes, $deps);
 if ($depsOut !== null && file_put_contents($depsOut, implode('', array_map(static fn ($d) => $d . "\n", $deps))) === false) {
     fail("could not write {$depsOut}");
 }
@@ -211,7 +239,7 @@ if ($format === 'md' || $format === 'txt') {
 }
 
 // --- html ---------------------------------------------------------------------
-$result = Carve::renderWithDiagnostics($source, $options);
+$result = Carve::renderWithDocumentTransforms($source, $bundle->transforms(), $options);
 foreach ($result->diagnostics as $d) {
     if (isset($options['includes']) && str_starts_with($d->code, 'include')) {
         $file = is_string($d->file ?? null) && !str_starts_with($d->file, '/') ? " in {$d->file}" : '';

@@ -10,17 +10,17 @@ their own page: [code-blocks.md](code-blocks.md).
 |---|---|---|---|
 | Admonitions | note, tip, warning and similar callout containers (core) | yes | yes |
 | Tabs | tabbed panels, printed one after another | yes | yes |
-| Details | collapsible blocks, printed open | yes | not yet (carve-php#5258) |
-| Spoiler | spoiler text; a block prints open, inline text prints revealed | yes | not yet (carve-php#5258) |
-| Code group | tabbed code blocks with their own labels | yes | not yet (carve-php#5257) |
-| List table | a table written as nested lists | yes | not yet (carve-php#5258) |
-| External links | off-site links get `rel="nofollow noopener"` and `target="_blank"` | yes, as a document transform | not yet (carve-php#5253) |
-| Math | `$`...`$` inline (core), `$$`...`$$` block math and ` ```math ` fences | yes | inline only (carve-php#5257) |
-| Code callouts | `<1>` markers in a fence become numbered badges, bound to a `<1> text` list below it | yes | not yet (carve-php#5257) |
-| Mermaid | ` ```mermaid ` diagrams | yes | not yet (carve-php#5257) |
-| Chart | ` ```chart ` blocks | yes | not yet (carve-php#5257) |
-| Smart quotes | typographic quotes; `CARVE_SMART_LOCALE` picks the locale | yes | not yet (carve-php#5258) |
-| Table of contents | a `::: toc` marker prints the document's headings as links | yes, filled by carve-pdf | no |
+| Details | collapsible blocks, printed open | yes | yes |
+| Spoiler | spoiler text; a block prints open, inline text prints revealed | yes | yes |
+| Code group | tabbed code blocks with their own labels | yes | yes |
+| List table | a table written as nested lists | yes | yes |
+| External links | off-site links get `rel="nofollow noopener"` and `target="_blank"` | yes, as a document transform | yes |
+| Math | `$`...`$` inline (core), `$$`...`$$` block math and ` ```math ` fences | yes | yes |
+| Code callouts | `<1>` markers in a fence become numbered badges, bound to a `<1> text` list below it | yes | yes |
+| Mermaid | ` ```mermaid ` diagrams | yes | yes |
+| Chart | ` ```chart ` blocks | yes | yes |
+| Smart quotes | typographic quotes; `CARVE_SMART_LOCALE` picks the locale | yes | yes |
+| Table of contents | a `::: toc` marker prints the document's headings as links | yes, filled by carve-pdf | yes |
 
 Without its extension a construct renders as the core node it parses as: a
 ` ```mermaid ` fence is a code block and `::: details` a `div`.

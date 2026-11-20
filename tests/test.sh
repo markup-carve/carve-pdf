@@ -34,8 +34,6 @@ fi
 if command -v php >/dev/null 2>&1 && php "$LIB/render.php" "$FIX/marks.crv" >/dev/null 2>&1; then
   backends+=(php)
 fi
-# A row the carve-php 0.2 engine cannot pass yet: a named skip that points at its issue.
-php_gap() { echo "  skip - $1 [carve-php 0.2 gap: markup-carve/carve-php#$2]"; }
 if [ ${#backends[@]} -eq 0 ]; then
   echo "no usable renderer backend (need php+carve-php or node+carve-js)" >&2
   exit 1
@@ -66,26 +64,16 @@ for be in "${backends[@]}"; do
   has_any "kbd"           "$m" "<kbd>Ctrl</kbd>" '<span kbd="">Ctrl</span>'
   has  "abbr"            "$m" '<abbr title="HyperText Markup Language">HTML</abbr>'
   has  "admonition tip"  "$m" 'class="admonition tip"'
-  if [ "$be" = php ]; then
-    php_gap "list-table->table" 5258
-    php_gap "no raw list-table div" 5258
-  else
-    has  "list-table->table" "$m" "<table>"
-    hasnt "no raw list-table div" "$m" 'class="list-table"'
-  fi
+  has  "list-table->table" "$m" "<table>"
+  hasnt "no raw list-table div" "$m" 'class="list-table"'
   has  "definition list" "$m" "<dl>"
   has  "footnote ref"    "$m" "doc-noteref"
 
-  if [ "$be" = php ]; then
-    php_gap "mermaid block" 5257
-    php_gap "chart block" 5257
-  else
-    d="$WORK/diagram.$be.html"; render "$be" "$FIX/diagram.crv" "$d"
-    has  "mermaid block"   "$d" 'class="mermaid"'
+  d="$WORK/diagram.$be.html"; render "$be" "$FIX/diagram.crv" "$d"
+  has  "mermaid block"   "$d" '<pre class="mermaid"'
 
-    c="$WORK/chart.$be.html"; render "$be" "$FIX/chart.crv" "$c"
-    has  "chart block"     "$c" 'class="chart"'
-  fi
+  c="$WORK/chart.$be.html"; render "$be" "$FIX/chart.crv" "$c"
+  has  "chart block"     "$c" 'class="chart"'
 done
 
 # --- admonitions: the engine's own container output --------------------------
@@ -300,8 +288,15 @@ if [[ " ${backends[*]} " == *" php "* ]]; then
   has   "php: md is the Markdown export"          "$WORK/marks.php.md" "# Heading one"
   php "$LIB/render.php" --format txt "$FIX/marks.crv" > "$WORK/marks.php.txt" 2>/dev/null
   has   "php: txt is the plain-text export"       "$WORK/marks.php.txt" "Tip body."
-  php_gap "php: external links" 5253
-  php_gap "php: smart quotes" 5258
+  php "$LIB/render.php" "$WORK/host.crv" > "$WORK/host.php.html" 2>/dev/null
+  has   "php: an external link opens in a new tab" "$WORK/host.php.html" '<a href="https://example.com" rel="nofollow noopener" target="_blank">x</a>'
+  hasnt "php: a local link stays as written"       "$WORK/host.php.html" '<a href="/local" rel='
+  has   "php: smart quotes default to English"      "$WORK/host.php.html" '“hi”'
+  CARVE_SMART_LOCALE=de php "$LIB/render.php" "$WORK/host.crv" > "$WORK/host.php.de.html" 2>/dev/null
+  has   "php: CARVE_SMART_LOCALE picks the quotes"  "$WORK/host.php.de.html" '„hi“'
+  printf '= Top\n\n::: toc\n\n:::\n\n== Sub\n' > "$WORK/toc.php.crv"
+  php "$LIB/render.php" "$WORK/toc.php.crv" > "$WORK/toc.php.html" 2>/dev/null
+  has   "php: a ::: toc marker lists the headings" "$WORK/toc.php.html" '<li><a href="#Sub">Sub</a></li>'
 fi
 
 # --- version surface ---------------------------------------------------------

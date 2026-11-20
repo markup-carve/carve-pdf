@@ -145,17 +145,16 @@ The Carve -> HTML step is pluggable. `CARVE_RENDERER` selects it (default `auto`
 
 | Backend | Script | Needs | Notes |
 |---------|--------|-------|-------|
-| `js`  | `render.mjs` | Node 20+ and the Carve 0.2 `@markup-carve/carve` package | default; the complete backend |
-| `php` | `render.php` | PHP 8.2+ and a Carve 0.2 `MarkupCarve\Carve` autoloader | fewer extensions; no `--md` / `--txt` yet |
+| `js`  | `render.mjs` | Node 20+ and the Carve 0.2 `@markup-carve/carve` package | default |
+| `php` | `render.php` | PHP 8.2+ and a Carve 0.2 `MarkupCarve\Carve` autoloader | same extension set |
 
 `auto` picks Node when it can actually load the Carve 0.2 package, else PHP, else it
 reports what to install. An interpreter on PATH is not enough, and a Carve 0.1 engine
 does not count. Setting `CARVE_RENDERER` explicitly skips the probe, so asking for a
 backend reports that backend's own error.
 
-Output is **equivalent, not byte-identical**. carve-php 0.2 does not have all the
-standard extensions yet; [rendering.md](rendering.md#extensions) lists what each
-backend renders. `--md` and `--txt` use the 0.2 Markdown and plain-text exports of
+Output is **equivalent, not byte-identical**; [rendering.md](rendering.md#extensions)
+lists what each backend renders. `--md` and `--txt` use the 0.2 Markdown and plain-text exports of
 the engine the backend runs.
 
 Carve 0.2 is not released yet. On the `next2` branch, CI builds both engines from the
