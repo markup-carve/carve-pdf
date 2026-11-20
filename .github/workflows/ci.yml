@@ -35,6 +35,11 @@ jobs:
       - name: Run tests
         run: ./tests/test.sh
 
+      - name: Check PDF command status
+        run: |
+          ./tests/pdf-status.sh
+          CARVE_RENDERER=php ./tests/pdf-status.sh
+
       - name: Check delimited fence highlighting
         run: python3 tests/delimited.py
 

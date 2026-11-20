@@ -205,6 +205,7 @@ build_one() {  # build_one <input.crv> <output>
   if [ ! -f "$in" ]; then echo "crv2pdf: input not found: $in" >&2; return 1; fi
   if [ ! -r "$in" ]; then echo "crv2pdf: cannot read input: $in" >&2; return 1; fi
   if [ ! -d "$(dirname "$out")" ]; then echo "crv2pdf: output directory does not exist: $(dirname "$out")" >&2; return 1; fi
+  if [ -d "$out" ]; then echo "crv2pdf: output path is a directory: $out" >&2; return 1; fi
 
   # Every step returns explicitly: batch mode calls this as `build_one ... || rc=1`,
   # and a function called in an `||` list runs with `set -e` switched off.
@@ -259,7 +260,19 @@ build_one() {  # build_one <input.crv> <output>
 
   local footer; footer="$(cat "$WORK/footer")"
   local header; header="$(cat "$WORK/header")"
-  python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$out" "$footer" --header "$header" --css-margins "${allow[@]}" >/dev/null || return 1
+  # A zero printer exit is not proof that it wrote a PDF. Start with an empty
+  # target so an earlier successful build cannot hide a failed rebuild.
+  local printed="$WORK/printed.pdf"
+  : > "$printed" || { echo "crv2pdf: cannot prepare PDF output: $out" >&2; return 1; }
+  python3 "$LIB/print_cdp.py" "$WORK/doc.html" "$printed" "$footer" --header "$header" --css-margins "${allow[@]}" >/dev/null || {
+    echo "crv2pdf: PDF printing failed: $out" >&2
+    return 1
+  }
+  if [ "$(head -c 4 "$printed")" != '%PDF' ]; then
+    echo "crv2pdf: printer did not write a PDF: $out" >&2
+    return 1
+  fi
+  python3 "$LIB/publish_pdf.py" "$printed" "$out" || { echo "crv2pdf: cannot write PDF: $out" >&2; return 1; }
   echo "PDF: $out ($RENDERER backend)"
 }
 
@@ -275,7 +288,7 @@ if [ "$WATCH" = "1" ]; then
   [ ${#POS[@]} -le 2 ] || { echo "crv2pdf: --watch takes one input (and an optional output)" >&2; exit 2; }
   IN="${POS[0]}"
   OUT="$(out_for "$IN")"; [ -n "$OUT_DIR" ] || OUT="${POS[1]:-$OUT}"
-  build_one "$IN" "$OUT" || true
+  build_one "$IN" "$OUT" || exit 1
   echo "[watch] $IN -> $OUT (Ctrl-C to stop)"
   # The renderers resolve includes from the input's real path, so watch that.
   in_real="$(readlink -f "$IN" 2>/dev/null || echo "$IN")"
@@ -305,7 +318,7 @@ if [ "$WATCH" = "1" ]; then
     before="$(signature)"
     while true; do
       echo "[rebuild $(date +%T)]"
-      build_one "$IN" "$OUT" || true
+      build_one "$IN" "$OUT" || { echo "crv2pdf: watch rebuild failed: $OUT" >&2; exit 1; }
       after="$(signature)"
       last_sig="$after"
       [ "$after" = "$before" ] && break
@@ -331,7 +344,7 @@ if [ "$WATCH" = "1" ]; then
         continue
       else
         echo "crv2pdf: file watcher stopped" >&2
-        break
+        exit 1
       fi
       if watched_files | grep -qxF -- "$f"; then
         rebuild_until_stable
@@ -344,7 +357,7 @@ if [ "$WATCH" = "1" ]; then
       sleep 1
       now="$(signature)"
       if [ "$now" != "$last" ]; then
-        echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || true
+        echo "[rebuild $(date +%T)]"; build_one "$IN" "$OUT" || { echo "crv2pdf: watch rebuild failed: $OUT" >&2; exit 1; }
         last="$(signature)"
       fi
     done
