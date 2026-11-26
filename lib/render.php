@@ -3,7 +3,7 @@
 declare(strict_types=1);
 
 /**
- * Carve -> HTML renderer for carve-pdf, Carve 0.2 (carve-php next2).
+ * Carve -> HTML renderer for carve-pdf, Carve 0.2 (carve-php).
  *
  * Renders in STATIC mode with raw HTML off (the 0.2 default) and the default
  * URL policy. Registers the same extensions as render.mjs: tabs, details,

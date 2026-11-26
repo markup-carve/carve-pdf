@@ -8,7 +8,7 @@ description: >
 
 inputs:
   engines:
-    description: "`released` (Packagist + npm), `main` (both default branches, built) or `next2` (the Carve 0.2 commits engine-pins.json names, built)"
+    description: "`released` (Packagist + npm), `main` (both default branches, built) or `pinned` (the Carve 0.2 commits engine-pins.json names, built)"
     default: released
   browser-gates:
     description: Install what the browser gates need (websocket-client, poppler-utils)
@@ -95,14 +95,14 @@ runs:
           _deps/js/package-lock.json
         retention-days: 30
 
-    # --- engines from main, or from the pinned next2 commits -------------------
+    # --- engines from main, or from the pinned 0.2 commits ----------------------
     # Carve 0.2 is unreleased and its npm package does not build from a git dependency
-    # (markup-carve/carve-js#5085), so next2 checks the pinned commits out and builds them here.
+    # (markup-carve/carve-js#5085), so `pinned` checks the commits out and builds them here.
     - name: Read the engine pins
       id: pins
       shell: bash
       run: |
-        if [ "${{ inputs.engines }}" = next2 ]; then
+        if [ "${{ inputs.engines }}" = pinned ]; then
           echo "php=$(jq -r '."carve-php"' engine-pins.json)" >> "$GITHUB_OUTPUT"
           echo "js=$(jq -r '."carve-js"' engine-pins.json)" >> "$GITHUB_OUTPUT"
         else
@@ -110,37 +110,37 @@ runs:
           echo "js=main" >> "$GITHUB_OUTPUT"
         fi
     - name: Checkout carve-php
-      if: inputs.engines == 'main' || inputs.engines == 'next2'
+      if: inputs.engines == 'main' || inputs.engines == 'pinned'
       uses: actions/checkout@v7
       with:
         repository: markup-carve/carve-php
         ref: ${{ steps.pins.outputs.php }}
         path: _deps/carve-php
     - name: Checkout carve-js
-      if: inputs.engines == 'main' || inputs.engines == 'next2'
+      if: inputs.engines == 'main' || inputs.engines == 'pinned'
       uses: actions/checkout@v7
       with:
         repository: markup-carve/carve-js
         ref: ${{ steps.pins.outputs.js }}
         path: _deps/carve-js
     - name: Build carve-php autoloader
-      if: inputs.engines == 'main' || inputs.engines == 'next2'
+      if: inputs.engines == 'main' || inputs.engines == 'pinned'
       shell: bash
       working-directory: _deps/carve-php
       run: |
         # The renderer needs the library only; skipping the dev tools also spares the GitHub download quota.
-        composer install --no-interaction --no-progress ${{ inputs.engines == 'next2' && '--no-dev' || '' }}
+        composer install --no-interaction --no-progress ${{ inputs.engines == 'pinned' && '--no-dev' || '' }}
         echo "CARVE_PHP_AUTOLOAD=$GITHUB_WORKSPACE/_deps/carve-php/vendor/autoload.php" >> "$GITHUB_ENV"
     - name: Set up Node with the carve-js npm cache
-      if: inputs.engines == 'main' || inputs.engines == 'next2'
+      if: inputs.engines == 'main' || inputs.engines == 'pinned'
       uses: actions/setup-node@v7
       with:
-        # carve-js next2 runs a TypeScript build script, which needs Node's type stripping.
-        node-version: ${{ inputs.engines == 'next2' && '24' || '20' }}
+        # carve-js 0.2 runs a TypeScript build script, which needs Node's type stripping.
+        node-version: ${{ inputs.engines == 'pinned' && '24' || '20' }}
         cache: npm
         cache-dependency-path: _deps/carve-js/package-lock.json
     - name: Build carve-js
-      if: inputs.engines == 'main' || inputs.engines == 'next2'
+      if: inputs.engines == 'main' || inputs.engines == 'pinned'
       shell: bash
       working-directory: _deps/carve-js
       run: |
@@ -148,7 +148,7 @@ runs:
         npm run build
         echo "CARVE_JS=$GITHUB_WORKSPACE/_deps/carve-js/dist/index.js" >> "$GITHUB_ENV"
     - name: Record the engine commits
-      if: inputs.engines == 'main' || inputs.engines == 'next2'
+      if: inputs.engines == 'main' || inputs.engines == 'pinned'
       shell: bash
       run: |
         {

@@ -157,9 +157,9 @@ Output is **equivalent, not byte-identical**; [rendering.md](rendering.md#extens
 lists what each backend renders. `--md` and `--txt` use the 0.2 Markdown and plain-text exports of
 the engine the backend runs.
 
-Carve 0.2 is not released yet. On the `next2` branch, CI builds both engines from the
+Carve 0.2 is not released yet. CI builds both engines from the
 commits that `engine-pins.json` names. Locally, point the backends at a checkout of
-each engine's `next2`.
+each engine's `main`.
 
 Point the backend at its library:
 - `CARVE_PHP_AUTOLOAD` - a `vendor/autoload.php` providing `MarkupCarve\Carve`,
