@@ -41,6 +41,13 @@ Before the break.
 
 After the break.
 
+Before the page break.
+
+{.page-break}
+***
+
+After the page break.
+
 |= Item |= Qty |
 | Apple | 12 |
 

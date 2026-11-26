@@ -68,6 +68,9 @@ page_hrs = [h for h in d["hrs"] if h["beforePageBreak"]]
 v(page_hrs and all(h["display"] == "none" for h in page_hrs), f"a break ending a section before a new page is dropped ({page_hrs})")
 v(body_hrs and all(h["display"] != "none" for h in body_hrs), f"a thematic break inside a section prints ({body_hrs})")
 v(note_hrs and all(h["display"] != "none" for h in note_hrs), f"the footnote separator prints ({note_hrs})")
+pb = d["pageBreakHr"]
+v(pb == {"breakBefore": "page", "border": "none", "height": "0px"},
+  f"a page-break thematic break starts a page and draws no rule ({pb})")
 v(d["ins"]["boxShadow"] == "none" and "underline" in d["ins"]["line"],
   f"an insertion is underlined without a box-shadow ({d['ins']})")
 v(d["strikeColor"] == d["bodyColor"], f"a plain strikethrough keeps the body ink ({d['strikeColor']} vs {d['bodyColor']})")

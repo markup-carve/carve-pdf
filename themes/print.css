@@ -38,8 +38,10 @@ h2 {
 hr:has(+ section > h2:first-child),
 section:has(+ section > h2:first-child) > hr:last-child { display: none; }
 
-/* explicit page-break marker: `::: pagebreak` in the source */
-.pagebreak { break-before: page; height: 0; margin: 0; }
+/* explicit page break: `{.page-break}` on `***` (carve#6793); the
+ * `::: pagebreak` and `::: page-break` divs stay as aliases */
+.pagebreak, .carve hr.page-break { break-before: page; height: 0; margin: 0; }
+.carve hr.page-break { border: 0; }
 
 /* PDFs have no hover: spell out each abbreviation's expansion inline */
 /* inline-block keeps the abbreviation's dotted underline off the expansion */

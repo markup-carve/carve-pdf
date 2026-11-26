@@ -56,6 +56,10 @@
     longBreak: cs(one('pre.carve-long')).breakInside,
     shortBreak: cs(one('pre:not(.carve-long)')).breakInside,
     hrs,
+    pageBreakHr: (() => {
+      const hr = one('hr.page-break');
+      return hr && { breakBefore: cs(hr).breakBefore, border: cs(hr).borderTopStyle, height: cs(hr).height };
+    })(),
     ins: { boxShadow: cs(ins).boxShadow, line: cs(ins).textDecorationLine },
     strikeColor: cs(s).color,
     bodyColor: body.color,

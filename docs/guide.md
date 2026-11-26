@@ -223,8 +223,20 @@ work; `json` content is parsed as JSON, anything else as `key: value` lines with
 heading outline (bookmarks).
 
 **Page breaks.** `h2` (default) starts each top-level section on a fresh page; `none`
-lets content flow; `manual` breaks only at an explicit `::: pagebreak` block in the
-source. The `::: pagebreak` marker works in every mode.
+lets content flow; `manual` breaks only at an explicit page break in the source.
+Write an explicit break as a thematic break with the class `page-break`:
+
+```carve
+Text of page one.
+
+{.page-break}
+***
+
+Text of page two.
+```
+
+It starts a new page and draws no rule, in every mode. The older `::: pagebreak`
+and `::: page-break` blocks still work as aliases.
 
 **Code.** Named fences such as ` ```php ` and ` ```carve ` are highlighted with
 Pygments, labeled with their language, and can be marked as diffs. Supported
