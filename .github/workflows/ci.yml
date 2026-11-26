@@ -19,8 +19,8 @@ permissions:
 # instead of inheriting the 360-minute GitHub default.
 jobs:
   # main is the Carve 0.2 port: both engines are built from the commits engine-pins.json names.
-  engines-next2:
-    name: engines from next2
+  engines-main:
+    name: engines from main
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
