@@ -19,6 +19,7 @@ bad()  { echo "  FAIL - $1"; fail=$((fail+1)); }
 skipd(){ echo "  skip - $1"; skip=$((skip+1)); }
 has()  { if grep -qF -- "$3" "$2"; then ok "$1"; else bad "$1 (missing: $3)"; fi; }
 hasnt(){ if grep -qF -- "$3" "$2"; then bad "$1 (unexpected: $3)"; else ok "$1"; fi; }
+has_any() { if grep -qF -- "$3" "$2" || grep -qF -- "$4" "$2"; then ok "$1"; else bad "$1 (missing both: $3, $4)"; fi; }
 
 have_chrome() {
   [ -n "${CHROME_BIN:-}" ] && command -v "$CHROME_BIN" >/dev/null 2>&1 && return 0
@@ -94,8 +95,9 @@ PYGMENTS_SHIM
   else
     bad "tsx render with older Pygments failed"
   fi
-  has   "json5 bare key is a name"        "$html" '<span class="tok-nx">json5key</span>'
-  has   "jsonl is highlighted as JSON"    "$html" '<span class="tok-nt">&quot;jsonlkey&quot;</span>'
+  # Pygments 2.21 ships its own JSON5 lexer (a bare key is a variable) and no longer escapes quotes in text.
+  has_any "json5 bare key is a name"      "$html" '<span class="tok-nx">json5key</span>' '<span class="tok-nv">json5key</span>'
+  has_any "jsonl is highlighted as JSON"  "$html" '<span class="tok-nt">&quot;jsonlkey&quot;</span>' '<span class="tok-nt">"jsonlkey"</span>'
   has   "vb is highlighted as VB.NET"     "$html" '<span class="tok-k">Dim</span>'
   # Callout markers are taken out before highlighting and put back on their line.
   has   "a callout survives highlighting"  "$html" '<span class="tok-p">):</span>  <b class="callout" data-callout="1">1</b>'

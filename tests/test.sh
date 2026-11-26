@@ -26,12 +26,13 @@ has_any() {
 }
 
 # --- which backends can run? ------------------------------------------------
+# js first: in Carve 0.2 it is the complete backend, and the front-end rows below use the first one.
 backends=()
-if command -v php >/dev/null 2>&1 && php "$LIB/render.php" "$FIX/marks.crv" >/dev/null 2>&1; then
-  backends+=(php)
-fi
 if command -v node >/dev/null 2>&1 && node "$LIB/render.mjs" "$FIX/marks.crv" >/dev/null 2>&1; then
   backends+=(js)
+fi
+if command -v php >/dev/null 2>&1 && php "$LIB/render.php" "$FIX/marks.crv" >/dev/null 2>&1; then
+  backends+=(php)
 fi
 if [ ${#backends[@]} -eq 0 ]; then
   echo "no usable renderer backend (need php+carve-php or node+carve-js)" >&2
@@ -69,7 +70,7 @@ for be in "${backends[@]}"; do
   has  "footnote ref"    "$m" "doc-noteref"
 
   d="$WORK/diagram.$be.html"; render "$be" "$FIX/diagram.crv" "$d"
-  has  "mermaid block"   "$d" 'class="mermaid"'
+  has  "mermaid block"   "$d" '<pre class="mermaid"'
 
   c="$WORK/chart.$be.html"; render "$be" "$FIX/chart.crv" "$c"
   has  "chart block"     "$c" 'class="chart"'
@@ -180,7 +181,8 @@ for be in "${backends[@]}"; do
 
   "${R[@]}" --deps "$o.deps" "$INC/doc/nested.crv" > "$o.nested" 2> "$o.nested.err"
   has   "nested relative include expands"     "$o.nested" "Beta nested"
-  has   "missing target reports itself"       "$o.nested.err" "[include-unresolved]"
+  # C2-N-061: a 0.2 include failure carries its cause code (include-not-found, include-outside-root).
+  has   "missing target reports itself"       "$o.nested.err" "[include-not-found]"
   has   "warning names the file root-relative" "$o.nested.err" "in sub/a.crv"
   has   "missing target stays literal"        "$o.nested" "{{ gone.crv }}"
   hasnt "no host path in warnings"            "$o.nested.err" "$INC"
@@ -192,7 +194,7 @@ for be in "${backends[@]}"; do
 
   "${R[@]}" "$INC/doc/escape.crv" > "$o.escape" 2> "$o.escape.err"
   hasnt "traversal out of the input dir refused" "$o.escape" "SECRET-OUTSIDE"
-  has   "traversal refusal reports itself"    "$o.escape.err" "[include-unresolved]"
+  has   "traversal refusal reports itself"    "$o.escape.err" "[include-outside-root]"
 
   "${R[@]}" "$INC/doc/symlink.crv" > "$o.symlink" 2>/dev/null
   hasnt "symlink escape refused"              "$o.symlink" "SECRET-OUTSIDE"
@@ -219,7 +221,8 @@ done
 
 # An engine that predates includes must say so rather than render directives as prose.
 echo "== includes: engine without include support =="
-if [ -n "${CARVE_PHP_AUTOLOAD:-}" ] && [[ " ${backends[*]} " == *" php "* ]]; then
+# Every carve-php 0.2 engine has includes in its core (C2-N), so there is no 0.2 engine without them to fake.
+if false; then
   cat > "$WORK/old-autoload.php" <<'EOF'
 <?php
 $loader = require getenv('REAL_AUTOLOAD');
@@ -239,7 +242,7 @@ EOF
     bad "old carve-php: explicit root is fatal"
   else ok "old carve-php: explicit root is fatal"; fi
 else
-  echo "  skip - old carve-php rows need CARVE_PHP_AUTOLOAD"
+  echo "  skip - old carve-php rows: every carve-php 0.2 engine has includes"
 fi
 if [ -n "${CARVE_JS:-}" ] && [[ " ${backends[*]} " == *" js "* ]]; then
   if [ -d "$CARVE_JS" ]; then jsdist="$CARVE_JS/dist"; else jsdist="$(dirname "$CARVE_JS")"; fi
@@ -263,6 +266,38 @@ has   "crv2pdf passes --include-root"         "$WORK/front.md" "SECRET-OUTSIDE"
 has   "crv2pdf resolves a relative root against the cwd" "$WORK/front-rel.md" "SECRET-OUTSIDE"
 CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --md --no-includes "$INC/doc/nested.crv" "$WORK/front-off.md" >/dev/null 2>&1
 has   "crv2pdf passes --no-includes"          "$WORK/front-off.md" "{{ sub/a.crv }}"
+
+# --- Carve 0.2 port: host features rebuilt over the 0.2 API ------------------
+echo "== Carve 0.2 host features =="
+printf 'He said "hi" [x](https://example.com) and [y](/local).\n' > "$WORK/host.crv"
+if [[ " ${backends[*]} " == *" js "* ]]; then
+  node "$LIB/render.mjs" "$WORK/host.crv" > "$WORK/host.js.html" 2>/dev/null
+  has   "js: an external link opens in a new tab" "$WORK/host.js.html" '<a href="https://example.com" rel="nofollow noopener" target="_blank">x</a>'
+  hasnt "js: a local link stays as written"       "$WORK/host.js.html" '<a href="/local" rel='
+  has   "js: smart quotes default to English"      "$WORK/host.js.html" '“hi”'
+  CARVE_SMART_LOCALE=de node "$LIB/render.mjs" "$WORK/host.crv" > "$WORK/host.de.html" 2>/dev/null
+  has   "js: CARVE_SMART_LOCALE picks the quotes"  "$WORK/host.de.html" '„hi“'
+  printf '= Top\n\n::: toc\n\n:::\n\n== Sub\n' > "$WORK/toc.crv"
+  node "$LIB/render.mjs" "$WORK/toc.crv" > "$WORK/toc.js.html" 2>/dev/null
+  has   "js: a ::: toc marker lists the headings" "$WORK/toc.js.html" '<nav class="toc"><ul><li><a href="#Top">Top</a><ul><li><a href="#Sub">Sub</a></li></ul></li></ul></nav>'
+  node "$LIB/render.mjs" --format txt "$FIX/marks.crv" > "$WORK/marks.txt" 2>/dev/null
+  has   "js: txt is the plain-text export"         "$WORK/marks.txt" "Tip body."
+fi
+if [[ " ${backends[*]} " == *" php "* ]]; then
+  php "$LIB/render.php" --format md "$FIX/marks.crv" > "$WORK/marks.php.md" 2>/dev/null
+  has   "php: md is the Markdown export"          "$WORK/marks.php.md" "# Heading one"
+  php "$LIB/render.php" --format txt "$FIX/marks.crv" > "$WORK/marks.php.txt" 2>/dev/null
+  has   "php: txt is the plain-text export"       "$WORK/marks.php.txt" "Tip body."
+  php "$LIB/render.php" "$WORK/host.crv" > "$WORK/host.php.html" 2>/dev/null
+  has   "php: an external link opens in a new tab" "$WORK/host.php.html" '<a href="https://example.com" rel="nofollow noopener" target="_blank">x</a>'
+  hasnt "php: a local link stays as written"       "$WORK/host.php.html" '<a href="/local" rel='
+  has   "php: smart quotes default to English"      "$WORK/host.php.html" '“hi”'
+  CARVE_SMART_LOCALE=de php "$LIB/render.php" "$WORK/host.crv" > "$WORK/host.php.de.html" 2>/dev/null
+  has   "php: CARVE_SMART_LOCALE picks the quotes"  "$WORK/host.php.de.html" '„hi“'
+  printf '= Top\n\n::: toc\n\n:::\n\n== Sub\n' > "$WORK/toc.php.crv"
+  php "$LIB/render.php" "$WORK/toc.php.crv" > "$WORK/toc.php.html" 2>/dev/null
+  has   "php: a ::: toc marker lists the headings" "$WORK/toc.php.html" '<li><a href="#Sub">Sub</a></li>'
+fi
 
 # --- version surface ---------------------------------------------------------
 # CRV2PDF_VERSION in crv2pdf.sh is the single source of truth, and the tag is
@@ -345,6 +380,49 @@ CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" --html "$FIX/marks.crv" "$WOR
 hasnt "--html prints no temp-dir path" "$WORK/quiet.out" "crv2pdf."
 has   "--html reports the output it wrote" "$WORK/quiet.out" "$WORK/quiet.html"
 
+# Trusted project and CLI CSS, theme selection, and checked nested PDF tokens.
+mkdir -p "$WORK/style-doc" "$WORK/style-root"
+cat > "$WORK/style-doc/input.crv" <<'EOF'
+---yaml
+pdf:
+  accent: "#0a5"
+  font-size: 10.5pt
+---
+
+# Styled
+EOF
+echo '.carve h1 { color: green; }' > "$WORK/style-doc/carve-pdf.css"
+echo '.carve h1 { color: blue; }' > "$WORK/cli.css"
+"$HERE/crv2pdf.sh" --html --theme classic --css "$WORK/cli.css" \
+  "$WORK/style-doc/input.crv" "$WORK/styled.html" >/dev/null 2>&1
+has "document pdf accent token" "$WORK/styled.html" '--carve-accent: #0a5;'
+has "document pdf font size token" "$WORK/styled.html" '--pdf-font-size: 10.5pt;'
+has "project stylesheet included" "$WORK/styled.html" 'color: green;'
+has "CLI stylesheet included" "$WORK/styled.html" 'color: blue;'
+mkdir -p "$WORK/export"
+echo 'body { background: url("asset.png"); }' > "$WORK/style-doc/assets.css"
+"$HERE/crv2pdf.sh" --html --css "$WORK/style-doc/assets.css" \
+  "$WORK/style-doc/input.crv" "$WORK/export/styled.html" >/dev/null 2>&1
+has "exported HTML resolves CSS asset from final output" "$WORK/export/styled.html" 'url("../style-doc/asset.png")'
+hasnt "exported HTML has no temporary CSS path" "$WORK/export/styled.html" 'crv2pdf.'
+if python3 - "$WORK/styled.html" <<'PY'
+import sys
+s = open(sys.argv[1], encoding="utf-8").read()
+assert s.index('--carve-accent: #0a5;') < s.index('color: green;') < s.index('color: blue;')
+PY
+then ok "style cascade order"
+else bad "style cascade order"; fi
+echo '.carve h1 { color: purple; }' > "$WORK/style-root/carve-pdf.css"
+"$HERE/crv2pdf.sh" --html --include-root "$WORK/style-root" \
+  "$WORK/style-doc/input.crv" "$WORK/root-style.html" >/dev/null 2>&1
+has "include root chooses project CSS" "$WORK/root-style.html" 'color: purple;'
+hasnt "include root excludes input project CSS" "$WORK/root-style.html" 'color: green;'
+if "$HERE/crv2pdf.sh" --html --css "$WORK/missing.css" \
+  "$WORK/style-doc/input.crv" "$WORK/no-style.html" > "$WORK/missing-css.out" 2>&1; then
+  bad "missing --css is rejected"
+else ok "missing --css is rejected"; fi
+has "missing --css is named" "$WORK/missing-css.out" 'stylesheet not readable'
+
 # A module that refuses to import stands in for a missing websocket-client.
 mkdir -p "$WORK/nows"; echo 'raise ImportError("shadowed")' > "$WORK/nows/websocket.py"
 if PYTHONPATH="$WORK/nows" CARVE_RENDERER="${backends[0]}" "$HERE/crv2pdf.sh" "$FIX/marks.crv" "$WORK/nows.pdf" > "$WORK/nows.out" 2>&1; then
@@ -414,6 +492,19 @@ fi
 # --- panel visibility -------------------------------------------------------
 # Its own script because it needs a browser and the printed PDF, which nothing
 # else here does. A skip inside it is reported as a skip, not as a pass.
+echo
+if ! python3 "$HERE/tests/styling.py"; then
+  fail=$((fail+1))
+fi
+
+if ! "$HERE/tests/styling-watch.sh"; then
+  fail=$((fail+1))
+fi
+
+if ! "$HERE/tests/theme-snapshot.sh"; then
+  fail=$((fail+1))
+fi
+
 echo
 if ! "$HERE/tests/panels.sh"; then
   fail=$((fail+1))

@@ -16,10 +16,13 @@ crv2pdf post.crv --txt               # plain text              -> post.txt
 crv2pdf a.crv b.crv c.crv --out-dir out/    # batch -> out/*.pdf
 crv2pdf --watch post.crv                    # rebuild on every save
 crv2pdf book/main.crv --include-root .      # {{ path }} includes contained to the cwd
+crv2pdf post.crv --css brand.css --css print-tweaks.css
+crv2pdf post.crv --theme classic
+crv2pdf post.crv --theme ./my-theme
 ```
 
 Output format defaults to `--pdf`. `--html` emits a self-contained styled document
-(CSS inlined); `--md` / `--txt` use the renderer's native flattening converters.
+(CSS inlined); `--md` / `--txt` use the engine's Markdown and plain-text exports (JS backend).
 
 **Batch.** Pass several `.crv` files (or set `--out-dir DIR`) to render each; outputs
 are named `<basename>.<fmt>` beside the input or in `--out-dir`.
@@ -54,7 +57,72 @@ block is reported on stderr and the document prints without that image.
   plain text in a PDF, where it could only point into the build machine's filesystem.
 
 In `--html` output, image paths stay relative to the HTML file, so write it next to
-the source (the default) or copy the images along.
+the source (the default) or copy the images along. CSS asset and import paths are
+resolved relative to the final HTML output location.
+
+## Custom styling
+
+`--css FILE` adds a trusted stylesheet. Repeat it to apply files in command line
+order. `carve-pdf.css` beside the input is loaded automatically before these
+files. With `--include-root DIR`, the project file is sought in that directory
+instead. PDF and `--html` use the same styles. Local `url()` assets resolve from
+each stylesheet's directory; those directories join the PDF printer's local
+resource allowlist. Local CSS imports keep their cascade position, and their
+directories are allowed for assets too. Remote URLs and imports still require
+`--allow-remote` for PDF printing.
+
+Styles apply in this order: vendored `carve-css`, the selected theme, print
+rules, checked document tokens and page settings, the project stylesheet, then
+each `--css` file. The last trusted stylesheet may override earlier rules, but
+normal CSS specificity still applies. For example, `.carve h1` overrides the
+built-in `.carve h1` when declared later, while bare `h1` may not.
+
+`--theme NAME|DIR` uses `themes/NAME` or a directory you provide. A theme has
+`theme.css` in place of `base.css`, optional local fonts or images, and a
+`theme.json` object. Its supported defaults are `paper`, `margin`, `header`,
+and `footer`. `classic` is bundled and matches the original visual theme. The
+CSS contract is the `carve-css` class vocabulary. The project's CSS and CLI
+styles override theme CSS. For footer text, the order is
+`CARVE_PDF_FOOTER` > theme default > document `footer` > language default.
+An empty footer disables page numbers. For geometry, checked document values
+override theme defaults, while project or CLI CSS has the last word.
+
+Chrome 131 or newer prints the footer in the CSS `@page` bottom margin box.
+Custom CSS can replace it with another margin box, style page numbers, add a
+fixed header, or use `@page :first`, `:left`, and `:right`. Older Chrome uses
+the DevTools footer template. `{page}` and `{pages}` remain available in a
+footer value. A theme `header` is fixed text; running chapter headers are not
+supported by Chrome.
+
+Authors can add `.page-break`, `.keep-together`, `.landscape`, `.no-print`, or
+`.columns-2` to blocks with Carve attributes. They respectively start a page,
+keep a block on one page, use a named landscape page, omit a block from print,
+or set it in two columns. `.no-print` remains visible in the screen HTML.
+
+Document frontmatter cannot select a CSS file. The supported `pdf` keys are:
+
+| Key | CSS property | Accepted value |
+|-----|--------------|----------------|
+| `accent` | `--carve-accent` | 3 or 6 digit hex color |
+| `font` | `--carve-font-body` | One font family name, letters, digits, spaces, hyphens, up to 80 characters |
+| `font-size` | `--pdf-font-size` | 6 to 30 pt or px, at most two decimal places |
+| `line-height` | `--carve-line-height` | Number from 1 to 2.99, at most two decimal places |
+
+For example:
+
+```yaml
+---yaml
+pdf:
+  accent: "#0a5"
+  font: "Source Serif 4"
+  font-size: 10.5pt
+  line-height: 1.5
+---
+```
+
+Invalid values are ignored with a warning. The document's validated `paper`,
+`margin`, and `pageBreaks` keys remain available. There is no document CSS path
+or trust toggle.
 
 ## Pipeline
 
@@ -63,13 +131,13 @@ render.php / render.mjs   Carve -> faithful HTML fragment (static, raw HTML off)
    |
 meta.py                   frontmatter block (as the engine parsed it) -> JSON keys
    |
-wrap.py                   + frontmatter (title/author/date/kicker) + base.css + print.css
+wrap.py                   + frontmatter + selected theme + print.css + trusted CSS
    |
-print_cdp.py              HTML -> PDF via Chrome DevTools (page-number footer, printBackground)
+print_cdp.py              HTML -> PDF via Chrome DevTools (printBackground, local resource guard)
 ```
 
-Why Chrome DevTools and not `chrome --print-to-pdf`: the CLI flag can't set a custom
-footer (page numbers) and Blink ignores CSS `@bottom-center` counters. CDP gives both.
+Chrome DevTools also supplies PDF bookmarks, author metadata, and a fallback
+footer template for Chrome before 131.
 
 ## Backends
 
@@ -77,30 +145,21 @@ The Carve -> HTML step is pluggable. `CARVE_RENDERER` selects it (default `auto`
 
 | Backend | Script | Needs | Notes |
 |---------|--------|-------|-------|
-| `php` | `render.php` | PHP 8.2+ and a `MarkupCarve\Carve` autoloader | default when PHP is present |
-| `js`  | `render.mjs` | Node 18+ and the `markup-carve/carve` npm package | runs PHP-free |
+| `js`  | `render.mjs` | Node 20+ and the Carve 0.2 `@markup-carve/carve` package | default |
+| `php` | `render.php` | PHP 8.2+ and a Carve 0.2 `MarkupCarve\Carve` autoloader | same extension set |
 
-`auto` picks PHP when it can actually load a `MarkupCarve\Carve` autoloader, else
-Node, else it reports what to install. An interpreter on PATH is not enough: a machine
-with PHP but no carve-php would otherwise be sent to the PHP backend and fail there
-while a working Node engine sat unused. Setting `CARVE_RENDERER` explicitly skips the
-probe, so asking for a backend reports that backend's own error.
+`auto` picks Node when it can actually load the Carve 0.2 package, else PHP, else it
+reports what to install. An interpreter on PATH is not enough, and a Carve 0.1 engine
+does not count. Setting `CARVE_RENDERER` explicitly skips the probe, so asking for a
+backend reports that backend's own error.
 
-Both register the same extension set (the shopware-carve plugin's) in static mode.
-Output is **equivalent, not byte-identical**:
+Output is **equivalent, not byte-identical**; [rendering.md](rendering.md#extensions)
+lists what each backend renders. `--md` and `--txt` use the 0.2 Markdown and plain-text exports of
+the engine the backend runs.
 
-- Both emit admonitions as `<aside class="admonition ...">` with the title and label
-  slot from the engine core; `base.css` styles them by class.
-- Inline `[...]{.fn}` footnotes are **numbered endnotes** under PHP (via its
-  `InlineFootnotesExtension`) but plain inline `<span class="fn">` under JS (carve-js
-  has no such extension). Regular `[^1]` footnotes work identically in both.
-
-Both engines are published, so neither backend needs a checkout:
-
-```bash
-composer require markup-carve/carve-php
-npm install "@markup-carve/carve"
-```
+Carve 0.2 is not released yet. On the `next2` branch, CI builds both engines from the
+commits that `engine-pins.json` names. Locally, point the backends at a checkout of
+each engine's `next2`.
 
 Point the backend at its library:
 - `CARVE_PHP_AUTOLOAD` - a `vendor/autoload.php` providing `MarkupCarve\Carve`,
@@ -146,7 +205,12 @@ date: 2026-07-15
 kicker: "section · label"     # small caps header line (falls back to tags)
 tags: [a, b, c]
 lang: en
-footer: "Page {page} of {pages}"   # optional; overrides $CARVE_PDF_FOOTER ("" disables)
+footer: "Page {page} of {pages}"   # optional; host footer and theme take precedence
+pdf:
+  accent: "#0a5"
+  font: "Source Serif 4"
+  font-size: 10.5pt
+  line-height: 1.5
 paper: A4                           # A4 | Letter | "210mm 297mm" (PDF/HTML)
 margin: "20mm 18mm"                 # any CSS @page margin
 pageBreaks: h2                      # h2 (each ## a new page) | none | manual
@@ -159,8 +223,20 @@ work; `json` content is parsed as JSON, anything else as `key: value` lines with
 heading outline (bookmarks).
 
 **Page breaks.** `h2` (default) starts each top-level section on a fresh page; `none`
-lets content flow; `manual` breaks only at an explicit `::: pagebreak` block in the
-source. The `::: pagebreak` marker works in every mode.
+lets content flow; `manual` breaks only at an explicit page break in the source.
+Write an explicit break as a thematic break with the class `page-break`:
+
+```carve
+Text of page one.
+
+{.page-break}
+***
+
+Text of page two.
+```
+
+It starts a new page and draws no rule, in every mode. The older `::: pagebreak`
+and `::: page-break` blocks still work as aliases.
 
 **Code.** Named fences such as ` ```php ` and ` ```carve ` are highlighted with
 Pygments, labeled with their language, and can be marked as diffs. Supported
@@ -175,11 +251,11 @@ found are in [docs/rendering.md](../docs/rendering.md).
 
 | Var | Default | Meaning |
 |-----|---------|---------|
-| `CARVE_RENDERER` | `auto` | Backend: `php`, `js`, or `auto` |
+| `CARVE_RENDERER` | `auto` | Backend: `js`, `php`, or `auto` |
 | `CARVE_PHP_AUTOLOAD` | autodetect | Composer autoloader providing `MarkupCarve\Carve` (php) |
 | `CARVE_JS` | autodetect | carve-js dist dir or `dist/index.js`, e.g. under `node_modules` (js) |
-| `CARVE_SMART_LOCALE` | `en` | Smart-quotes locale (php backend) |
-| `CARVE_PDF_FOOTER` | Document language default | Footer template; `{page}`/`{pages}` placeholders. Frontmatter `footer:` overrides it; empty string disables the footer |
+| `CARVE_SMART_LOCALE` | `en` | Smart-quotes locale (js backend) |
+| `CARVE_PDF_FOOTER` | Theme, document, or language default | Host footer template with `{page}`/`{pages}` placeholders; empty string disables it |
 | `CARVE_KATEX` | autodetect | KaTeX `dist/` dir for math typesetting |
 | `CARVE_MERMAID` | autodetect | `mermaid.min.js` for diagram rendering |
 | `CARVE_CHART` | autodetect | `chart.umd.js` for chart rendering |
@@ -190,8 +266,9 @@ found are in [docs/rendering.md](../docs/rendering.md).
 
 The byline uses the primary subtag of `lang` for its author label and plain ISO date format. Supported languages are English, German, French, Spanish, Dutch, and Italian. Other languages use English labels. Dates in other formats stay as written.
 
-The footer template accepts `{page}` and `{pages}`. Precedence: frontmatter `footer:`
-> `CARVE_PDF_FOOTER` > the language default > English. Set either override to an empty string to drop the footer (and page numbers) entirely.
+The footer template accepts `{page}` and `{pages}`. The host's
+`CARVE_PDF_FOOTER` and selected theme default take precedence over document
+`footer`; an empty value removes page numbers.
 
 Code listings longer than 15 lines may split across pages. Shorter listings stay together.
 
@@ -204,6 +281,7 @@ PDF-specific layers in `themes/`:
   stylesheet package so standalone installs cover the current rendered vocabulary.
 - `base.css` - the existing carve-pdf visual theme and compatibility overrides.
 - `print.css` - paged-media layer: `@page`, section page-breaks, header/byline.
+- `classic/` - bundled named theme with the original visual styles.
 
 ## Install (symlink onto PATH)
 

@@ -11,12 +11,12 @@ of php/js is present and fails if neither is.
 ./tests/test.sh
 ```
 
-CI (`.github/workflows/ci.yml`) runs it twice: against the released engines from
-Packagist and npm, and against both engines built from their default branches. The
-released lane records the versions it resolved in the job summary and keeps the
-lockfiles as the `released-engine-locks` artifact, so a red run can be reproduced.
-A third job renders a sample of the Carve corpus on both backends and fails when the
-output drops words the corpus HTML carries:
+On `next2`, CI (`.github/workflows/ci.yml`) runs it against both Carve 0.2 engines,
+built from the commits `engine-pins.json` names. To move a pin, change the commit there.
+A PHP row that carve-php 0.2 cannot pass yet is a named skip that points at its issue.
+The corpus job, which renders a sample of the Carve corpus on both backends and fails when
+the output drops words the corpus HTML carries, is off on `next2` until it reads the
+0.2 examples (markup-carve/carve-pdf#65):
 
 ```bash
 python3 tests/corpus-content.py ../carve/tests/corpus --sample 300
