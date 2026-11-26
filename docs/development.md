@@ -11,11 +11,11 @@ of php/js is present and fails if neither is.
 ./tests/test.sh
 ```
 
-On `next2`, CI (`.github/workflows/ci.yml`) runs it against both Carve 0.2 engines,
+CI (`.github/workflows/ci.yml`) runs it against both Carve 0.2 engines,
 built from the commits `engine-pins.json` names. To move a pin, change the commit there.
 A PHP row that carve-php 0.2 cannot pass yet is a named skip that points at its issue.
 The corpus job, which renders a sample of the Carve corpus on both backends and fails when
-the output drops words the corpus HTML carries, is off on `next2` until it reads the
+the output drops words the corpus HTML carries, is off until it reads the
 0.2 examples (markup-carve/carve-pdf#65):
 
 ```bash

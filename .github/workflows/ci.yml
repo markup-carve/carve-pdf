@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [main, next2]
+    branches: [main]
   pull_request:
 
 # A new push to a PR supersedes the run still going for it. Pushes to main each
@@ -18,7 +18,7 @@ permissions:
 # Each job declares timeout-minutes so a hung step fails fast
 # instead of inheriting the 360-minute GitHub default.
 jobs:
-  # next2 is the Carve 0.2 port: both engines are built from the commits engine-pins.json names.
+  # main is the Carve 0.2 port: both engines are built from the commits engine-pins.json names.
   engines-next2:
     name: engines from next2
     runs-on: ubuntu-latest
@@ -27,10 +27,10 @@ jobs:
       - name: Checkout carve-pdf
         uses: actions/checkout@v7
 
-      - name: Set up the pinned next2 engines and gate dependencies
+      - name: Set up the pinned 0.2 engines and gate dependencies
         uses: ./.github/actions/setup
         with:
-          engines: next2
+          engines: pinned
 
       - name: Run tests
         run: ./tests/test.sh
@@ -56,10 +56,10 @@ jobs:
       - name: Checkout carve-pdf
         uses: actions/checkout@v7
 
-      - name: Set up the pinned next2 engines
+      - name: Set up the pinned 0.2 engines
         uses: ./.github/actions/setup
         with:
-          engines: next2
+          engines: pinned
           browser-gates: 'false'
 
       - name: Conformance examples keep their text
