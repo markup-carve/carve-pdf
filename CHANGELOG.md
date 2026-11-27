@@ -6,12 +6,28 @@ The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-27
+
+Follows the Carve 0.2 engines (carve-js and carve-php 0.2).
+
 ### Breaking
 
-- Ported to Carve 0.2 on the `next2` branch. Both backends need a Carve 0.2 engine (carve-js and carve-php `next2`); a 0.1 engine no longer resolves. Sources go through the 0.2 upgrade tool first.
-- `auto` prefers the JS backend. carve-php 0.2 renders fewer extensions and has no Markdown or plain-text writer yet, so `--md` and `--txt` with `CARVE_RENDERER=php` stop with "writer not available yet".
-- Autolink and inline footnotes as endnotes are gone with the 0.1 extensions. External links, `CARVE_SMART_LOCALE` smart quotes and the `::: toc` fill work on the JS backend only.
-- Include warnings carry the 0.2 cause codes (`include-not-found`, `include-outside-root`, `include-cycle`).
+- Ported to Carve 0.2. Both backends need a Carve 0.2 engine; a 0.1 engine no longer resolves. Run 0.1 sources through the 0.2 upgrade tool first (#66).
+- `auto` prefers the JS backend when both engines resolve (#66).
+- Autolink and inline footnotes as endnotes are gone with the 0.1 extensions (#66).
+- Include warnings carry the 0.2 cause codes (`include-not-found`, `include-outside-root`, `include-cycle`) (#66).
+
+### Fixes
+
+- An export that produces no PDF now fails instead of exiting 0, an output path that is a directory is refused, and a failed `--watch` build stops the watch (#68, #70).
+- A `{.page-break}` thematic break breaks the page without drawing a rule; `::: pagebreak` and `::: page-break` stay as aliases (#75).
+
+### Improvements
+
+- `--css FILE` (repeatable), a `carve-pdf.css` beside the input and `--theme NAME|DIR` add trusted styling to PDF and `--html` output (#63, #64).
+- Carve code fences are highlighted with the Carve 0.2 Pygments lexer (#72).
+
+**Full Changelog**: https://github.com/markup-carve/carve-pdf/compare/0.1.6...0.2.0
 
 ## [0.1.6] - 2026-11-12
 
