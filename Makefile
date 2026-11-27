@@ -23,11 +23,11 @@ check: ## Verify dependencies (fatal only if no renderer backend resolves an eng
 		echo "  MISSING renderer:     no Carve engine resolves - nothing can be rendered"; \
 		if command -v php >/dev/null 2>&1; then \
 			echo "                        php is on PATH but no autoloader provides MarkupCarve\\Carve"; \
-			echo "                        composer require markup-carve/carve-php"; \
+			echo "                        composer require markup-carve/carve-php:^0.2"; \
 		fi; \
 		if command -v node >/dev/null 2>&1; then \
 			echo "                        node is on PATH but @markup-carve/carve was not found"; \
-			echo "                        npm install @markup-carve/carve"; \
+			echo "                        npm install @markup-carve/carve@^0.2"; \
 		fi; \
 		[ $$php_ok -eq 1 ] || [ $$node_ok -eq 1 ] || command -v php >/dev/null 2>&1 || command -v node >/dev/null 2>&1 || \
 			echo "                        neither php nor node is on PATH"; \

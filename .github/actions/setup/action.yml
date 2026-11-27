@@ -36,7 +36,7 @@ runs:
       run: |
         mkdir -p _deps/php
         composer require --working-dir=_deps/php \
-          markup-carve/carve-php --no-interaction --no-progress
+          "markup-carve/carve-php:^0.2" --no-interaction --no-progress
         echo "CARVE_PHP_AUTOLOAD=$GITHUB_WORKSPACE/_deps/php/vendor/autoload.php" >> "$GITHUB_ENV"
 
     - name: Set up Node
@@ -60,7 +60,7 @@ runs:
         mkdir -p _deps/js
         cd _deps/js
         npm init -y > /dev/null
-        npm install "@markup-carve/carve" --no-audit --no-fund
+        npm install "@markup-carve/carve@^0.2" --no-audit --no-fund
         echo "CARVE_JS=$GITHUB_WORKSPACE/_deps/js/node_modules/@markup-carve/carve/dist/index.js" >> "$GITHUB_ENV"
 
     # The released lane resolves the newest packages on every run; that is its

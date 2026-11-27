@@ -42,7 +42,7 @@ set -euo pipefail
 # `make install` puts on PATH, and the repo has no manifest to hold it instead.
 # tests/test.sh asserts this against the newest released CHANGELOG heading, so
 # a tag cut from the changelog cannot disagree with what --version prints.
-CRV2PDF_VERSION="0.1.6"
+CRV2PDF_VERSION="0.2.0"
 
 # Resolve through symlinks so a `~/.local/bin/crv2pdf` symlink still finds lib/ + themes/.
 SELF="${BASH_SOURCE[0]}"
@@ -175,8 +175,8 @@ if [ "$RENDERER" = "auto" ]; then
         echo "  node: not on PATH"
       fi
       echo "Install one engine here, or anywhere the matching variable can point:"
-      echo "  composer require markup-carve/carve-php   # CARVE_PHP_AUTOLOAD=.../vendor/autoload.php"
-      echo "  npm install @markup-carve/carve           # CARVE_JS=.../dist/index.js"
+      echo "  composer require markup-carve/carve-php:^0.2   # CARVE_PHP_AUTOLOAD=.../vendor/autoload.php"
+      echo "  npm install @markup-carve/carve@^0.2           # CARVE_JS=.../dist/index.js"
     } >&2
     exit 1
   fi
